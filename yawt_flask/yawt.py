@@ -128,13 +128,12 @@ def _category(category, flav):
     flavour = _flav(flav)
     category_article = category + '/index'
     if store.article_exists(category_article):
+        article = store.fetch_article_by_fullname(category_article)
         # index file exists
         return render_template("article." + flavour,
-                               category_article,
+                               article = article,
                                category = category,
-                               date = date,
                                permalink = False,
-                               slug = slug,
                                flavour = flavour)
     else:
         # no index file.  Render an article list template with
