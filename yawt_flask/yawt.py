@@ -13,57 +13,57 @@ app = Flask(__name__)
 # I believe this is the only semi-ambiguous URL.  Really, it means article,
 # but it can also mean category if there is no such article.
 @app.route('/<path:category>/<slug>')
-def post(category,slug):
-    return _article(category,slug,None)
+def post(category, slug):
+    return PageDispatcher(ArticleStore.get_store(), None).article(category, slug )
 
 @app.route('/<path:category>/<slug>.<flav>')
-def post_flav(category,slug,flav):
-    return _article(category,slug,flav)
+def post_flav(category, slug, flav):
+    return PageDispatcher(ArticleStore.get_store(), flav).article(category, slug )
 
 # Permalinks
 @app.route('/<int:year>/<int:month>/<int:day>/<slug>')
-def permalink(year,month,day,slug):
-    return _permalink(year,month,day,slug,None)
+def permalink(year, month, day, slug):
+    return PageDispatcher(ArticleStore.get_store(), None).permalink(year, month, day, slug )
 
 @app.route('/<int:year>/<int:month>/<int:day>/<slug>.<flav>')
 def permalink_flav(year, month, day, slug, flav):
-    return _permalink(year, month, day, slug, flav)
+    return PageDispatcher(ArticleStore.get_store(), flav).permalink(year, month, day, slug )
 
 # Date URLs
 @app.route('/<int:year>/')
 @app.route('/<int:year>/<int:month>/')
 @app.route('/<int:year>/<int:month>/<int:day>/')
-def archive(year,month=None,day=None):
-    return _archive(year,month,day,None)
+def archive(year, month=None, day=None):
+    return PageDispatcher(ArticleStore.get_store(), None).archive(year, month, day)
 
 @app.route('/<int:year>/index')
 @app.route('/<int:year>/<int:month>/index')
 @app.route('/<int:year>/<int:month>/<int:day>/index')
-def archive_index(year,month=None,day=None):
-    return _archive(year,month,day,None)
+def archive_index(year, month=None, day=None):
+    return PageDispatcher(ArticleStore.get_store(), None).archive(year, month, day)
 
 @app.route('/<int:year>/index.<flav>')
 @app.route('/<int:year>/<int:month>/index.<flav>')
 @app.route('/<int:year>/<int:month>/<int:day>/index.<flav>')
-def archive_index_flav(year,month=None,day=None,flav=None):
-    return _archive(year,month,day,flav)
+def archive_index_flav(year, month=None, day=None, flav=None):
+    return PageDispatcher(ArticleStore.get_store(), flav).archive(year, month, day)
 
 # Category URLs
 @app.route('/')
 def home():
-    return _category('',None)
+    return PageDispatcher(ArticleStore.get_store(), None).category('')
 
 @app.route('/<path:category>/')
 def category_canonical(category):
-    return _category(category,None)
+    return PageDispatcher(ArticleStore.get_store(), None).category(category)
     
 @app.route('/<path:category>/index')
 def category_index(category):
-    return _category(category,None)
+    return PageDispatcher(ArticleStore.get_store(), None).category(category)
     
 @app.route('/<path:category>/index.<flav>')
 def category_index_flav(category,flav):
-    return _category(category,flav)
+    return PageDispatcher(ArticleStore.get_store(), None).category(category)
 
 # filter for date and time formatting
 @app.template_filter('dateformat')
@@ -75,102 +75,80 @@ class Date(object):
         self.year = year;
         self.month = month
         self.day = day
-        
-# supposed to render one article
-def _article(category, slug, flav):
-    store = FileSystemArticleStore(PathSystem(),
-                                   '/home/dcr/repos/desmondrivet/yawt_flask/entries',
-                                   'txt', 'md')
-    article = store.fetch_article_by_category_slug(category, slug)
-    if article is None:
-        # no article by that name, but there might be a category
-        fullname = category + '/' + slug
-        if store.category_exists(fullname):
-            # Normally flask handles this, but I don't think it can in this case
-            return redirect(url_for('category_canonical', category = fullname))
+
+class PageDispatcher(object):
+    def __init__(self, article_store, flavour):
+        self._store = article_store
+
+        self._flavour = flavour
+        if self._flavour is None:
+            self._flavour = 'html'
+
+    def article(self,  category, slug):
+        article = self._store.fetch_article_by_category_slug(category, slug)
+        if article is None:
+            # no article by that name, but there might be a category
+            fullname = category + '/' + slug
+            if store.category_exists(fullname):
+                # Normally flask handles this, but I don't think it can in this case
+                return redirect(url_for('category_canonical', category = fullname))
+            else:
+                return self._handleMissingResource()
         else:
-            return handleMissingResource()
-    else:
-        flavour = _flav(flav)
-        return render_template("article." + flavour,
-                               article = article,
-                               category = category,
-                               slug = slug,
-                               permalink = False,
-                               flavour = flavour)
+            return self._render_article(article.category, article, slug, False, None)
 
-# supposed to render one article
-def _permalink(year, month, day, slug, flav):
-    store = FileSystemArticleStore(PathSystem(),
-                                   '/home/dcr/repos/desmondrivet/yawt_flask/entries',
-                                   'txt', 'md')
-    article_infos = store.fetch_dated_articles(year, month, day, slug)
-    if len(article_infos) < 1:
-        return handleMissingResource()
-    else:
-        date = Date(year, month, day)
-        flavour = _flav(flav)
-        article = article_infos[0]
-        return render_template("article." + flavour,
-                               article = article,
-                               category = article.category,
-                               date = date,
-                               permalink = True,
-                               slug = slug,
-                               flavour = flavour)
-
-# Could render a category article, or if not then
-# defaults to a list of posts
-def _category(category, flav):
-    store = FileSystemArticleStore(PathSystem(),
-                                   '/home/dcr/repos/desmondrivet/yawt_flask/entries',
-                                   'txt', 'md')
-    flavour = _flav(flav)
-    category_article = category + '/index'
-    if store.article_exists(category_article):
-        article = store.fetch_article_by_fullname(category_article)
-        # index file exists
-        return render_template("article." + flavour,
-                               article = article,
-                               category = category,
-                               permalink = False,
-                               flavour = flavour)
-    else:
-        # no index file.  Render an article list template with
-        # all the articles in the category sent to the template
-        article_infos = store.fetch_articles_by_category(category)
+    def permalink(self, year, month, day, slug):
+        article_infos = self._store.fetch_dated_articles(year, month, day, slug)
         if len(article_infos) < 1:
-            return handleMissingResource()
+            return self._handleMissingResource()
         else:
-            return render_template("article_list." + flavour,
-                                   articles = article_infos,
-                                   category = category,
-                                   flavour = flavour)
-        
-# supposed to render several articles
-def _archive(year,month,day,flav):
-    store = FileSystemArticleStore(PathSystem(),
-                                   '/home/dcr/repos/desmondrivet/yawt_flask/entries',
-                                   'txt', 'md')
-    article_infos = store.fetch_dated_articles(year, month, day)
-    if len(article_infos) < 1:
-        return handleMissingResource()
-    else:
-        date = Date(year, month, day)
-        flavour = _flav(flav)
-        return render_template("article_list." + flavour,
-                               articles = article_infos,
+            date = Date(year, month, day)
+            article = article_infos[0]
+            return self._render_article(article.category, article, slug, True, date)
+
+    # Could render a category article, or if not then
+    # defaults to a list of posts
+    def category(self, category):
+        category_article = category + '/index'
+        if self._store.article_exists(category_article):
+            article = self._store.fetch_article_by_fullname(category_article)
+            # index file exists
+            return self._render_article(category, article, None, False, None)
+        else:
+            # no index file.  Render an article list template with
+            # all the articles in the category sent to the template
+            article_infos =  self._store.fetch_articles_by_category(category)
+            if len(article_infos) < 1:
+                return self._handleMissingResource()
+            else:
+                return self._render_collection(article_infos, category, None)
+
+    def archive(year, month, day):
+        article_infos =  self._store.fetch_dated_articles(year, month, day)
+        if len(article_infos) < 1:
+            return self._handleMissingResource()
+        else:
+            date = Date(year, month, day)
+            return self._render_collection(article_infos, None, date)
+                                   
+    def _render_collection(self, articles, category, date):
+        return render_template("article_list." + self._flavour,
+                               articles = articles,
+                               category = category,
                                date = date,
-                               flavour = flavour)
+                               flavour = self._flavour)
 
-def handleMissingResource():
-    return render_template("404.html")
-
-def _flav(flav):
-    if flav is None:
-        return 'html'
-    else:
-        return flav
+    def _render_article(self, category, article, slug, permalink, date):
+        return render_template("article." + self._flavour,
+                               article = article,
+                               category = category,
+                               permalink = permalink,
+                               slug = slug,
+                               date = date,
+                               flavour = self._flavour)
+    
+    def _handleMissingResource(self):
+        return render_template("404.html")
 
 class PathSystem:
     """simplifies unit testing"""
@@ -195,7 +173,7 @@ class PathSystem:
     def _open(self, *args):
         return open(*args)
 
-class ArticleInfo(object):
+class Article(object):
     """
     This class hold basic information about an article without actually
     reading its contents (unless you ask).
@@ -223,7 +201,7 @@ class ArticleInfo(object):
         self._ctime_tm = time.localtime(self.ctime)
         
     @cached_property
-    def article(self):
+    def _article_content(self):
         return self.loader.load_article(self)
     
     @cached_property
@@ -263,30 +241,43 @@ class ArticleInfo(object):
                (day is None or day == self.ctime_tm.tm_mday) and \
                (slug is None or slug == current_slug)
 
+    @property
+    def title(self):
+        return self._article_content.title
+
+    @property
+    def content(self):
+        return self._article_content.content()
+
     def _get_metadata(self, key):
         if self.metadata is not None:
             return self.metadata.get(key, None)
         else:
             return None
     
-class Article(object):
-    def __init__(self, info, title, raw_content):
-        self.info = info
+class ArticleContent(object):
+    def __init__(self, title, raw_content):
         self.title = title
         self._raw_content = raw_content
 
-    @cached_property
     def content(self):
         md = markdown.Markdown();
         return Markup(md.convert(self._raw_content))
 
-class FileSystemArticleStore(object):
+class ArticleStore(object):
     def __init__(self, path_system, root_dir, ext, meta_ext):
         self.path_system = path_system
         self.root_dir = root_dir
         self.ext = ext
         self.meta_ext = meta_ext
-    
+
+    # factory method to fetch an article store
+    @staticmethod
+    def get_store():
+         return ArticleStore(PathSystem(),
+                             '/home/dcr/repos/desmondrivet/yawt_flask/entries',
+                             'txt', 'md')
+     
     def fetch_dated_articles(self, year, month=None, day=None, slug=None):
         """
         Finds article infos by create time and slug.  Only year is required.
@@ -331,7 +322,7 @@ class FileSystemArticleStore(object):
         f.readline()
         content = f.readlines()
         f.close()
-        return Article(info, title, "".join(content))
+        return ArticleContent(title, "".join(content))
     
     def article_exists(self, fullname):
         return self.path_system._os_path_isfile(self._name2file(fullname))
@@ -342,13 +333,13 @@ class FileSystemArticleStore(object):
     def _fetch_info_by_fullname(self, fullname):
         md = self._fetch_metadata(fullname)
         sr = self.path_system._os_stat(self._name2file(fullname))
-        return ArticleInfo(self, fullname, sr.st_mtime, sr.st_mtime, md)
+        return Article(self, fullname, sr.st_mtime, sr.st_mtime, md)
 
     def _fetch_info_by_filename(self, filename):
         sr = self.path_system._os_stat(filename)
         fullname = self._file2name(filename)
         md = self._fetch_metadata(fullname)
-        return ArticleInfo(self, fullname, sr.st_mtime, sr.st_mtime, md)
+        return Article(self, fullname, sr.st_mtime, sr.st_mtime, md)
 
     def _fetch_metadata(self, fullname):
         md = None
@@ -382,8 +373,12 @@ class FileSystemArticleStore(object):
         """
         for path, dirs, files in self.path_system._os_walk(root_dir):
             for filename in [self.path_system._os_path_abspath(os.path.join(path, filename))
-                             for filename in files if fnmatch.fnmatch(filename, "*."+self.ext)]:
+                             for filename in files if self._article_file(filename)]:
                 yield filename
-        
+                
+    def _article_file(self, slug):
+        indexfile = 'index.'+self.ext
+        return fnmatch.fnmatch(slug, "*."+self.ext) and slug != indexfile
+       
 if __name__ == '__main__':
     app.run(debug=True)
