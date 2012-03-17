@@ -9,6 +9,9 @@ from werkzeug.utils import cached_property
 
 app = Flask(__name__)
 
+f = open('config.yaml', 'r')
+config = yaml.load(f)
+            
 # Article URLs
 # I believe this is the only semi-ambiguous URL.  Really, it means article,
 # but it can also mean category if there is no such article.
@@ -265,8 +268,9 @@ class ArticleContent(object):
         return Markup(md.convert(self._raw_content))
 
 class ArticleStore(object):
-    def __init__(self, path_system, root_dir, ext, meta_ext):
+    def __init__(self, path_system, hg_article_store, root_dir, ext, meta_ext):
         self.path_system = path_system
+        self.hg_article_store = hg_article_store
         self.root_dir = root_dir
         self.ext = ext
         self.meta_ext = meta_ext
@@ -274,9 +278,12 @@ class ArticleStore(object):
     # factory method to fetch an article store
     @staticmethod
     def get_store():
-         return ArticleStore(PathSystem(),
-                             '/home/dcr/repos/desmondrivet/yawt_flask/entries',
-                             'txt', 'md')
+        repopath = config['repopath']
+        contentpath = config['contentpath']
+        path_to_articles = repopath + '/' + contentpath
+        return ArticleStore(PathSystem(),
+                            HgArticleStore(repopath, contentpath, 'txt'),
+                            path_to_articles, 'txt', 'md')
      
     def fetch_dated_articles(self, year, month=None, day=None, slug=None):
         """
@@ -332,15 +339,26 @@ class ArticleStore(object):
 
     def _fetch_info_by_fullname(self, fullname):
         md = self._fetch_metadata(fullname)
-        sr = self.path_system._os_stat(self._name2file(fullname))
-        return Article(self, fullname, sr.st_mtime, sr.st_mtime, md)
+        times = self._get_times(fullname)
+        return Article(self, fullname, times[0], times[1], md)
 
     def _fetch_info_by_filename(self, filename):
-        sr = self.path_system._os_stat(filename)
         fullname = self._file2name(filename)
         md = self._fetch_metadata(fullname)
-        return Article(self, fullname, sr.st_mtime, sr.st_mtime, md)
+        times = self._get_times(fullname) 
+        return Article(self, fullname, times[0], times[1], md)
 
+    def _get_times(self, fullname):
+        sr = self.path_system._os_stat(self._name2file(fullname))
+        mtime = sr.st_mtime
+        
+        hg = self.hg_article_store.fetch_hg_info(fullname)
+        if hg is None or hg[0] is None:
+            ctime = sr.st_mtime
+        else:
+            ctime = hg[0]
+        return (ctime, mtime)
+           
     def _fetch_metadata(self, fullname):
         md = None
         md_filename = self._name2metadata_file(fullname)
@@ -379,6 +397,48 @@ class ArticleStore(object):
     def _article_file(self, slug):
         indexfile = 'index.'+self.ext
         return fnmatch.fnmatch(slug, "*."+self.ext) and slug != indexfile
-       
+    
+from mercurial import hg, ui, cmdutil
+class HgArticleStore(object):
+    def __init__(self, repopath, contentpath, ext):
+        self.repopath = repopath
+        self.contentpath = contentpath
+        self.ext = ext
+        
+        self._revision_id = None # uncommitted stuff
+        self._repo_init = False
+        self._revision = None
+        self._repo = None
+        
+    def _init_repo(self):
+        if self._repo_init == False:
+            self.repopath = cmdutil.findrepo(self.repopath)
+            if self.repopath is not None:
+                print "repopath: " + self.repopath
+                self._repo = hg.repository(ui.ui(), self.repopath)
+                # whole working directory I guess, since revision_id is None?
+                self._revision = self._repo[self._revision_id]
+            self._repo_init = True
+
+    def fetch_hg_info(self, fullname):
+        self._init_repo()
+        if self._repo is None:
+            return None
+
+        repofile = self.contentpath + '/' + fullname + '.' + self.ext
+        fctx = self._revision[repofile]
+        filelog = fctx.filelog()
+        changesets = list(filelog)
+        
+        ctime = None
+        author = None
+        if len(changesets) > 0:
+            # at least one changeset
+            first_changeset = self._repo[filelog.linkrev(0)]
+            ctime = int(first_changeset.date()[0])
+            author = first_changeset.user()
+
+        return (ctime, author)
+    
 if __name__ == '__main__':
     app.run(debug=True)
