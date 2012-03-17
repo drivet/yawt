@@ -93,10 +93,10 @@ class Date(object):
         self.day = day
         
     def __str__(self):
-        dl = [year]
-        if month is not None: dl.append(month)
-        if day is not None: fl.append(day)
-        return '/'.join(self, dl)
+        dl = [str(self.year)]
+        if self.month is not None: dl.append(str(self.month))
+        if self.day is not None: dl.append(str(self.day))
+        return '/'.join(dl)
 
 class PageDispatcher(object):
     def __init__(self, article_store, flavour):
@@ -117,7 +117,7 @@ class PageDispatcher(object):
             else:
                 return self._handleMissingResource()
         else:
-            return self._render_article(article.category, article, slug, False, None)
+            return self._render_article(article, False)
 
     def permalink(self, year, month, day, slug):
         article_infos = self._store.fetch_dated_articles(year, month, day, slug)
@@ -126,7 +126,7 @@ class PageDispatcher(object):
         else:
             date = Date(year, month, day)
             article = article_infos[0]
-            return self._render_article(article.category, article, slug, True, date)
+            return self._render_article(article, True)
 
     # Could render a category article, or if not then
     # defaults to a list of posts
@@ -135,7 +135,7 @@ class PageDispatcher(object):
         if self._store.article_exists(category_article):
             article = self._store.fetch_article_by_fullname(category_article)
             # index file exists
-            return self._render_article(category, article, None, False, None)
+            return self._render_article(article, False)
         else:
             # no index file.  Render an article list template with
             # all the articles in the category sent to the template
@@ -145,7 +145,7 @@ class PageDispatcher(object):
             else:
                 return self._render_collection(articles, self._category_title(category))
 
-    def archive(year, month, day):
+    def archive(self, year, month, day):
         articles =  self._store.fetch_dated_articles(year, month, day)
         if len(articles) < 1:
             return self._handleMissingResource()
@@ -177,40 +177,14 @@ class PageDispatcher(object):
                                title = title,
                                flavour = self._flavour)
 
-    def _render_article(self, category, article, slug, permalink, date):
+    def _render_article(self, article, permalink):
         return render_template("article." + self._flavour,
                                article = article,
-                               category = category,
                                permalink = permalink,
-                               slug = slug,
-                               date = date,
                                flavour = self._flavour)
     
     def _handleMissingResource(self):
         return render_template("404.html")
-
-class PathSystem:
-    """simplifies unit testing"""
-    def _os_walk(self, *args):
-        return os.walk(*args)
-
-    def _os_path_isfile(self, *args):
-        return os.path.isfile(*args)
-
-    def _os_path_isdir(self, *args):
-        return os.path.isdir(*args)
-
-    def _os_path_exists(self, *args):
-        return os.path.exists(*args)
-    
-    def _os_stat(self, *args):
-        return os.stat(*args)
-
-    def _os_path_abspath(self, *args):
-        return os.path.abspath(*args)
-
-    def _open(self, *args):
-        return open(*args)
 
 class Article(object):
     """
@@ -246,8 +220,19 @@ class Article(object):
     @cached_property
     def category(self):
         pieces = self.fullname.rsplit('/', 2)
-        return pieces[0]
-    
+        if pieces > 1:
+            return pieces[0]
+        else:
+            return ''
+
+    @cached_property
+    def slug(self):
+        pieces = self.fullname.rsplit('/', 2)
+        if pieces > 1:
+            return pieces[1]
+        else:
+            return pieces[0]
+        
     @cached_property
     def ctime(self):
         ctime = self._get_metadata('ctime')
@@ -317,8 +302,7 @@ class ArticleContent(object):
         return Markup(md.convert(self._raw_content))
 
 class ArticleStore(object):
-    def __init__(self, path_system, hg_article_store, root_dir, ext, meta_ext):
-        self.path_system = path_system
+    def __init__(self, hg_article_store, root_dir, ext, meta_ext):
         self.hg_article_store = hg_article_store
         self.root_dir = root_dir
         self.ext = ext
@@ -330,8 +314,7 @@ class ArticleStore(object):
         repopath = config['repopath']
         contentpath = config['contentpath']
         path_to_articles = repopath + '/' + contentpath
-        return ArticleStore(PathSystem(),
-                            HgArticleStore(repopath, contentpath, 'txt'),
+        return ArticleStore(HgArticleStore(repopath, contentpath, 'txt'),
                             path_to_articles, 'txt', 'md')
      
     def fetch_dated_articles(self, year, month=None, day=None, slug=None):
@@ -378,13 +361,13 @@ class ArticleStore(object):
         with that name or the article if it does
         """
         filename = self._name2file(fullname)
-        if not self.path_system._os_path_exists(filename):
+        if not os.path.exists(filename):
             return None
         return self._fetch_info_by_fullname(fullname)
                                    
     def load_article(self, info):
         filename = self._name2file(info.fullname)
-        f = self.path_system._open(filename, 'r')
+        f = open(filename, 'r')
         title = f.readline().strip()
         f.readline()
         content = f.readlines()
@@ -392,10 +375,10 @@ class ArticleStore(object):
         return ArticleContent(title, "".join(content))
     
     def article_exists(self, fullname):
-        return self.path_system._os_path_isfile(self._name2file(fullname))
+        return os.path.isfile(self._name2file(fullname))
 
     def category_exists(self, fullname):
-        return self.path_system._os_path_isdir(self._name2dir(fullname))
+        return os.path.isdir(self._name2dir(fullname))
 
     def _fetch_info_by_fullname(self, fullname):
         md = self._fetch_metadata(fullname)
@@ -409,7 +392,7 @@ class ArticleStore(object):
         return Article(self, fullname, times[0], times[1], md)
 
     def _get_times(self, fullname):
-        sr = self.path_system._os_stat(self._name2file(fullname))
+        sr = os.stat(self._name2file(fullname))
         mtime = sr.st_mtime
         
         hg = self.hg_article_store.fetch_hg_info(fullname)
@@ -422,8 +405,8 @@ class ArticleStore(object):
     def _fetch_metadata(self, fullname):
         md = None
         md_filename = self._name2metadata_file(fullname)
-        if self.path_system._os_path_isfile(md_filename):
-            f = self.path_system._open(md_filename, 'r')
+        if os.path.isfile(md_filename):
+            f = open(md_filename, 'r')
             md = yaml.load(f)
             f.close()
         return md
@@ -449,8 +432,8 @@ class ArticleStore(object):
         """
         iterates over files in root_dir.  Yields full, absolute filenames
         """
-        for path, dirs, files in self.path_system._os_walk(root_dir):
-            for filename in [self.path_system._os_path_abspath(os.path.join(path, filename))
+        for path, dirs, files in os.walk(root_dir):
+            for filename in [os.path.abspath(os.path.join(path, filename))
                              for filename in files if self._article_file(filename)]:
                 yield filename
                 
@@ -499,6 +482,6 @@ class HgArticleStore(object):
             author = first_changeset.user()
 
         return (ctime, author)
-    
+
 if __name__ == '__main__':
     app.run(debug=True)
