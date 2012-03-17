@@ -68,6 +68,19 @@ def category_index(category):
 def category_index_flav(category,flav):
     return PageDispatcher(ArticleStore.get_store(), None).category(category)
 
+# Tag URLs
+@app.route('/tags/<tag>/')
+def tag_canonical(tag):
+    return PageDispatcher(ArticleStore.get_store(), None).tag(tag)
+
+@app.route('/tags/<tag>/index')
+def tag_index(tag):
+    return PageDispatcher(ArticleStore.get_store(), None).tag(tag)
+
+@app.route('/tags/<tag>/index.<flav>')
+def tag_index_flav(tag, flav):
+    return PageDispatcher(ArticleStore.get_store(), flav).tag(tag)
+
 # filter for date and time formatting
 @app.template_filter('dateformat')
 def date_format(value, format='%H:%M / %d-%m-%Y'):
@@ -78,6 +91,12 @@ class Date(object):
         self.year = year;
         self.month = month
         self.day = day
+        
+    def __str__(self):
+        dl = [year]
+        if month is not None: dl.append(month)
+        if day is not None: fl.append(day)
+        return '/'.join(self, dl)
 
 class PageDispatcher(object):
     def __init__(self, article_store, flavour):
@@ -92,7 +111,7 @@ class PageDispatcher(object):
         if article is None:
             # no article by that name, but there might be a category
             fullname = category + '/' + slug
-            if store.category_exists(fullname):
+            if self._store.category_exists(fullname):
                 # Normally flask handles this, but I don't think it can in this case
                 return redirect(url_for('category_canonical', category = fullname))
             else:
@@ -120,25 +139,42 @@ class PageDispatcher(object):
         else:
             # no index file.  Render an article list template with
             # all the articles in the category sent to the template
-            article_infos =  self._store.fetch_articles_by_category(category)
-            if len(article_infos) < 1:
+            articles =  self._store.fetch_articles_by_category(category)
+            if len(articles) < 1:
                 return self._handleMissingResource()
             else:
-                return self._render_collection(article_infos, category, None)
+                return self._render_collection(articles, self._category_title(category))
 
     def archive(year, month, day):
-        article_infos =  self._store.fetch_dated_articles(year, month, day)
-        if len(article_infos) < 1:
+        articles =  self._store.fetch_dated_articles(year, month, day)
+        if len(articles) < 1:
             return self._handleMissingResource()
         else:
             date = Date(year, month, day)
-            return self._render_collection(article_infos, None, date)
-                                   
-    def _render_collection(self, articles, category, date):
+            return self._render_collection(articles, self._archive_title(date))
+        
+    def tag(self, tag):
+        articles =  self._store.fetch_tagged_articles(tag)
+        if len(articles) < 1:
+            return self._handleMissingResource()
+        else:
+            return self._render_collection(articles, self._tag_title(tag))
+
+    def _archive_title(self, date):
+        return 'Archives for %s' % str(date)
+
+    def _tag_title(self, tag):
+        return 'Tag: %s' % tag
+
+    def _category_title(self, category):
+        if category is None or len(category) == 0:
+            return ''
+        return 'Category: %s' % category
+        
+    def _render_collection(self, articles, title):
         return render_template("article_list." + self._flavour,
                                articles = articles,
-                               category = category,
-                               date = date,
+                               title = title,
                                flavour = self._flavour)
 
     def _render_article(self, category, article, slug, permalink, date):
@@ -236,14 +272,27 @@ class Article(object):
     def mtime_tm(self):
         return time.localtime(self.mtime)
     
+    @cached_property
+    def tags(self):
+        tags = self._get_metadata('tags')
+        if tags is not None:
+            return ', '.join(tags)
+        else:
+            return ''
+    
     def date_match(self, year, month, day, slug):
         current_slug = os.path.split(self.fullname)[1]
-        print self.ctime_tm
         return self.ctime_tm.tm_year == year and \
                (month is None or month == self.ctime_tm.tm_mon) and \
                (day is None or day == self.ctime_tm.tm_mday) and \
                (slug is None or slug == current_slug)
 
+    def tag_match(self, tag):
+        tags = self._get_metadata('tags')
+        if tags is None:
+            return False
+        return tag in tags
+     
     @property
     def title(self):
         return self._article_content.title
@@ -307,7 +356,18 @@ class ArticleStore(object):
             info = self._fetch_info_by_filename(af)
             results.append(info)
         return sorted(results, key = lambda info: info.ctime, reverse=True)
-        
+    
+    def fetch_tagged_articles(self, tag):
+        """
+        Fetch articles by tag.  Returns a list of article infos.
+        """
+        results = []
+        for af in self._locate_article_files(os.path.join(self.root_dir)):
+            info = self._fetch_info_by_filename(af)
+            if info.tag_match(tag):
+                results.append(info)
+        return sorted(results, key = lambda info: info.ctime, reverse=True) 
+
     def fetch_article_by_category_slug(self, category, slug):
         fullname = os.path.join(category, slug)
         return self.fetch_article_by_fullname(fullname)
