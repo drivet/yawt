@@ -4,8 +4,12 @@ import time
 import fnmatch
 import markdown
 import yaml
-from flask import Flask, render_template, url_for, redirect, Markup
+from flask import Flask, render_template, url_for, redirect, Markup, request
 from werkzeug.utils import cached_property
+
+from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
+from whoosh.index import create_in, open_dir, exists_in
+from whoosh.qparser import QueryParser
 
 app = Flask(__name__)
 
@@ -80,6 +84,23 @@ def tag_index(tag):
 @app.route('/tags/<tag>/index.<flav>')
 def tag_index_flav(tag, flav):
     return PageDispatcher(ArticleStore.get_store(), flav).tag(tag)
+
+# Search URL
+@app.route('/search/', methods=['POST', 'GET'])
+def full_text_search():
+    return _full_text_search(request, None)
+
+@app.route('/search/index', methods=['POST', 'GET'])
+def full_text_search_index():
+    return _full_text_search(request,None)
+
+@app.route('/search/index.<flav>', methods=['POST', 'GET'])
+def full_text_search_index():
+    return _full_text_search(request, flav)
+
+def _full_text_search(request, flav):
+    search_text = request.args.get('searchtext','')
+    return PageDispatcher(ArticleStore.get_store(), flav).search(search_text)
 
 # filter for date and time formatting
 @app.template_filter('dateformat')
@@ -159,12 +180,22 @@ class PageDispatcher(object):
             return self._handleMissingResource()
         else:
             return self._render_collection(articles, self._tag_title(tag))
-
+        
+    def search(self, search_text):
+        articles = self._store.fetch_articles_by_text(search_text)
+        if len(articles) < 1:
+            return self._handleMissingResource()
+        else:
+            return self._render_collection(articles, self._search_title(search_text))
+    
     def _archive_title(self, date):
         return 'Archives for %s' % str(date)
 
     def _tag_title(self, tag):
         return 'Tag: %s' % tag
+
+    def _search_title(self, search_text):
+        return 'Search results for: %s' % search_text
 
     def _category_title(self, category):
         if category is None or len(category) == 0:
@@ -351,6 +382,32 @@ class ArticleStore(object):
                 results.append(info)
         return sorted(results, key = lambda info: info.ctime, reverse=True) 
 
+    def fetch_articles_by_text(self, searchtext):
+        """
+        Fetch articles by searchtext.  Returns a list of article infos.
+        """
+        ix = open_dir("whoosh_index", indexname = 'fulltextsearch')
+
+        search_results = None
+        searcher = None
+        try:
+            searcher = ix.searcher()
+            qp = QueryParser('content', schema = ix.schema)
+            q = qp.parse(unicode(searchtext))
+            search_results = searcher.search(q, limit=None)
+            
+            results = []
+            if search_results is not None:
+                print "SEARCH RESULTS: " + str(search_results)
+                for sr in search_results:
+                    article = self._fetch_info_by_fullname(sr['fullname'])
+                    results.append(article)
+        finally:
+            if searcher is not None:
+                searcher.close()
+
+        return results
+        
     def fetch_article_by_category_slug(self, category, slug):
         fullname = os.path.join(category, slug)
         return self.fetch_article_by_fullname(fullname)
@@ -457,7 +514,6 @@ class HgArticleStore(object):
         if self._repo_init == False:
             self.repopath = cmdutil.findrepo(self.repopath)
             if self.repopath is not None:
-                print "repopath: " + self.repopath
                 self._repo = hg.repository(ui.ui(), self.repopath)
                 # whole working directory I guess, since revision_id is None?
                 self._revision = self._repo[self._revision_id]
@@ -483,5 +539,47 @@ class HgArticleStore(object):
 
         return (ctime, author)
 
+class FullTextIndexer(object):
+    def __init__(self, store, index_root, index_name, content_root):
+        self._store = store
+        self._index_root = index_root
+        self._index_name = index_name
+        self._content_root = content_root
+        
+    def _init_index(self):
+        schema = Schema(fullname=ID(stored=True),
+                        title=TEXT(stored=True),
+                        content=TEXT)
+        
+        if not os.path.exists(self._index_root):
+            os.mkdir(self._index_root)
+
+        if not exists_in(self._index_root, indexname = self._index_name):
+            ix = create_in(self._index_root,
+                           schema = schema,
+                           indexname = self._index_name)
+        else:
+            ix = open_dir(self._index_root, indexname = self._index_name)
+        return ix
+
+    def index_all(self):
+        ix = self._init_index()
+        writer = ix.writer()
+        for af in self._store._locate_article_files(self._content_root):
+            article = self._store._fetch_info_by_filename(af)
+            writer.add_document(fullname = unicode(article.fullname),
+                                title = unicode(article.title),
+                                content = unicode(article.content))
+        writer.commit()
+                   
 if __name__ == '__main__':
-    app.run(debug=True)
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option("-i", "--index", action="store_true", dest="index", default=False,
+                      help="create/re-create index")
+    (options, args) = parser.parse_args()
+    if options.index is True:
+        fti = FullTextIndexer(ArticleStore.get_store(), "whoosh_index", "fulltextsearch", "entries" )
+        fti.index_all()
+    else:
+        app.run(debug=True)
