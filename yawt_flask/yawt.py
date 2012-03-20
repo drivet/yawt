@@ -390,22 +390,15 @@ class ArticleStore(object):
 
         search_results = None
         searcher = None
-        try:
-            searcher = ix.searcher()
+        results = []
+        with ix.searcher() as searcher:
             qp = QueryParser('content', schema = ix.schema)
             q = qp.parse(unicode(searchtext))
-            search_results = searcher.search(q, limit=None)
-            
-            results = []
+            search_results = searcher.search(q, limit=None)    
             if search_results is not None:
-                print "SEARCH RESULTS: " + str(search_results)
                 for sr in search_results:
                     article = self._fetch_info_by_fullname(sr['fullname'])
                     results.append(article)
-        finally:
-            if searcher is not None:
-                searcher.close()
-
         return results
         
     def fetch_article_by_category_slug(self, category, slug):
@@ -548,6 +541,7 @@ class FullTextIndexer(object):
         
     def _init_index(self):
         schema = Schema(fullname=ID(stored=True),
+                        mtime=STORED,
                         title=TEXT(stored=True),
                         content=TEXT)
         
@@ -562,24 +556,73 @@ class FullTextIndexer(object):
             ix = open_dir(self._index_root, indexname = self._index_name)
         return ix
 
-    def index_all(self):
+    def clean_index(self):
         ix = self._init_index()
         writer = ix.writer()
         for af in self._store._locate_article_files(self._content_root):
             article = self._store._fetch_info_by_filename(af)
+            mtime = os.path.getmtime(af)
             writer.add_document(fullname = unicode(article.fullname),
+                                mtime = mtime,
                                 title = unicode(article.title),
                                 content = unicode(article.content))
+        writer.commit()
+
+    def incremental_index(self):
+        ix = self._init_index()
+        searcher = ix.searcher()
+        writer = ix.writer()
+
+        # The set of all paths in the index
+        indexed_paths = set()
+        
+        # The set of all paths we need to re-index
+        to_index = set()
+        
+        # Loop over the stored fields in the index
+        for fields in searcher.all_stored_fields():
+             indexed_name = fields['fullname']
+             path = self._store._name2file(indexed_name)
+             indexed_paths.add(path)
+             
+             if not os.path.exists(path):
+                 # This file was deleted since it was indexed
+                 writer.delete_by_term('fullname', indexed_name)
+             else:
+                 # Check if this file was changed since it
+                 # was indexed
+                 indexed_time = fields['mtime']
+                 mtime = os.path.getmtime(path)
+                 if mtime > indexed_time:
+                     # The file has changed, delete it and add it to the list of
+                     # files to reindex
+                     writer.delete_by_term('fullname', indexed_name)
+                     to_index.add(path)
+        
+        for af in self._store._locate_article_files(self._content_root):
+            if af in to_index or af not in indexed_paths:
+                # This is either a file that's changed, or a new file
+                # that wasn't indexed before. So index it!
+                article = self._store._fetch_info_by_filename(af)
+                writer.add_document(fullname = unicode(article.fullname),
+                                    mtime = mtime,
+                                    title = unicode(article.title),
+                                    content = unicode(article.content))
         writer.commit()
                    
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
-    parser.add_option("-i", "--index", action="store_true", dest="index", default=False,
-                      help="create/re-create index")
+    parser.add_option("-c", "--clean-index", action="store_true", dest="clean_index", default=False,
+                      help="create/re-create index from scratch")
+    parser.add_option("-i", "--incremental-index", action="store_true", dest="inc_index", default=False,
+                      help="incrementally update index")
     (options, args) = parser.parse_args()
-    if options.index is True:
+    if options.clean_index is True:
         fti = FullTextIndexer(ArticleStore.get_store(), "whoosh_index", "fulltextsearch", "entries" )
-        fti.index_all()
+        fti.clean_index()
+    elif options.inc_index is True:
+        fti = FullTextIndexer(ArticleStore.get_store(), "whoosh_index", "fulltextsearch", "entries" )
+        fti.incremental_index()
     else:
         app.run(debug=True)
