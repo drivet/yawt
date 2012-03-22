@@ -204,15 +204,31 @@ class PageDispatcher(object):
         
     def _render_collection(self, articles, title):
         return render_template("article_list." + self._flavour,
+                               tag_counts = self._load_tag_counts(),
+                               archive_counts = self._load_archive_counts(),
                                articles = articles,
                                title = title,
                                flavour = self._flavour)
 
     def _render_article(self, article, permalink):
         return render_template("article." + self._flavour,
+                               tag_counts = self._load_tag_counts(),
+                               archive_counts = self._load_archive_counts(),
                                article = article,
                                permalink = permalink,
                                flavour = self._flavour)
+
+    def _load_tag_counts(self):
+        f = open('tags/tags.yaml', 'r')
+        tag_count = yaml.load(f)
+        f.close()
+        return tag_count
+
+    def _load_archive_counts(self):
+        f = open('archive_counts/archive_counts.yaml', 'r')
+        archive_counts = yaml.load(f)
+        f.close()
+        return archive_counts
     
     def _handleMissingResource(self):
         return render_template("404.html")
@@ -414,7 +430,16 @@ class ArticleStore(object):
         if not os.path.exists(filename):
             return None
         return self._fetch_info_by_fullname(fullname)
-                                   
+
+    def fetch_article_by_filename(self, filename):
+        """
+        Fetch single article info by fullname.  Returns None if no article exists
+        with that name or the article if it does
+        """
+        if not os.path.exists(filename):
+            return None
+        return self._fetch_info_by_filename(filename)
+    
     def load_article(self, info):
         filename = self._name2file(info.fullname)
         f = open(filename, 'r')
@@ -532,32 +557,75 @@ class HgArticleStore(object):
 
         return (ctime, author)
 
+class TagCounter(object):
+    def __init__(self, store, content_root):
+        self._store = store
+        self._content_root = content_root
+
+    def save_tag_counts(self):
+        tag_counts = {}
+        for af in self._store._locate_article_files(self._content_root):
+            article = store.fetch_article_by_filename(af)
+            tags = article._get_metadata('tags')
+            if tags is not None:
+                for tag in tags:
+                    if tag in tag_counts.keys():
+                        tag_counts[tag] = tag_counts[tag] + 1
+                    else:
+                        tag_counts[tag] = 1
+
+        if not os.path.exists('tags'):
+            os.mkdir('tags')
+        stream = file('tags/tags.yaml', 'w')
+        yaml.dump(tag_counts, stream)
+        stream.close()
+
+class ArchiveCounter(object):
+    def __init__(self, store, content_root):
+        self._store = store
+        self._content_root = content_root
+
+    def save_archive_counts(self):
+        archive_counts = {}
+        for af in self._store._locate_article_files(self._content_root):
+            article = store.fetch_article_by_filename(af)
+            ym = (article.ctime_tm.tm_year, article.ctime_tm.tm_mon)
+            if ym in archive_counts.keys():
+                archive_counts[ym] = archive_counts[ym] + 1
+            else:
+                archive_counts[ym] = 1
+
+        archive_counts_dump = []
+        for date, count in archive_counts.items():
+            archive_counts_dump.append([date[0], date[1], count])
+        archive_counts_dump.sort(key = lambda item: (item[0], item[1]),
+                                 reverse = True)
+         
+        if not os.path.exists('archive_counts'):
+            os.mkdir('archive_counts')
+        stream = file('archive_counts/archive_counts.yaml', 'w')
+        yaml.dump(archive_counts_dump, stream)
+        stream.close()
+    
 class FullTextIndexer(object):
     def __init__(self, store, index_root, index_name, content_root):
         self._store = store
         self._index_root = index_root
         self._index_name = index_name
         self._content_root = content_root
-        
-    def _init_index(self):
+
+    def clean_index(self):
+        if not os.path.exists(self._index_root):
+            os.mkdir(self._index_root)
+            
         schema = Schema(fullname=ID(stored=True),
                         mtime=STORED,
                         title=TEXT(stored=True),
                         content=TEXT)
-        
-        if not os.path.exists(self._index_root):
-            os.mkdir(self._index_root)
-
-        if not exists_in(self._index_root, indexname = self._index_name):
-            ix = create_in(self._index_root,
-                           schema = schema,
-                           indexname = self._index_name)
-        else:
-            ix = open_dir(self._index_root, indexname = self._index_name)
-        return ix
-
-    def clean_index(self):
-        ix = self._init_index()
+             
+        ix = create_in(self._index_root, schema = schema,
+                       indexname = self._index_name)
+    
         writer = ix.writer()
         for af in self._store._locate_article_files(self._content_root):
             article = self._store._fetch_info_by_filename(af)
@@ -569,7 +637,7 @@ class FullTextIndexer(object):
         writer.commit()
 
     def incremental_index(self):
-        ix = self._init_index()
+        ix = open_dir(self._index_root, indexname = self._index_name)
         searcher = ix.searcher()
         writer = ix.writer()
 
@@ -622,7 +690,16 @@ if __name__ == '__main__':
         fti = FullTextIndexer(ArticleStore.get_store(), "whoosh_index", "fulltextsearch", "entries" )
         fti.clean_index()
     elif options.inc_index is True:
-        fti = FullTextIndexer(ArticleStore.get_store(), "whoosh_index", "fulltextsearch", "entries" )
+        store = ArticleStore.get_store()
+        fti = FullTextIndexer(store, "whoosh_index", "fulltextsearch", "entries" )
         fti.incremental_index()
+
+        # XXX
+        tc = TagCounter(store, "entries")
+        tc.save_tag_counts()
+
+        ac = ArchiveCounter(store, "entries")
+        ac.save_archive_counts()
+        
     else:
         app.run(debug=True)
