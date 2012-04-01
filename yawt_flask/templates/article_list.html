@@ -1,0 +1,41 @@
+<html>
+    <head>
+        <title>{{title}}</title>
+    </head>
+    <body>  
+
+      <form action="/search/" method="GET">
+        <input type="text" name="searchtext"> 
+        <input type="submit" value="Send">
+      </form>
+
+      {% if archive_counts %}
+      <p>Archives:</p>
+      <ul>
+      {% for item in archive_counts: %}
+          <li><a href="/{{item[0]}}/{{item[1]}}">{{item[0]}}/{{item[1]}} ({{item[2]}})</a></li>
+      {% endfor %}
+      </ul>
+      {% endif %}
+
+      {% if tag_counts %}
+      <p>Tags:</p>
+      <ul>
+      {% for tag, count in tag_counts.items(): %}
+          <li><a href="/tags/{{tag}}">{{tag}} ({{count}})</a></li>
+      {% endfor %}
+      </ul>
+      {% endif %}
+
+	  <h1>{{title}}</h1>
+      {% for a in articles: %} 
+          <h1>{{ a.title }}</h1> 
+          <p>Posted on {{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{a.fullname}}</p>
+          <p>Last modified on {{a.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
+          {% if tags %} 
+              <p>Tags: {{tags}}</p>
+          {% endif %}
+          <p>{{ a.content }}</p>
+      {% endfor %}
+    </body>
+</html>
