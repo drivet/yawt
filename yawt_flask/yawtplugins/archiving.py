@@ -3,7 +3,7 @@ import os
 import yaml
 
 from yawt.view import YawtView
-from flask import g
+from flask import g, url_for
 
 archive_dir = 'archive_counts'
 archive_file = archive_dir + '/archive_counts.yaml'
@@ -96,6 +96,16 @@ class ArchiveCounter(object):
         stream.close()
  
 def init(app):
+    # filter for showing article permalinks
+    @app.template_filter('permalink')
+    def permalink(article, external=True):
+        year = article.ctime_tm.tm_year
+        month = article.ctime_tm.tm_mon
+        day = article.ctime_tm.tm_mday
+        slug = os.path.split(article.fullname)[1]
+        return url_for('permalink', _external=external,
+                       year=year, month=month, day=day, slug=slug)
+
     # Permalinks
     @app.route('/<int:year>/<int:month>/<int:day>/<slug>')
     def permalink(year, month, day, slug):

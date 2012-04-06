@@ -34,6 +34,6 @@
     {% if taglist  %} 
         <p>Tags: {{taglist}}</p>
     {% endif %}
-    <p>{{ article.content }}</p>
+    <p>{{ article|markdown_content }}</p>
     </body>
 </html>

@@ -12,13 +12,13 @@ manager.add_command('runserver', server)
 class Walk(Command):
     def handle(self, app):
         store = ArticleStore.get(app.yawtconfig, app.yawtplugins)
-        walkers = filter(lambda walker: walker,
-                         map(lambda plugin: yawt.util.has_method(plugin, 'walker') and plugin.walker(store),
+        walkers = filter(lambda w: w,
+                         map(lambda p: yawt.util.has_method(p, 'walker') and p.walker(store),
                              app.yawtplugins.values()))
-        map(lambda walker: walker.pre_walk(), walkers)
+        map(lambda w: w.pre_walk(), walkers)
         for fullname in store.walk_articles():
-            map(lambda walker: walker.visit_article(fullname), walkers)
-        map(lambda walker: walker.post_walk(), walkers)
+            map(lambda w: w.visit_article(fullname), walkers)
+        map(lambda w: w.post_walk(), walkers)
 
 manager.add_command('walk', Walk())
 

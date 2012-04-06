@@ -307,6 +307,14 @@ def create_app():
     @app.route('/')
     def home():
         return CategoryView(g.store).dispatch_request(None, '')
+
+    @app.route('/index')
+    def home_index():
+        return CategoryView(g.store).dispatch_request(None, '')
+
+    @app.route('/index.<flav>')
+    def home_index_flav(flav):
+        return CategoryView(g.store).dispatch_request(flav, '')
     
     @app.route('/<path:category>/')
     def category_canonical(category):
@@ -324,6 +332,13 @@ def create_app():
     @app.template_filter('dateformat')
     def date_format(value, format='%H:%M / %d-%m-%Y'):
         return time.strftime(format, value)
+
+    # filter for date and time formatting
+    @app.template_filter('excerpt')
+    def excerpt(article, word_count=50):
+        words = article.content.split()[0:word_count]
+        words.append("[...]")
+        return " ".join(words)
 
     @app.before_request
     def before_request():
