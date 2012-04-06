@@ -1,8 +1,8 @@
-import util
+import yawt.util
 import os
 import yaml
 
-from view import YawtView
+from yawt.view import YawtView
 from flask import g
 
 archive_dir = 'archive_counts'
@@ -18,7 +18,7 @@ class PermalinkView(YawtView):
         if len(articles) < 1:
             return handle_missing_resource()
         else:
-            date = util.Date(year, month, day)
+            date = yawt.util.Date(year, month, day)
             article = articles[0]
             if flavour is None:
                 flavour = 'html'
@@ -34,7 +34,7 @@ class ArchiveView(YawtView):
         if len(articles) < 1:
             return handle_missing_resource()
         else:
-            date = util.Date(year, month, day)
+            date = yawt.util.Date(year, month, day)
             if flavour is None:
                 flavour = 'html'
             return self.render_collection(flavour, articles, self._archive_title(date))
@@ -131,4 +131,4 @@ def walker(store):
     return ArchiveCounter(store)
 
 def _load_archive_counts():
-    return util.load_yaml(archive_file)
+    return yawt.util.load_yaml(archive_file)

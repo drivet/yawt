@@ -3,60 +3,13 @@ import os
 import time
 import fnmatch
 import yaml
-from flask import Flask, render_template, url_for, redirect, Markup, request, g
+import sys
+from flask import Flask, url_for, redirect, g
 from flask.views import View
 from werkzeug.utils import cached_property
 
-from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
-from whoosh.index import create_in, open_dir, exists_in
-from whoosh.qparser import QueryParser
-
-import util
-from view import YawtView
-
-app = Flask(__name__)
-
-f = open('config.yaml', 'r')
-config = yaml.load(f)
-
-plugin_names = ['tagging', 'archiving', 'search', 'hgctime', 'markdown_c']
-plugins = {}
-for name in plugin_names:
-    plugins[name] = __import__(name)
-    plugins[name].init(app)
-
-# Article URLs
-# I believe this is the only semi-ambiguous URL.  Really, it means article,
-# but it can also mean category if there is no such article.
-@app.route('/<path:category>/<slug>')
-def post(category, slug):
-    return ArticleView(g.store).dispatch_request(None, category, slug)
-   
-@app.route('/<path:category>/<slug>.<flav>')
-def post_flav(category, slug, flav):
-    return ArticleView(g.store).dispatch_request(flav, category, slug)
-
-# Category URLs
-@app.route('/')
-def home():
-    return CategoryView(g.store).dispatch_request(None, '')
-    
-@app.route('/<path:category>/')
-def category_canonical(category):
-    return CategoryView(g.store).dispatch_request(None, category)
-   
-@app.route('/<path:category>/index')
-def category_index(category):
-    return CategoryView(g.store).dispatch_request(None, category)
-    
-@app.route('/<path:category>/index.<flav>')
-def category_index_flav(category,flav):
-    return CategoryView(g.store).dispatch_request(flav, category)
- 
-# filter for date and time formatting
-@app.template_filter('dateformat')
-def date_format(value, format='%H:%M / %d-%m-%Y'):
-    return time.strftime(format, value)
+import yawt.util
+from  yawt.view import YawtView
 
 class ArticleView(YawtView):
     def __init__(self, store):
@@ -209,15 +162,17 @@ class ArticleContent(object):
         self.content = content
     
 class ArticleStore(object):
-    def __init__(self, root_dir, ext, meta_ext):
+    def __init__(self, config, plugins, root_dir, ext, meta_ext):
         self.root_dir = root_dir
         self.ext = ext
         self.meta_ext = meta_ext
+        self.config = config
+        self.plugins = plugins
 
     # factory method to fetch an article store
     @staticmethod
-    def get():
-        return ArticleStore(config['path_to_articles'], config['ext'], config['meta_ext'])
+    def get(config, plugins):
+        return ArticleStore(config, plugins, config['path_to_articles'], config['ext'], config['meta_ext'])
      
     def fetch_articles_by_category(self, category):
         """
@@ -251,9 +206,9 @@ class ArticleStore(object):
         times = self._get_times(fullname)
         article = Article(self, fullname, times[0], times[1], md)
 
-        for p in plugins.values():
+        for p in self.plugins.values():
             if util.has_method(p, 'on_article_fetch'):
-                article = p.on_article_fetch(config, article)
+                article = p.on_article_fetch(self.config, article)
         return article
 
     def _get_times(self, fullname):
@@ -316,26 +271,64 @@ class ArticleStore(object):
         indexfile = 'index.'+self.ext
         return fnmatch.fnmatch(slug, "*."+self.ext) and slug != indexfile
 
-@app.before_request
-def before_request():
-    g.plugins = plugins
-    g.store = ArticleStore.get()
+def create_app():
+    app = Flask(__name__)
 
-if __name__ == '__main__':
-    from optparse import OptionParser
-    parser = OptionParser()
-    parser.add_option("-w", "--walk", action="store_true", dest="walk", default=False,
-                      help="perform walk on article tree")
-    (options, args) = parser.parse_args()
+    f = open('config.yaml', 'r')
+    app.yawtconfig = yaml.load(f)
+    f.close
+    
+    plugin_names = {'tagging': 'yawtplugins.tagging',
+                    'archiving': 'yawtplugins.archiving',
+                    'search': 'yawtplugins.search',
+                    'hgctime': 'yawtplugins.hgctime',
+                    'markdown_c': 'yawtplugins.markdown_c'}
+    plugins = {}
+    for name in plugin_names:
+        modname = plugin_names[name]
+        mod =  __import__(modname)
+        plugins[name] = sys.modules[modname]
+        plugins[name].init(app)
 
-    if options.walk is True:
-        store = ArticleStore.get()
-        walkers = filter(lambda walker: walker is not None,
-                         map(lambda plugin: util.has_method(plugin, 'walker') and plugin.walker(store),
-                             plugins.values()))
-        map(lambda walker: walker.pre_walk(), walkers)
-        for fullname in store.walk_articles():
-            map(lambda walker: walker.visit_article(fullname), walkers)
-        map(lambda walker: walker.post_walk(), walkers)
-    else:
-        app.run(debug=True)
+    app.yawtplugins = plugins
+
+    # Article URLs
+    # I believe this is the only semi-ambiguous URL.  Really, it means article,
+    # but it can also mean category if there is no such article.
+    @app.route('/<path:category>/<slug>')
+    def post(category, slug):
+        return ArticleView(g.store).dispatch_request(None, category, slug)
+   
+    @app.route('/<path:category>/<slug>.<flav>')
+    def post_flav(category, slug, flav):
+        return ArticleView(g.store).dispatch_request(flav, category, slug)
+    
+    # Category URLs
+    @app.route('/')
+    def home():
+        return CategoryView(g.store).dispatch_request(None, '')
+    
+    @app.route('/<path:category>/')
+    def category_canonical(category):
+        return CategoryView(g.store).dispatch_request(None, category)
+   
+    @app.route('/<path:category>/index')
+    def category_index(category):
+        return CategoryView(g.store).dispatch_request(None, category)
+    
+    @app.route('/<path:category>/index.<flav>')
+    def category_index_flav(category,flav):
+        return CategoryView(g.store).dispatch_request(flav, category)
+ 
+    # filter for date and time formatting
+    @app.template_filter('dateformat')
+    def date_format(value, format='%H:%M / %d-%m-%Y'):
+        return time.strftime(format, value)
+
+    @app.before_request
+    def before_request():
+        g.yawtconfig = app.yawtconfig
+        g.plugins = app.yawtplugins
+        g.store = ArticleStore.get(app.yawtconfig, app.yawtplugins)
+
+    return app

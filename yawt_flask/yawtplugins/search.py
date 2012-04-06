@@ -1,5 +1,5 @@
 import os
-from view import YawtView
+from yawt.view import YawtView
 from flask import g, request
 
 from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT

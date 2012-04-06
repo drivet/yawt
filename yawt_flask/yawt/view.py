@@ -1,6 +1,6 @@
 from flask import render_template, g
 from flask.views import View
-import util
+import yawt.util
 
 class YawtView(View):
     def __init__(self):
@@ -11,7 +11,7 @@ class YawtView(View):
     
     def collect_vars(self, template_vars):
         for p in self._plugins.keys():
-            if util.has_method(self._plugins[p], 'template_vars'):
+            if yawt.util.has_method(self._plugins[p], 'template_vars'):
                 template_vars[p] = self._plugins[p].template_vars()
         return template_vars
 
@@ -21,6 +21,7 @@ class YawtView(View):
         template_vars['title'] = title
         template_vars['flavour'] = flavour
         template_vars = self.collect_vars(template_vars)
+        print template_vars
         return render_template("article_list." + flavour, **template_vars)
 
     def render_article(self, flavour, article):

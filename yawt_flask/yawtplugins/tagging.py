@@ -1,8 +1,8 @@
-import util
+import yawt.util
 import os
 import yaml
 
-from view import YawtView
+from yawt.view import YawtView
 from flask import g
 
 tag_dir = 'tags'
@@ -96,4 +96,4 @@ def walker(store):
     return TagCounter(store)
 
 def _load_tag_counts():
-    return util.load_yaml(tag_file)
+    return yawt.util.load_yaml(tag_file)

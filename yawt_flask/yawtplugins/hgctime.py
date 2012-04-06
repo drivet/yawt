@@ -49,6 +49,10 @@ class HgCtimeStore(object):
        return ctime
 
 class HgCtimeArticle(object):
+    """
+    Article class decorator which override _ctime to be taken from
+    the mercurial repository.
+    """
     def __init__(self, article, hgstore):
         self._article = article
         self._hgstore = hgstore
@@ -62,9 +66,10 @@ class HgCtimeArticle(object):
         return getattr(self._article, attrname)
     
 def init(app):
-    pass
+    global hgstore
+    config = app.yawtconfig
+    hgstore = HgCtimeStore(config['repopath'], config['contentpath'], config['ext'])
 
 def on_article_fetch(config, article):
-    if not hasattr(g, 'hgstore'):
-        g.hgstore = HgCtimeStore(config['repopath'], config['contentpath'], config['ext'])
-    return HgCtimeArticle(article, g.hgstore)
+    global hgstore
+    return HgCtimeArticle(article, hgstore)
