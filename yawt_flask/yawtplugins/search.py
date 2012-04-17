@@ -141,7 +141,7 @@ def init(app):
         return _full_text_search(request, flav)
 
     def _full_text_search(request, flav):
-        search_text = request.args.get('searchtext','')
+        search_text = request.args.get('searchtext', '')
         return SearchView(g.store).dispatch_request(flav, search_text)
            
 def walker(store):

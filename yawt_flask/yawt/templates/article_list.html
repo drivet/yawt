@@ -4,6 +4,15 @@
 
 {% block content %}
     <h1>{{collection_title}}</h1>
+
+    {% if total_pages > 1 %} 
+    <p>
+       {% if prevpage %} <a href="{{prevpage}}">Prev</a> {% endif %}
+       Page {{page}} of {{total_pages}}
+       {% if nextpage %} <a href="{{nextpage}}">Next</a> {% endif %}
+    </p>
+    {% endif %}
+
     {% for a in articles: %} 
         <h1>{{ a.title }}</h1>
         <p>Posted on {{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{a.fullname}}</p>
