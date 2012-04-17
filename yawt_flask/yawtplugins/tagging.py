@@ -23,7 +23,7 @@ class TagView(YawtView):
             return self.render_collection(flavour, articles, self._tag_title(tag))
         
     def _tag_title(self, tag):
-        return 'Tag: %s' % tag    
+        return 'Tags - %s' % tag    
  
     def _fetch_tagged_articles(self, tag):
         """

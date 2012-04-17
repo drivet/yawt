@@ -40,7 +40,7 @@ class ArchiveView(YawtView):
             return self.render_collection(flavour, articles, self._archive_title(date))
         
     def _archive_title(self, date):
-        return 'Archives for %s' % str(date)
+        return 'Archives - %s' % str(date)
     
 class ArchivingStore(object):
     def __init__(self, store):

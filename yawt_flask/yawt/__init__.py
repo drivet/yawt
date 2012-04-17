@@ -58,7 +58,7 @@ class CategoryView(YawtView):
     def _category_title(self, category):
         if category is None or len(category) == 0:
             return ''
-        return 'Category: %s' % category
+        return 'Categories - %s' % category
     
 class Article(object):
     """
@@ -83,7 +83,7 @@ class Article(object):
         #   - repository metadata (like mercurial)
         self._mtime = mtime
         self._ctime = ctime
-        
+  
     @property
     def category(self):
         pieces = self.fullname.rsplit('/', 2)

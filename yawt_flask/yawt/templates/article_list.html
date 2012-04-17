@@ -1,11 +1,11 @@
 {% extends "base_template.html" %}
 
-{% block title %}{{title}}{% endblock %}
+{% block pagetitle %}{{global.blogtitle}} - {{collection_title}}{% endblock %}
 
 {% block content %}
-    <h1>{{title}}</h1>
+    <h1>{{collection_title}}</h1>
     {% for a in articles: %} 
-        <h1>{{ a.title }}</h1> 
+        <h1>{{ a.title }}</h1>
         <p>Posted on {{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{a.fullname}}</p>
         <p>Last modified on {{a.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
         {% set taglist = a|tags %}

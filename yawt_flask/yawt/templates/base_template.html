@@ -1,9 +1,10 @@
 <html>
     <head>
-        <title>{% block title %}{% endblock %}</title>
+        <title>{% block pagetitle %}{% endblock %}</title>
     </head>
     <body>
-
+    <h1>{{global.blogtitle}}</h1>
+    <h2>{{global.blogdescription}}</h2>
     <form action="/search/" method="GET">
       <input type="text" name="searchtext">
       <input type="submit" value="Send">
@@ -12,9 +13,9 @@
     {% if archiving.archives %}
     <p>Archives:</p>
     <ul>
-      {% for item in archiving.archives: %}
-          <li><a href="{{item.url}}">{{item.year}}/{{item.month}} ({{item.count}})</a></li>
-      {% endfor %}
+        {% for item in archiving.archives: %}
+            <li><a href="{{item.url}}">{{item.year}}/{{item.month}} ({{item.count}})</a></li>
+        {% endfor %}
       </ul>
     {% endif %}
 
@@ -22,10 +23,11 @@
     <p>Tags:</p>
     <ul>
         {% for tag, info in tagging.tags.items(): %}
-            <li><a href="{{info.url}}">{{tag}}({{info.count}})</a></li>
+            <li><a href="{{info.url}}">{{tag}} ({{info.count}})</a></li>
         {% endfor %}
     </ul>
     {% endif %}
+
     {% block content %}{% endblock %}
     </body>
 </html>
