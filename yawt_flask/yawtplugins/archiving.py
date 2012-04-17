@@ -69,7 +69,7 @@ class ArchivingStore(object):
 class ArchiveCounter(object):
     def __init__(self, store):
         self._store = store
-        self.archive_counts = {}
+        self._archive_counts = {}
 
     def pre_walk(self):
         pass
@@ -77,16 +77,17 @@ class ArchiveCounter(object):
     def visit_article(self, fullname):
         article = self._store.fetch_article_by_fullname(fullname)
         ym = (article.ctime_tm.tm_year, article.ctime_tm.tm_mon)
-        if ym in self.archive_counts.keys():
-            self.archive_counts[ym] = self.archive_counts[ym] + 1
-        else:
-            self.archive_counts[ym] = 1
+        if ym not in self._archive_counts.keys():
+            archive_url = '/%s/%s/' % (ym[0], ym[1])
+            self._archive_counts[ym] = {'count':0, 'url': archive_url}
+        self._archive_counts[ym]['count'] = self._archive_counts[ym]['count'] + 1
 
     def post_walk(self):
         archive_counts_dump = []
-        for date, count in self.archive_counts.items():
-            archive_counts_dump.append([date[0], date[1], count])
-        archive_counts_dump.sort(key = lambda item: (item[0], item[1]),
+        for date, info in self._archive_counts.items():
+            archive_counts_dump.append({'year': date[0], 'month': date[1],
+                                        'count': info['count'], 'url': info['url']})
+        archive_counts_dump.sort(key = lambda item: (item['year'], item['month']),
                                  reverse = True)
         
         if not os.path.exists(archive_dir):

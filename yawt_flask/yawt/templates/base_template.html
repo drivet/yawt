@@ -13,7 +13,7 @@
     <p>Archives:</p>
     <ul>
       {% for item in archiving.archives: %}
-          <li><a href="/{{item[0]}}/{{item[1]}}">{{item[0]}}/{{item[1]}} ({{item[2]}})</a></li>
+          <li><a href="{{item.url}}">{{item.year}}/{{item.month}} ({{item.count}})</a></li>
       {% endfor %}
       </ul>
     {% endif %}
