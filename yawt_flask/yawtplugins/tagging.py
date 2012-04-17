@@ -3,7 +3,7 @@ import os
 import yaml
 
 from yawt.view import YawtView
-from flask import g
+from flask import g, url_for
 
 tag_dir = 'tags'
 tag_file = tag_dir + '/tags.yaml'
@@ -45,7 +45,7 @@ class TagView(YawtView):
 class TagCounter(object):
     def __init__(self, store):
         self._store = store
-        self.tag_counts = {}
+        self._tag_infos = {}
 
     def pre_walk(self):
         pass
@@ -55,16 +55,16 @@ class TagCounter(object):
         tags = article.get_metadata('tags')
         if tags is not None:
             for tag in tags:
-                if tag in self.tag_counts.keys():
-                    self.tag_counts[tag] = self.tag_counts[tag] + 1
-                else:
-                    self.tag_counts[tag] = 1
-
+                if tag not in self._tag_infos.keys():
+                    tag_url = '/tags/%s/' % tag
+                    self._tag_infos[tag] = {'count': 0, 'url': tag_url}
+                self._tag_infos[tag]['count'] = self._tag_infos[tag]['count'] + 1
+               
     def post_walk(self):
         if not os.path.exists(tag_dir):
             os.mkdir(tag_dir)
         stream = file(tag_file, 'w')
-        yaml.dump(self.tag_counts, stream)
+        yaml.dump(self._tag_infos, stream)
         stream.close()
 
 def init(app):
@@ -90,10 +90,10 @@ def init(app):
         return TagView(g.store).dispatch_request(tag, flav)
     
 def template_vars():
-    return {'tags':_load_tag_counts()}
+    return {'tags':_load_tag_infos()}
 
 def walker(store):
     return TagCounter(store)
 
-def _load_tag_counts():
+def _load_tag_infos():
     return yawt.util.load_yaml(tag_file)

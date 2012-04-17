@@ -21,8 +21,8 @@
     {% if tagging.tags %}
     <p>Tags:</p>
     <ul>
-        {% for tag, count in tagging.tags.items(): %}
-            <li><a href="/tags/{{tag}}">{{tag}}({{count}})</a></li>
+        {% for tag, info in tagging.tags.items(): %}
+            <li><a href="{{info.url}}">{{tag}}({{info.count}})</a></li>
         {% endfor %}
     </ul>
     {% endif %}
