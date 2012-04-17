@@ -162,17 +162,17 @@ class ArticleContent(object):
         self.content = content
     
 class ArticleStore(object):
-    def __init__(self, config, plugins, root_dir, ext, meta_ext):
+    def __init__(self, plugins, root_dir, ext, meta_ext):
         self.root_dir = root_dir
         self.ext = ext
         self.meta_ext = meta_ext
-        self.config = config
         self.plugins = plugins
 
     # factory method to fetch an article store
     @staticmethod
     def get(config, plugins):
-        return ArticleStore(config, plugins, config['path_to_articles'], config['ext'], config['meta_ext'])
+        return ArticleStore(plugins, config['path_to_articles'], config['ext'], config['meta_ext'])
+    
      
     def fetch_articles_by_category(self, category):
         """
@@ -208,7 +208,7 @@ class ArticleStore(object):
 
         for p in self.plugins.values():
             if util.has_method(p, 'on_article_fetch'):
-                article = p.on_article_fetch(self.config, article)
+                article = p.on_article_fetch(article)
         return article
 
     def _get_times(self, fullname):

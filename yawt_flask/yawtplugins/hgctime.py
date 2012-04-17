@@ -70,6 +70,6 @@ def init(app):
     config = app.yawtconfig
     hgstore = HgCtimeStore(config['repopath'], config['contentpath'], config['ext'])
 
-def on_article_fetch(config, article):
+def on_article_fetch(article):
     global hgstore
     return HgCtimeArticle(article, hgstore)
