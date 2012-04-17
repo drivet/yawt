@@ -1,0 +1,31 @@
+<html>
+    <head>
+        <title>{% block title %}{% endblock %}</title>
+    </head>
+    <body>
+
+    <form action="/search/" method="GET">
+      <input type="text" name="searchtext">
+      <input type="submit" value="Send">
+    </form>
+
+    {% if archiving.archives %}
+    <p>Archives:</p>
+    <ul>
+      {% for item in archiving.archives: %}
+          <li><a href="/{{item[0]}}/{{item[1]}}">{{item[0]}}/{{item[1]}} ({{item[2]}})</a></li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if tagging.tags %}
+    <p>Tags:</p>
+    <ul>
+        {% for tag, count in tagging.tags.items(): %}
+            <li><a href="/tags/{{tag}}">{{tag}}({{count}})</a></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+    </body>
+</html>

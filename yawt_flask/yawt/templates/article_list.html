@@ -1,42 +1,17 @@
-<html>
-    <head>
-        <title>{{title}}</title>
-    </head>
-    <body>  
+{% extends "base_template.html" %}
 
-      <form action="/search/" method="GET">
-        <input type="text" name="searchtext"> 
-        <input type="submit" value="Send">
-      </form>
+{% block title %}{{title}}{% endblock %}
 
-      {% if archiving.archives %}
-      <p>Archives:</p>
-      <ul>
-      {% for item in archiving.archives: %}
-          <li><a href="/{{item[0]}}/{{item[1]}}">{{item[0]}}/{{item[1]}} ({{item[2]}})</a></li>
-      {% endfor %}
-      </ul>
-      {% endif %}
-
-      {% if tagging.tags %}
-      <p>Tags:</p>
-      <ul>
-      {% for tag, count in tagging.tags.items(): %}
-          <li><a href="/tags/{{tag}}">{{tag}} ({{count}})</a></li>
-      {% endfor %}
-      </ul>
-      {% endif %}
-
-	  <h1>{{title}}</h1>
-      {% for a in articles: %} 
-          <h1>{{ a.title }}</h1> 
-          <p>Posted on {{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{a.fullname}}</p>
-          <p>Last modified on {{a.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
-          {% set taglist = a|tags %}
-          {% if taglist %} 
-              <p>Tags: {{taglist}}</p>
-          {% endif %}
-          <p>{{ a|markdown_content }}</p>
-      {% endfor %}
-    </body>
-</html>
+{% block content %}
+    <h1>{{title}}</h1>
+    {% for a in articles: %} 
+        <h1>{{ a.title }}</h1> 
+        <p>Posted on {{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{a.fullname}}</p>
+        <p>Last modified on {{a.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
+        {% set taglist = a|tags %}
+        {% if taglist %} 
+            <p>Tags: {{taglist}}</p>
+        {% endif %}
+        <p>{{ a|markdown_content }}</p>
+    {% endfor %}
+{% endblock %}
