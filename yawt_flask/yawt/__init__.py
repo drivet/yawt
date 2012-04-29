@@ -211,11 +211,6 @@ class ArticleStore(object):
                 article = p.on_article_fetch(article)
         return article
 
-    def _get_times(self, fullname):
-        sr = os.stat(self._name2file(fullname))
-        mtime = ctime = sr.st_mtime
-        return (ctime, mtime)
-
     def load_article(self, info):
         filename = self._name2file(info.fullname)
         f = open(filename, 'r')
@@ -224,7 +219,7 @@ class ArticleStore(object):
         content = f.readlines()
         f.close()
         return ArticleContent(title, "".join(content))
-
+    
     def article_exists(self, fullname):
         return os.path.isfile(self._name2file(fullname))
 
@@ -240,7 +235,12 @@ class ArticleStore(object):
             for filename in [os.path.abspath(os.path.join(path, filename))
                              for filename in files if self._article_file(filename)]:
                 yield self._file2name(filename)
-       
+                
+    def _get_times(self, fullname):
+        sr = os.stat(self._name2file(fullname))
+        mtime = ctime = sr.st_mtime
+        return (ctime, mtime)
+
     def _fetch_metadata(self, fullname):
         md = None
         md_filename = self._name2metadata_file(fullname)

@@ -7,6 +7,7 @@ from flask import g, url_for
 
 tag_dir = 'tags'
 tag_file = tag_dir + '/tags.yaml'
+name_file = tag_dir + '/names.yaml'
 
 class TagView(YawtView):
     def __init__(self, store):
@@ -45,28 +46,65 @@ class TagView(YawtView):
 class TagCounter(object):
     def __init__(self, store):
         self._store = store
-        self._tag_infos = {}
+        self._tag_infos = None
+        self._name_infos = None
 
     def pre_walk(self):
-        pass
+        self._tag_infos = {}
+        self._name_infos = {}
     
     def visit_article(self, fullname):
         article = self._store.fetch_article_by_fullname(fullname)
         tags = article.get_metadata('tags')
+
+        # save the tags associated with the article so we can remove
+        # them later if they change
+        if tags is not None and len(tags) > 0:
+            self._name_infos[fullname] = tags
+        
         if tags is not None:
             for tag in tags:
                 if tag not in self._tag_infos.keys():
                     tag_url = '/tags/%s/' % tag
                     self._tag_infos[tag] = {'count': 0, 'url': tag_url}
-                self._tag_infos[tag]['count'] = self._tag_infos[tag]['count'] + 1
+                self._tag_infos[tag]['count'] += 1
                
     def post_walk(self):
+        self._save_info(tag_file, self._tag_infos)
+        self._save_info(name_file, self._name_infos)
+       
+   
+    def update(self, statuses):
+        self._tag_infos = _load_tag_infos()
+        self._name_infos = _load_name_infos()
+        
+        for fullname in statuses.keys():
+            status = statuses[fullname]
+            assert status in ['A','M','R']
+
+            # no matter what, remove all old tags.
+            old_tags = self._name_infos[fullname]
+            for tag in old_tags:
+                if tag in self._tag_infos.keys():
+                    self._tag_infos[tag]['count'] -= 1
+                    if self._tag_infos[tag]['count'] == 0:
+                        del self._tag_infos[tag]
+            del self._name_infos[fullname]
+ 
+            # if this is a R status, then removing the old tags was all we needed to do
+            if status in ('A', 'M'):
+                # file added or modified - treat it the same way.
+                # namely add the tags (since we deleted all the old ones
+                self.visit_article(fullname)
+        self.post_walk()
+          
+    def _save_info(self, filename, info):
         if not os.path.exists(tag_dir):
             os.mkdir(tag_dir)
-        stream = file(tag_file, 'w')
-        yaml.dump(self._tag_infos, stream)
+        stream = file(filename, 'w')
+        yaml.dump(info, stream)
         stream.close()
-
+    
 def init(app):
     # filter for showing article tags
     @app.template_filter('tags')
@@ -95,5 +133,11 @@ def template_vars():
 def walker(store):
     return TagCounter(store)
 
+def updater(store):
+    return TagCounter(store)
+
 def _load_tag_infos():
     return yawt.util.load_yaml(tag_file)
+
+def _load_name_infos():
+    return yawt.util.load_yaml(name_file)
