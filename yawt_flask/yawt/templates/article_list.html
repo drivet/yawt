@@ -1,26 +1,21 @@
-{% extends "base_template.html" %}
+<html>
+<head><title>{{global.blogtitle}} - {{collection_title}}</title></head>
 
-{% block pagetitle %}{{global.blogtitle}} - {{collection_title}}{% endblock %}
+<h1>{{collection_title}}</h1>
 
-{% block content %}
-    <h1>{{collection_title}}</h1>
+{% if total_pages > 1 %} 
+<p>
+  {% if prevpage %} <a href="{{prevpage}}">Prev</a> {% endif %}
+  Page {{page}} of {{total_pages}}
+  {% if nextpage %} <a href="{{nextpage}}">Next</a> {% endif %}
+</p>
+{% endif %}
 
-    {% if total_pages > 1 %} 
-    <p>
-       {% if prevpage %} <a href="{{prevpage}}">Prev</a> {% endif %}
-       Page {{page}} of {{total_pages}}
-       {% if nextpage %} <a href="{{nextpage}}">Next</a> {% endif %}
-    </p>
-    {% endif %}
+{% for a in articles: %} 
+<h1>{{ a.title }}</h1>
+<p>Posted on {{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{a.fullname}}</p>
+<p>Last modified on {{a.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
+<p>{{ a.content }}</p>
+{% endfor %}
 
-    {% for a in articles: %} 
-        <h1>{{ a.title }}</h1>
-        <p>Posted on {{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{a.fullname}}</p>
-        <p>Last modified on {{a.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
-        {% set taglist = a|tags %}
-        {% if taglist %} 
-            <p>Tags: {{taglist}}</p>
-        {% endif %}
-        <p>{{ a|markdown_content }}</p>
-    {% endfor %}
-{% endblock %}
+</html>

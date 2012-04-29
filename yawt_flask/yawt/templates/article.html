@@ -6,9 +6,5 @@
     <h1>{{ article.title }}</h1>
     <p>Posted on {{article.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{article.fullname}}</p>
     <p>Last modified on {{article.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
-    {% set taglist = article|tags %}
-    {% if taglist  %} 
-        <p>Tags: {{taglist}}</p>
-    {% endif %}
-    <p>{{ article|markdown_content }}</p>
+    <p>{{ article }}</p>
 {% endblock %}
