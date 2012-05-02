@@ -2,7 +2,7 @@ import yaml
 
 class Date(object):
     def __init__(self, year, month, day):
-        self.year = year;
+        self.year = year
         self.month = month
         self.day = day
         

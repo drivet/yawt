@@ -1,133 +1,120 @@
 import unittest
 import yawt
-import yaml
-import tempfile
-import shutil
 import os
 
-config = """metadata: {
-    blogtitle: Desmond's Soapbox, 
-    blogdescription: Musings from a Anglo-Quebecer,
-    bloglang: en,
-    blogurl: \"http://www.desmondrivet.net/blog\"
-}
+class FakeFileSystem(object):
+    def __init__(self):
+        self._answers = {}
 
-content_types: {
-    rss: application/rss+xml
-}
+    def when(self, method, params, retval):
+        if method not in self._answers:
+            self._answers[method] = {}
+        self._answers[method][params] = retval
 
-page_size: 10
-path_to_articles: /tmp
-path_to_templates: /tmp/templates
-ext: txt
-meta_ext: md
-"""
+    def fs_open(self, filename, mode):
+        return self._answers['fs_open'][(filename, mode)]
+   
+    def fs_exists(self, path):
+        return self._answers['fs_exists'][(path)]
 
-# mixture of articles, meant to to test various features
-# - same slug (slug_01) appears in two categories
-# - two items in category_01 and the root category
-# - sub category in category_02
-# - two line content in slug_05
-articles = [{'category': '', 'slug': 'slug_00', 'title': 'title 01', 'content': ['content 01']},
-            {'category': 'category_01', 'slug': 'slug_01', 'title': 'title 02', 'content': ['content 02']},
-            {'category': 'category_01', 'slug': 'slug_02', 'title': 'title 03', 'content': ['content 03']},
-            {'category': 'category_02', 'slug': 'slug_01', 'title': 'title 04', 'content': ['content 04']},
-            {'category': 'category_02/subcategory 02', 'slug': 'slug_03', 'title': 'title 05', 'content': ['content 05']},
-            {'category': 'category_03', 'slug': 'slug_04', 'title': 'title 06', 'content': ['content 06']},
-            {'category': '','slug': 'slug_05', 'title': 'title 07', 'content': ['content 07','content 07_02']},
-           ]
+    def fs_isfile(self, path):
+        return self._answers['fs_isfile'][(path)]
 
-article_list_tmpl = """{{global.blogtitle}}
-{{collection_title}}
-{% for a in articles: %} 
-{{a.title}}
-{{a.fullname}}
-{{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}}
-{{a.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}
-{{a.content}}
-{% endfor %}
-"""
+    def fs_isdir(self, path):
+        return self._answers['fs_isdir'][(path)]
 
-article_tmpl = """{{article.title}}
-{{article.ctime_tm|dateformat('%Y/%m/%d %H:%M')}}
-{{article.fullname}}
-{{article.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}
-{{article.content}}
-"""
+    def fs_stat(self, path):
+        return self._answers['fs_stat'][(path)]
 
-not_found_tmpl = """
-Article not found
-"""
+    def fs_walk(self, path):
+        return self._answers['fs_walk'][(path)]
 
-class TestYawt(unittest.TestCase):
+    def fs_abspath(self, path):
+        return self._answers['fs_abspath'][(path)]
+
+class FakeAnything(object):
+    pass
+
+class TestArticleStore(unittest.TestCase):     
     def setUp(self):
-        self.blog_dir = tempfile.mkdtemp()
-        assert self.blog_dir.startswith('/tmp/')
-
-        # copy templates over
-        self.template_dir = os.path.join(self.blog_dir, 'templates')
-        os.makedirs(self.template_dir)
-        self._save_file(os.path.join(self.template_dir, 'article_list.html'), article_list_tmpl)
-        self._save_file(os.path.join(self.template_dir, 'article.html'), article_tmpl)
-        self._save_file(os.path.join(self.template_dir, '404.html'), not_found_tmpl)
-        
-        yawtconfig = yaml.load(config)
-        yawtconfig['path_to_articles'] = self.blog_dir
-        yawtconfig['path_to_templates'] = self.template_dir
-         
-        self.app = yawt.create_app(yawtconfig)
-        self.app.config['DEBUG'] = True
-        self.client = self.app.test_client()
-
-    def test_empty_blog(self):
-        rv = self.client.get("/")
-        assert 'Article not found' in rv.data
-
-    def test_view_single_article(self):
-        ext = self.app.yawtconfig['ext']
-        meta_ext = self.app.yawtconfig['meta_ext']
-        self._save_blog_articles(ext, meta_ext, articles)
-
-        rdata = self.client.get("/category_01/slug_01").data
-
-        assert 'title 02' in rdata
-        assert 'title 01' not in rdata
-        assert 'title 03' not in rdata
-       
-    def test_view_article_list(self):
-        ext = self.app.yawtconfig['ext']
-        meta_ext = self.app.yawtconfig['meta_ext']
-        self._save_blog_articles(ext, meta_ext, articles)
-        
-        rdata = self.client.get("/").data
-
-        assert 'title 01' in rdata
-        assert 'title 02' in rdata
-        assert 'title 03' in rdata
-        assert 'title 04' in rdata
-        assert 'title 05' in rdata
-        assert 'title 06' in rdata
-        assert 'title 07' in rdata
-        
-    def _save_blog_articles(self, ext, meta_ext, articles):
-        for a in articles:
-            category_dir = os.path.join(self.blog_dir, a['category'])
-            if not os.path.isdir(category_dir):
-                os.makedirs(os.path.join(self.blog_dir, a['category']))
-            filename = os.path.join(category_dir, a['slug'] + '.' + ext)
-            f = open(filename, 'w')
-            f.write(a['title'] + '\n\n')
-            f.writelines(a['content'])
-            f.close()
-
-    def _save_file(self, filename, contents):
-         f = open(filename, 'w')
-         f.write(contents)
-         f.close()
+        self.root_dir = 'root_dir'
+        self.ext = 'txt'
+        self.meta_ext = 'meta'
+        self.plugins = {}
+        self.fs = FakeFileSystem()
+        self.store = yawt.ArticleStore(self.fs, self.plugins, self.root_dir,
+                                       self.ext, self.meta_ext)
     
-    def tearDown(self):
-        assert self.blog_dir.startswith('/tmp/')
-        shutil.rmtree(self.blog_dir)
+    def test_fetch_non_existent_article_by_fullname(self):
+        fullname = 'category01/category02/slug01'
+        self.fs.when('fs_exists', self._make_filename(fullname), False)
+        article = self.store.fetch_article_by_fullname(fullname)
+        assert article is None
         
+    def test_fetch_article_by_fullname_with_subcategory(self):
+        fullname = 'category01/category02/slug01'
+        mtime = 100
+        self.fs.when('fs_exists', self._make_filename(fullname), True)
+        self.fs.when('fs_stat', self._make_filename(fullname), self._make_stat_retval(mtime))
+        self.fs.when('fs_isfile', self._make_meta_filename(fullname), False)
+        
+        article = self.store.fetch_article_by_fullname(fullname)
+        self._assert_article(article, fullname, mtime, 'category01/category02', 'slug01')
+        
+    def test_fetch_article_by_fullname_with_category(self):
+        fullname = 'category01/slug01'
+        mtime = 100
+        self.fs.when('fs_exists', self._make_filename(fullname), True)
+        self.fs.when('fs_stat', self._make_filename(fullname), self._make_stat_retval(mtime))
+        self.fs.when('fs_isfile', self._make_meta_filename(fullname), False)
+        
+        article = self.store.fetch_article_by_fullname(fullname)
+        self._assert_article(article, fullname, mtime, 'category01', 'slug01')
+        
+    def test_fetch_article_by_fullname_at_root(self):
+        fullname = 'slug01'
+        mtime = 100
+        self.fs.when('fs_exists', self._make_filename(fullname), True)
+        self.fs.when('fs_stat', self._make_filename(fullname), self._make_stat_retval(mtime))
+        self.fs.when('fs_isfile', self._make_meta_filename(fullname), False)
+        
+        article = self.store.fetch_article_by_fullname(fullname)
+        self._assert_article(article, fullname, mtime, '', 'slug01')
+
+    def test_article_exists(self):
+        fullname = 'category01/category02/slug01'
+        self.fs.when('fs_isfile', self._make_filename(fullname), True)
+        assert self.store.article_exists(fullname)
+        self.fs.when('fs_isfile', self._make_filename(fullname), False)
+        assert not self.store.article_exists(fullname)
+
+    def test_category_exists(self):
+        fullname = 'category01/category02'
+        self.fs.when('fs_isdir', self._make_cat_folder(fullname), True)
+        assert self.store.category_exists(fullname)
+        self.fs.when('fs_isdir', self._make_cat_folder(fullname), False)
+        assert not self.store.category_exists(fullname)
+        
+    def _assert_article(self, article, fullname, mtime, category, slug):
+        assert article.fullname == fullname
+        assert article.mtime == mtime
+        assert article.ctime == mtime
+        assert article.category == category
+        assert article.slug == slug
+    
+    def _make_filename(self, fullname):
+        return os.path.join(self.root_dir, fullname + "." + self.ext)
+
+    def _make_cat_folder(self, fullname):
+        return os.path.join(self.root_dir, fullname)
+
+    def _make_meta_filename(self, fullname):
+        return os.path.join(self.root_dir, fullname + "." + self.meta_ext)
+
+    def _make_stat_retval(self, mtime):
+        stat_retval = FakeAnything()
+        stat_retval.st_mtime = mtime
+        return stat_retval
+    
 if __name__ == '__main__':
     unittest.main()
