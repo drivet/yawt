@@ -8,12 +8,14 @@ class Date(object):
         
     def __str__(self):
         dl = [str(self.year)]
-        if self.month is not None: dl.append(str(self.month))
-        if self.day is not None: dl.append(str(self.day))
+        if self.month is not None:
+            dl.append(str(self.month))
+        if self.day is not None:
+            dl.append(str(self.day))
         return '/'.join(dl)
     
 def has_method(obj, method):
-    return hasattr(obj,method) and callable(getattr(obj, method))
+    return hasattr(obj, method) and callable(getattr(obj, method))
     
 def load_yaml(filename):
     f = open(filename, 'r')

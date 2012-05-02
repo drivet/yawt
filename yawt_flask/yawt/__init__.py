@@ -1,15 +1,12 @@
-import re
-import os
-import time
-import fnmatch
-import yaml
 import sys
-from flask import Flask, url_for, redirect, g
-from flask.views import View
+import time
 
+import yaml
+from flask import Flask, g
 
-import yawt.util
-from  yawt.view import YawtView, CategoryView, ArticleView
+from yawt.article import ArticleStore
+from yawt.view import CategoryView, ArticleView
+
 
 def create_app(yawtconfig=None):
     if yawtconfig is None:
@@ -21,9 +18,8 @@ def create_app(yawtconfig=None):
         app = Flask(__name__, template_folder=yawtconfig['path_to_templates'])
     else:
         app = Flask(__name__)
-        
     app.yawtconfig = yawtconfig
-    
+
     plugins = {}
     if 'plugins' in app.yawtconfig:
         for name in app.yawtconfig['plugins']:
@@ -31,7 +27,7 @@ def create_app(yawtconfig=None):
             mod = __import__(modname)
             plugins[name] = sys.modules[modname]
             plugins[name].init(app)
-   
+
     app.yawtplugins = plugins
 
     # Article URLs
@@ -40,11 +36,11 @@ def create_app(yawtconfig=None):
     @app.route('/<path:category>/<slug>')
     def post(category, slug):
         return ArticleView(g.store).dispatch_request(None, category, slug)
-   
+
     @app.route('/<path:category>/<slug>.<flav>')
     def post_flav(category, slug, flav):
         return ArticleView(g.store).dispatch_request(flav, category, slug)
-    
+
     # Category URLs
     @app.route('/')
     def home():

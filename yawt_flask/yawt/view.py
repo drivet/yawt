@@ -82,8 +82,9 @@ class ArticleView(YawtView):
             # no article by that name, but there might be a category
             fullname = category + '/' + slug
             if self._store.category_exists(fullname):
-                # Normally flask handles this, but I don't think it can in this case
-                return redirect(url_for('category_canonical', category = fullname))
+                # Normally flask handles this, but I don't think it
+                # can in this case
+                return redirect(url_for('category_canonical', category=fullname))
             else:
                 return self.handle_missing_resource()
         else:
@@ -109,7 +110,7 @@ class CategoryView(YawtView):
         else:
             # no index file.  Render an article list template with
             # all the articles in the category sent to the template
-            articles =  self._store.fetch_articles_by_category(category)
+            articles = self._store.fetch_articles_by_category(category)
             if len(articles) < 1:
                 return self.handle_missing_resource()
             else:
