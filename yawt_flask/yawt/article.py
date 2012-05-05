@@ -116,25 +116,25 @@ class _FileSystem(object):
     wrapper around basic file system operation, to facilitate
     unit testing
     """
-    def fs_open(self, filename, mode):
+    def open(self, filename, mode):
         return open(filename, mode)
    
-    def fs_exists(self, path):
+    def exists(self, path):
         return os.path.exists(path)
 
-    def fs_isfile(self, path):
+    def isfile(self, path):
         return os.path.isfile(path)
 
-    def fs_isdir(self, path):
-        return os.path.isfile(path)
+    def isdir(self, path):
+        return os.path.isdir(path)
 
-    def fs_stat(self, path):
+    def stat(self, path):
         return os.stat(path)
 
-    def fs_walk(self, path):
+    def walk(self, path):
         return os.walk(path)
 
-    def fs_abspath(self, path):
+    def abspath(self, path):
         return os.path.abspath(path)
 
 
@@ -182,7 +182,7 @@ class ArticleStore(object):
         with that name.
         """
         filename = self._name2file(fullname)
-        if not self._fs.fs_exists(filename):
+        if not self._fs.exists(filename):
             return None
         
         md = self._fetch_metadata(fullname)
@@ -194,42 +194,46 @@ class ArticleStore(object):
                 article = p.on_article_fetch(article)
         return article
 
-    def load_article(self, info):
-        filename = self._name2file(info.fullname)
-        f = self._fs.fs_open(filename, 'r')
-        title = f.readline().strip()
-        f.readline()
-        content = f.readlines()
+    def load_article(self, article):
+        f = self._fs.open(self._name2file(article.fullname), 'r')
+        file_contents = f.read()
         f.close()
-        return ArticleContent(title, "".join(content))
-    
+
+        m = re.compile('(.*)\n\n((.*\n)*(.+)?)').match(file_contents)
+        if m and m.group() == file_contents:
+            return ArticleContent(m.group(1).strip(), m.group(2))
+        else:
+            return ArticleContent('', file_contents)
+      
     def article_exists(self, fullname):
-        return self._fs.fs_isfile(self._name2file(fullname))
+        return self._fs.isfile(self._name2file(fullname))
 
     def category_exists(self, fullname):
-        return self._fs.fs_isdir(self._name2dir(fullname))
+        return self._fs.isdir(self._name2dir(fullname))
 
     def walk_articles(self, category=""):
         """
         iterates over articles in category.  Yields fullnames.
         """
         start_path = os.path.join(self.root_dir, category)
-        for path, dirs, files in self._fs.fs_walk(start_path):
-            for filename in [os.path.abspath(os.path.join(path, filename))
-                             for filename in files if
-                                   self._article_file(filename)]:
+        for dirpath, dirs, files in self._fs.walk(start_path):
+            for filename in self._articles_in_dirpath(dirpath, files):
                 yield self._file2name(filename)
-                
+
+    def _articles_in_dirpath(self, dirpath, files):
+        return [self._fs.abspath(os.path.join(dirpath, filename))
+                for filename in files if self._article_file(filename)]
+        
     def _get_times(self, fullname):
-        sr = self._fs.fs_stat(self._name2file(fullname))
+        sr = self._fs.stat(self._name2file(fullname))
         mtime = ctime = sr.st_mtime
         return (ctime, mtime)
 
     def _fetch_metadata(self, fullname):
         md = None
         md_filename = self._name2metadata_file(fullname)
-        if self._fs.fs_isfile(md_filename):
-            f = self._fs.fs_open(md_filename, 'r')
+        if self._fs.isfile(md_filename):
+            f = self._fs.open(md_filename, 'r')
             md = yaml.load(f)
             f.close()
         return md
