@@ -7,28 +7,29 @@ from flask import Flask, g
 from yawt.article import ArticleStore
 from yawt.view import CategoryView, ArticleView
 
-
-def create_app(yawtconfig=None):
-    if yawtconfig is None:
-        f = open('config.yaml', 'r')
-        yawtconfig = yaml.load(f)
-        f.close()
-
-    if 'path_to_templates' in yawtconfig and yawtconfig['path_to_templates']:
-        app = Flask(__name__, template_folder=yawtconfig['path_to_templates'])
+def load_config():
+    with open('config.yaml', 'r') as f:
+        return yaml.load(f)
+    
+def create_app(config=None): 
+    if config is None:
+        config = load_config()
+        
+    if 'path_to_templates' in config and config['path_to_templates']:
+        app = Flask(__name__, template_folder=config['path_to_templates'])
     else:
         app = Flask(__name__)
-    app.yawtconfig = yawtconfig
+    app.config.update(config)
 
     plugins = {}
-    if 'plugins' in app.yawtconfig:
-        for name in app.yawtconfig['plugins']:
-            modname = app.yawtconfig['plugins'][name]
+    if 'plugins' in app.config:
+        for name in app.config['plugins']:
+            modname = app.config['plugins'][name]
             mod = __import__(modname)
             plugins[name] = sys.modules[modname]
             plugins[name].init(app)
 
-    app.yawtplugins = plugins
+    app.plugins = plugins
 
     # Article URLs
     # I believe this is the only semi-ambiguous URL.  Really, it means article,
@@ -80,8 +81,8 @@ def create_app(yawtconfig=None):
 
     @app.before_request
     def before_request():
-        g.yawtconfig = app.yawtconfig
-        g.plugins = app.yawtplugins
-        g.store = ArticleStore.get(app.yawtconfig, app.yawtplugins)
+        g.config = app.config
+        g.plugins = app.plugins
+        g.store = ArticleStore.get(app.config, app.plugins)
 
     return app

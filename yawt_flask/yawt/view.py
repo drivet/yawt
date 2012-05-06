@@ -4,9 +4,9 @@ import yawt.util
 class YawtView(object):
     def __init__(self):
         self._plugins = g.plugins
-        self._global_md = g.yawtconfig['metadata']
-        self._content_types = g.yawtconfig['content_types']
-        self._page_size = g.yawtconfig['page_size']
+        self._global_md = g.config['metadata']
+        self._content_types = g.config['content_types']
+        self._page_size = g.config['page_size']
         
         try:
             self._page = int(request.args.get('page', '1'))

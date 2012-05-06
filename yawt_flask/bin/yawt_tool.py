@@ -15,10 +15,10 @@ class Walk(Command):
     plugin do something with it.
     """
     def handle(self, app):
-        store = ArticleStore.get(app.yawtconfig, app.yawtplugins)
+        store = ArticleStore.get(app.config, app.plugins)
         walkers = filter(lambda w: w,
                          map(lambda p: yawt.util.has_method(p, 'walker') and p.walker(store),
-                             app.yawtplugins.values()))
+                             app.plugins.values()))
         map(lambda w: w.pre_walk(), walkers)
         for fullname in store.walk_articles():
             map(lambda w: w.visit_article(fullname), walkers)
@@ -40,10 +40,10 @@ class Update(Command):
     )
     
     def handle(self, app, statuses): 
-        store = ArticleStore.get(app.yawtconfig, app.yawtplugins)
+        store = ArticleStore.get(app.config, app.plugins)
         updaters = filter(lambda w: w,
                           map(lambda p: yawt.util.has_method(p, 'updater') and p.updater(store),
-                              app.yawtplugins.values()))
+                              app.plugins.values()))
         
         status_map = self._file_statuses(statuses)
         map(lambda u: u.update(status_map), updaters)

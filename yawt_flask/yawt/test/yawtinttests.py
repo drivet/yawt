@@ -72,11 +72,11 @@ class TestYawt(unittest.TestCase):
         self._save_file(os.path.join(self.template_dir, 'article.html'), article_tmpl)
         self._save_file(os.path.join(self.template_dir, '404.html'), not_found_tmpl)
         
-        yawtconfig = yaml.load(config)
-        yawtconfig['path_to_articles'] = self.blog_dir
-        yawtconfig['path_to_templates'] = self.template_dir
+        config = yaml.load(config)
+        config['path_to_articles'] = self.blog_dir
+        config['path_to_templates'] = self.template_dir
          
-        self.app = yawt.create_app(yawtconfig)
+        self.app = yawt.create_app(config)
         self.app.config['DEBUG'] = True
         self.client = self.app.test_client()
 
@@ -85,8 +85,8 @@ class TestYawt(unittest.TestCase):
         assert 'Article not found' in rv.data
 
     def test_view_single_article(self):
-        ext = self.app.yawtconfig['ext']
-        meta_ext = self.app.yawtconfig['meta_ext']
+        ext = self.app.config['ext']
+        meta_ext = self.app.config['meta_ext']
         self._save_blog_articles(ext, meta_ext, articles)
 
         rdata = self.client.get("/category_01/slug_01").data
@@ -96,8 +96,8 @@ class TestYawt(unittest.TestCase):
         assert 'title 03' not in rdata
        
     def test_view_article_list(self):
-        ext = self.app.yawtconfig['ext']
-        meta_ext = self.app.yawtconfig['meta_ext']
+        ext = self.app.config['ext']
+        meta_ext = self.app.config['meta_ext']
         self._save_blog_articles(ext, meta_ext, articles)
         
         rdata = self.client.get("/").data

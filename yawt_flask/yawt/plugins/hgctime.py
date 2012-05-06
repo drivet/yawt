@@ -67,7 +67,7 @@ class HgCtimeArticle(object):
     
 def init(app):
     global hgstore
-    config = app.yawtconfig
+    config = app.config
     hgstore = HgCtimeStore(config['repopath'], config['contentpath'], config['ext'])
 
 def on_article_fetch(article):
