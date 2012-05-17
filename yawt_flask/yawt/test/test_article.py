@@ -1,6 +1,7 @@
 import unittest
 import yawt
 import os.path
+from yawt.article import ArticleStore
 from yawt.test import fake_filesystem
 
 class FakeFS(object):
@@ -35,10 +36,10 @@ class TestArticleStore(unittest.TestCase):
         self.root_dir = '/root_dir'
         self.ext = 'txt'
         self.meta_ext = 'meta'
-        self.plugins = {}
+        self.plugins = yawt.util.Plugins({})
         self.fs = FakeFS()
-        self.store = yawt.ArticleStore(self.fs, self.plugins, self.root_dir,
-                                       self.ext, self.meta_ext)
+        self.store = ArticleStore(self.fs, self.plugins, self.root_dir,
+                                  self.ext, self.meta_ext)
 
     def test_fetch_articles_by_category_no_results(self):
         articles = self.store.fetch_articles_by_category('category01')

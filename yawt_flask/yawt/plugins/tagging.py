@@ -2,29 +2,32 @@ import yawt.util
 import os
 import yaml
 
-from yawt.view import YawtView
-from flask import g, url_for
+from yawt.view import YawtView, PagingInfo
+from flask import g, request
 
 tag_dir = 'tags'
 tag_file = tag_dir + '/tags.yaml'
 name_file = tag_dir + '/names.yaml'
 
-class TagView(YawtView):
-    def __init__(self, store):
-        super(TagView, self).__init__()
+class TagView(object):
+    def __init__(self, store, yawtview):
+        self._yawtview = yawtview
         self._store = store
 
-    def dispatch_request(self, tag, flavour=None):
+    def dispatch_request(self, flavour, tag, page, page_size, base_url):
         articles =  self._fetch_tagged_articles(tag)
         if len(articles) < 1:
-            return self.handle_missing_resource()
+            return self._yawtview.render_missing_resource()
         else:
-            if flavour is None:
-                flavour = 'html'
-            return self.render_collection(flavour, articles, self._tag_title(tag))
+            page_info = PagingInfo(page, page_size, len(articles), base_url)
+            return self._render_collection(flavour, articles, tag, page_info)
         
+    def _render_collection(self, flavour, articles, tag, page_info):
+        title = self._tag_title(tag)
+        return self._yawtview.render_collection(flavour, articles, title, page_info)
+    
     def _tag_title(self, tag):
-        return 'Tags - %s' % tag    
+        return 'Tags - %s' % tag
  
     def _fetch_tagged_articles(self, tag):
         """
@@ -43,6 +46,13 @@ class TagView(YawtView):
             return False
         return tag in tags
     
+def _create_tag_view():
+    return TagView(g.store,
+                   YawtView(g.plugins,
+                            g.config['metadata'],
+                            g.config['content_types']))
+
+
 class TagCounter(object):
     def __init__(self, store):
         self._store = store
@@ -117,15 +127,27 @@ def init(app):
         
     @app.route('/tags/<tag>/')
     def tag_canonical(tag):
-        return TagView(g.store).dispatch_request(tag)
+        return _handle_tag_url(None, tag)
 
     @app.route('/tags/<tag>/index')
     def tag_index(tag):
-        return TagView(g.store).dispatch_request(tag)
+        return _handle_tag_url(None, tag)
 
     @app.route('/tags/<tag>/index.<flav>')
     def tag_index_flav(tag):
-        return TagView(g.store).dispatch_request(tag, flav)
+        return _handle_tag_url(flav, tag)
+
+    def _handle_tag_url(flavour, tag):
+        page = 1
+        try:
+            page = int(request.args.get('page', '1'))
+        except ValueError:
+            page = 1
+
+        tag_view = _create_tag_view()
+        return tag_view.dispatch_request(flavour, tag, page,
+                                         g.config['page_size'], request.base_url)
+            
     
 def template_vars():
     return {'tags':_load_tag_infos()}

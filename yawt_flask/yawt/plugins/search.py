@@ -1,5 +1,5 @@
 import os
-from yawt.view import YawtView
+from yawt.view import YawtView, PagingInfo
 from flask import g, request
 
 from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
@@ -9,20 +9,23 @@ from whoosh.qparser import QueryParser
 index_dir = 'whoosh_index'
 index_name = 'fulltextsearch'
 
-class SearchView(YawtView):
-    def __init__(self, store):
-        super(SearchView, self).__init__()
+class SearchView(object):
+    def __init__(self, store, yawtview):
+        self._yawtview = yawtview
         self._store = store
   
-    def dispatch_request(self, flavour, search_text):
+    def dispatch_request(self, flavour, search_text, page, page_size, base_url):
         articles = self._fetch_articles_by_text(search_text)
         if len(articles) < 1:
-            return self.handle_missing_resource()
+            return self._yawtview.render_missing_resource()
         else:
-            if flavour is None:
-                flavour = 'html'
-            return self.render_collection(flavour, articles, self._search_title(search_text))
-  
+            page_info = PagingInfo(page, page_size, len(articles), base_url)
+            return self._render_collection(flavour, articles, search_text, page_info)
+        
+    def _render_collection(self, flavour, articles, search_text, page_info):
+        title = self._search_title(search_text)
+        return self._yawtview.render_collection(flavour, articles, title, page_info)
+                                                      
     def _search_title(self, search_text):
         return 'Search results for: %s' % search_text
  
@@ -43,7 +46,13 @@ class SearchView(YawtView):
                     article = self._store.fetch_article_by_fullname(sr['fullname'])
                     results.append(article)
         return results
-    
+
+def _create_search_view():
+    return SearchView(g.store,
+                      YawtView(g.plugins,
+                               g.config['metadata'],
+                               g.config['content_types']))
+
 class CleanIndexer(object):
     def __init__(self, store, index_root, index_name):
         self._store = store
@@ -134,15 +143,23 @@ def init(app):
 
     @app.route('/search/index', methods=['POST', 'GET'])
     def full_text_search_index():
-        return _full_text_search(request,None)
+        return _full_text_search(request, None)
 
     @app.route('/search/index.<flav>', methods=['POST', 'GET'])
     def full_text_search_index():
         return _full_text_search(request, flav)
 
     def _full_text_search(request, flav):
+        page = 1
+        try:
+            page = int(request.args.get('page', '1'))
+        except ValueError:
+            page = 1
+
         search_text = request.args.get('searchtext', '')
-        return SearchView(g.store).dispatch_request(flav, search_text)
+        sv = _create_search_view()
+        return sv.dispatch_request(flav, search_text,
+                                   page, g.config['page_size'], request.base_url)
            
 def walker(store):
     return CleanIndexer(store, index_dir, index_name)

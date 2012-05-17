@@ -16,9 +16,8 @@ class Walk(Command):
     """
     def handle(self, app):
         store = ArticleStore.get(app.config, app.plugins)
-        walkers = filter(lambda w: w,
-                         map(lambda p: yawt.util.has_method(p, 'walker') and p.walker(store),
-                             app.plugins.values()))
+        walkers = app.plugins.walkers(store)
+        
         map(lambda w: w.pre_walk(), walkers)
         for fullname in store.walk_articles():
             map(lambda w: w.visit_article(fullname), walkers)
@@ -41,15 +40,12 @@ class Update(Command):
     
     def handle(self, app, statuses): 
         store = ArticleStore.get(app.config, app.plugins)
-        updaters = filter(lambda w: w,
-                          map(lambda p: yawt.util.has_method(p, 'updater') and p.updater(store),
-                              app.plugins.values()))
-        
+        updaters = app.plugins.updaters(store) 
         status_map = self._file_statuses(statuses)
         map(lambda u: u.update(status_map), updaters)
      
     def _file_statuses(self, status_output):
-        status_tokens = status_output.split()
+        status_tokens = status_output.split() if status_output is not None else ''
         file_statuses = {}
         for i in xrange(0, len(status_tokens), 2):
             s = status_tokens[i]

@@ -2,47 +2,61 @@ import yawt.util
 import os
 import yaml
 
-from yawt.view import YawtView
-from flask import g, url_for
+from yawt.view import YawtView, PagingInfo
+from flask import g, url_for, request
 
 archive_dir = 'archive_counts'
 archive_file = archive_dir + '/archive_counts.yaml'
 name_file = archive_dir + '/name_infos.yaml'
 
-class PermalinkView(YawtView):
-    def __init__(self, store):
-        super(PermalinkView, self).__init__()
+class PermalinkView(object):
+    def __init__(self, store, yawtview):
+        self._yawtview = yawtview
         self._store = store
         
     def dispatch_request(self, flavour, year, month, day, slug):
         articles = self._store.fetch_dated_articles(year, month, day, slug)
         if len(articles) < 1:
-            return self.handle_missing_resource()
+            return self._yawtview.render_missing_resource()
         else:
             date = yawt.util.Date(year, month, day)
             article = articles[0]
-            if flavour is None:
-                flavour = 'html'
-            return self.render_article(flavour, article)
-        
-class ArchiveView(YawtView):
-    def __init__(self, store):
-        super(ArchiveView, self).__init__()
+            return self._yawtview.render_article(flavour, article)
+         
+def _create_permalink_view():
+    return PermalinkView(ArchivingStore(g.store),
+                         YawtView(g.plugins,
+                                  g.config['metadata'],
+                                  g.config['content_types'],
+                                  g.config['page_size']))
+
+class ArchiveView(object):
+    def __init__(self, store, yawtview):
+        self._yawtview = yawtview
         self._store = store
         
-    def dispatch_request(self, flavour, year, month, day):
+    def dispatch_request(self, flavour, year, month, day, page, page_size, base_url):
         articles =  self._store.fetch_dated_articles(year, month, day)
         if len(articles) < 1:
-            return self.handle_missing_resource()
+            return self._yawtview.render_missing_resource()
         else:
             date = yawt.util.Date(year, month, day)
-            if flavour is None:
-                flavour = 'html'
-            return self.render_collection(flavour, articles, self._archive_title(date))
-        
+            page_info = PagingInfo(page, page_size, len(articles), base_url)
+            return self._render_collection(flavour, articles, date, page_info)
+
+    def _render_collection(self, flavour, articles, date, page_info):
+        title = self._archive_title(date)
+        return self._yawtview.render_collection(flavour, articles, title, page_info)
+       
     def _archive_title(self, date):
         return 'Archives - %s' % str(date)
-    
+
+def _create_archive_view():
+    return ArchiveView(ArchivingStore(g.store),
+                       YawtView(g.plugins,
+                                g.config['metadata'],
+                                g.config['content_types']))
+   
 class ArchivingStore(object):
     def __init__(self, store):
         self._store = store
@@ -144,30 +158,41 @@ def init(app):
     # Permalinks
     @app.route('/<int:year>/<int:month>/<int:day>/<slug>')
     def permalink(year, month, day, slug):
-        return PermalinkView(ArchivingStore(g.store)).dispatch_request(None, year, month, day, slug)
+        return _create_permalink_view().dispatch_request(None, year, month, day, slug)
        
     @app.route('/<int:year>/<int:month>/<int:day>/<slug>.<flav>')
     def permalink_flav(year, month, day, slug, flav):
-        return PermalinkView(ArchivingStore(g.store)).dispatch_request(flav, year, month, day, slug)
+        return _create_permalink_view().dispatch_request(flav, year, month, day, slug)
    
     # Date URLs
     @app.route('/<int:year>/')
     @app.route('/<int:year>/<int:month>/')
     @app.route('/<int:year>/<int:month>/<int:day>/')
     def archive(year, month=None, day=None):
-        return ArchiveView(ArchivingStore(g.store)).dispatch_request(None, year, month, day)
+        return _handle_archive_url(None, year, month, day)
        
     @app.route('/<int:year>/index')
     @app.route('/<int:year>/<int:month>/index')
     @app.route('/<int:year>/<int:month>/<int:day>/index')
     def archive_index(year, month=None, day=None):
-        return ArchiveView(ArchivingStore(g.store)).dispatch_request(None, year, month, day)
+        return _handle_archive_url(None, year, month, day)
 
     @app.route('/<int:year>/index.<flav>')
     @app.route('/<int:year>/<int:month>/index.<flav>')
     @app.route('/<int:year>/<int:month>/<int:day>/index.<flav>')
     def archive_index_flav(year, month=None, day=None, flav=None):
-        return ArchiveView(ArchivingStore(g.store)).dispatch_request(flav, year, month, day)
+        return _handle_archive_url(flav, year, month, day)
+
+    def _handle_archive_url(flav, year, month, day):
+        page = 1
+        try:
+            page = int(request.args.get('page', '1'))
+        except ValueError:
+            page = 1
+
+        av = _create_archive_view()
+        return av.dispatch_request(flav, year, month, day,
+                                   page, g.config['page_size'], request.base_url)
     
 def template_vars():
     return {'archives':_load_archive_counts()}

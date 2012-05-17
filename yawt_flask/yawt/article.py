@@ -144,11 +144,11 @@ class ArticleStore(object):
     """
     def __init__(self, fs, plugins, root_dir, ext, meta_ext):
         self._fs = fs  # file system proxy
+        self._plugins = plugins
         self.root_dir = root_dir
         self.ext = ext
         self.meta_ext = meta_ext
-        self.plugins = plugins
-
+       
     # factory method to fetch an article store
     @staticmethod
     def get(config, plugins):
@@ -189,10 +189,7 @@ class ArticleStore(object):
         times = self._get_times(fullname)
         article = Article(self, fullname, times[0], times[1], md)
 
-        for p in self.plugins.values():
-            if yawt.util.has_method(p, 'on_article_fetch'):
-                article = p.on_article_fetch(article)
-        return article
+        return self._plugins.on_article_fetch(article)
 
     def load_article(self, article):
         f = self._fs.open(self._name2file(article.fullname), 'r')
