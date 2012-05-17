@@ -1,35 +1,9 @@
 import unittest
+from mock import patch
 import yawt
 import os.path
 from yawt.article import ArticleStore
 from yawt.test import fake_filesystem
-
-class FakeFS(object):
-    def __init__(self):
-        self._fs = fake_filesystem.FakeFilesystem()
-        self._os = fake_filesystem.FakeOsModule(self._fs)
-        
-    def open(self, filename, mode):
-        return fake_filesystem.FakeFileOpen(self._fs)(filename, mode)
-    
-    def exists(self, path):
-        return self._os.path.exists(path)
-
-    def isfile(self, path):
-        return self._os.path.isfile(path)
-    
-    def isdir(self, path):
-        return self._os.path.isdir(path)
-    
-    def stat(self, path):
-        return self._os.stat(path)
-    
-    def walk(self, path):
-        return self._os.walk(path)
-    
-    def abspath(self, path):
-        return self._os.path.abspath(path)
-
 
 class TestArticleStore(unittest.TestCase):     
     def setUp(self):
@@ -37,9 +11,27 @@ class TestArticleStore(unittest.TestCase):
         self.ext = 'txt'
         self.meta_ext = 'meta'
         self.plugins = yawt.util.Plugins({})
-        self.fs = FakeFS()
-        self.store = ArticleStore(self.fs, self.plugins, self.root_dir,
+        self.store = ArticleStore(self.plugins, self.root_dir,
                                   self.ext, self.meta_ext)
+        self._patch_os()
+        
+    def tearDown(self):
+        self._unpatch_os()
+        
+    def _patch_os(self):
+        self._fs = fake_filesystem.FakeFilesystem()
+        self._os = fake_filesystem.FakeOsModule(self._fs)
+        self._os_patcher = patch('yawt.article.os', self._os)
+        self._os_path_patcher = patch('yawt.article.os.path',self._os.path)
+        self._open_patcher = patch('__builtin__.open', fake_filesystem.FakeFileOpen(self._fs))
+        self._os_patcher.start() 
+        self._os_path_patcher.start()
+        self._open_patcher.start()
+
+    def _unpatch_os(self):
+        self._os_patcher.stop()
+        self._os_path_patcher.stop()
+        self._open_patcher.stop()
 
     def test_fetch_articles_by_category_no_results(self):
         articles = self.store.fetch_articles_by_category('category01')
@@ -111,9 +103,9 @@ class TestArticleStore(unittest.TestCase):
         self._create_entry_file('cat03/entry11')
      
         # extraneous files that should be ignored
-        self.fs._fs.CreateFile('stupid01.png')
-        self.fs._fs.CreateFile('cat01/stupid02.png')
-        self.fs._fs.CreateFile('cat03/stupid03.png')
+        self._fs.CreateFile('stupid01.png')
+        self._fs.CreateFile('cat01/stupid02.png')
+        self._fs.CreateFile('cat03/stupid03.png')
 
         names = [a for a in self.store.walk_articles()]
         # articles aren't guaranteed to be in any particular order
@@ -209,7 +201,7 @@ class TestArticleStore(unittest.TestCase):
         
     def test_load_metadata(self):
         self._create_entry_file('entry01')
-        self.fs._fs.CreateFile(self._make_meta_filename('entry01'),
+        self._fs.CreateFile(self._make_meta_filename('entry01'),
                                contents='prop1: stuff1\nprop2: stuff2')
         article = self.store.fetch_article_by_fullname('entry01')
         self.assertTrue(article.get_metadata('blah') is None)
@@ -224,7 +216,7 @@ class TestArticleStore(unittest.TestCase):
     
     def test_metadata_times_override_disk_times(self):
         self._create_entry_file('entry01', mtime=1000)
-        self.fs._fs.CreateFile(self._make_meta_filename('entry01'),
+        self._fs.CreateFile(self._make_meta_filename('entry01'),
                                contents='ctime: 300\nmtime: 500')
         article = self.store.fetch_article_by_fullname('entry01')
         self.assertEquals(article.ctime, 300)
@@ -232,9 +224,9 @@ class TestArticleStore(unittest.TestCase):
                
     def _create_entry_file(self, fullname, mtime=None, contents=None):
         filename = self._make_filename(fullname)
-        self.fs._fs.CreateFile(filename, contents=contents)
+        self._fs.CreateFile(filename, contents=contents)
         if mtime is not None:
-            self.fs._os.utime(filename, (mtime, mtime))
+            self._os.utime(filename, (mtime, mtime))
 
     def _assert_article(self, article, fullname, category, slug):
         assert article.fullname == fullname
