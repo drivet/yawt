@@ -1,10 +1,13 @@
 import os
 from yawt.view import YawtView, PagingInfo
+import yawt
 from flask import g, request
 
 from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
 from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
+
+flask_app = None
 
 index_dir = '_whoosh_index'
 index_name = 'fulltextsearch'
@@ -33,7 +36,7 @@ class SearchView(object):
         """
         Fetch collection of articles by searchtext.
         """
-        ix = open_dir(index_dir, indexname = index_name)
+        ix = open_dir(_get_index_dir(), indexname = index_name)
         search_results = None
         searcher = None
         results = []
@@ -136,6 +139,9 @@ class IncrementalIndexer(object):
         self._writer.commit()
   
 def init(app):
+    global flask_app
+    flask_app = app
+    
     # Search URL
     @app.route('/search/', methods=['POST', 'GET'])
     def full_text_search():
@@ -164,3 +170,5 @@ def init(app):
 def walker(store):
     return CleanIndexer(store, index_dir, index_name)
 
+def _get_index_dir():
+    return yawt.util.get_abs_path_app(flask_app, index_dir)

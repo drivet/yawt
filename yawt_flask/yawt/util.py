@@ -1,4 +1,5 @@
 import yaml
+import os
 
 class Plugins(object):
     def __init__(self, plugins):
@@ -55,3 +56,15 @@ def save_yaml(filename, obj):
 def save_string(filename, str):
     with open(filename, 'w') as f:
         f.write(str)
+
+def get_abs_path(blogpath, path):
+    if os.path.isabs(path):
+        return path
+    else:
+        return os.path.join(blogpath, path)
+
+def get_abs_path_app(app, path):
+    return get_abs_path(app.config['blogpath'], path)
+
+def get_base_url(app):
+    return app.config['base_url'] or request.url_root

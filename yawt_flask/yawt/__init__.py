@@ -4,10 +4,12 @@ import time
 import yaml
 from flask import Flask, g, request
 
+from copy import deepcopy
 from yawt.article import ArticleStore
 from yawt.view import create_article_view, create_category_view
 from yawt.util import Plugins
 import yawt
+import os
 
 default_config = {
     'metadata': {
@@ -26,21 +28,21 @@ default_config = {
     'meta_ext': 'meta',
 }
 
-def _load_config():
-    return yawt.util.load_yaml('config.yaml')
+def _load_config(blogpath):
+    try:
+        return yawt.util.load_yaml(os.path.join(blogpath, 'config.yaml'))
+    except IOError as e:
+        print 'Exception thrown loading config: ' + str(e)
+        return {}
 
-def create_app(config=None):
-    if config is None:
-        try:
-            config = _load_config()
-        except IOError as e:
-            print 'Exception thrown loading config: ' + str(e)
-            config = {}
-
-    app = Flask(__name__)
-    app.config.update(default_config)
+def create_app(blogpath=None):
+    config = deepcopy(default_config)
+    config.update(_load_config(blogpath))
+    template_folder = yawt.util.get_abs_path(blogpath, config['path_to_templates'])
+    app = Flask(__name__, template_folder=template_folder)
+    app.config['blogpath'] = blogpath
     app.config.update(config)
-    app.template_folder = app.config['path_to_templates']
+ 
     plugins = {}
     if 'plugins' in app.config:
         for name in app.config['plugins']:
@@ -97,7 +99,7 @@ def create_app(config=None):
         cv = create_category_view()
         return cv.dispatch_request(flav, category, page,
                                    int(g.config['page_size']),
-                                   request.base_url)
+                                   request.url_root)
         
     # filter for date and time formatting
     @app.template_filter('dateformat')

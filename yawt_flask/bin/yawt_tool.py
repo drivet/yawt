@@ -129,6 +129,9 @@ class NewArticle(YawtCommand):
         
 
 manager = Manager(create_app)
+manager.add_option('-b', '--blogpath', dest='blogpath',
+                   default=os.getcwd(), required=False)
+ 
 server = Server(use_debugger=True, use_reloader=True)
 server.description = 'runs the yawt local server.'
 manager.add_command('runserver', server)

@@ -3,7 +3,7 @@ import os
 import yaml
 
 from yawt.view import YawtView, PagingInfo
-from flask import g, request
+from flask import g, request, url_for
 
 flask_app = None
 
@@ -84,13 +84,13 @@ class TagCounter(object):
         if tags is not None:
             for tag in tags:
                 if tag not in self._tag_infos.keys():
-                    tag_url = '/tags/%s/' % tag
+                    tag_url = url_for('tag_canonical', tag=tag)
                     self._tag_infos[tag] = {'count': 0, 'url': tag_url}
                 self._tag_infos[tag]['count'] += 1
                
     def post_walk(self):
-        self._save_info(_plugin_config()['tag_file'], self._tag_infos)
-        self._save_info(_plugin_config()['name_file'], self._name_infos)
+        self._save_info(_get_tag_file(), self._tag_infos)
+        self._save_info(_get_name_file(), self._name_infos)
        
    
     def update(self, statuses):
@@ -118,7 +118,7 @@ class TagCounter(object):
         self.post_walk()
           
     def _save_info(self, filename, info):
-        tag_dir = _get_plugin_config()['tag_dir']
+        tag_dir = _get_tag_dir()
         if not os.path.exists(tag_dir):
             os.mkdir(tag_dir)
         stream = file(filename, 'w')
@@ -139,6 +139,11 @@ def init(app):
             return ', '.join(tags)
         else:
             return ''
+
+    #XXX maybe not useful
+    @app.template_filter('tag_url')
+    def tag_url(relative_url):
+        return request.url_root + relative_url
         
     @app.route('/tags/<tag>/')
     def tag_canonical(tag):
@@ -174,15 +179,24 @@ def updater(store):
     return TagCounter(store)
 
 def _load_tag_infos():
-    return yawt.util.load_yaml(_plugin_config()['tag_file'])
+    return yawt.util.load_yaml(_get_tag_file())
 
 def _load_name_infos():
-    return yawt.util.load_yaml(_plugin_config()['name_file'])
+    return yawt.util.load_yaml(_get_name_file())
 
 def _plugin_config():
-    return flask_app.config['yawt.plugins.tagging']
+    return flask_app.config[__name__]
 
 def _load_config():
-    if 'yawt.plugins.tagging' not in flask_app.config:
-        flask_app.config['yawt.plugins.tagging'] = {}
-    flask_app.config['yawt.plugins.tagging'].update(default_config)
+    if __name__ not in flask_app.config:
+        flask_app.config[__name__] = {}
+    flask_app.config[__name__].update(default_config)
+    
+def _get_tag_dir():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['tag_dir'])
+
+def _get_tag_file():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['tag_file'])
+
+def _get_name_file():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['name_file'])

@@ -3,7 +3,7 @@ import re
 import time
 import fnmatch
 import yaml
-import yawt.util
+import yawt
 from werkzeug.utils import cached_property
 
 
@@ -124,8 +124,9 @@ class ArticleStore(object):
     # factory method to fetch an article store
     @staticmethod
     def get(config, plugins):
+        article_root = yawt.util.get_abs_path(config['blogpath'], config['path_to_articles'])
         return ArticleStore(plugins,
-                            config['path_to_articles'],
+                            article_root,
                             config['ext'],
                             config['meta_ext'])
          

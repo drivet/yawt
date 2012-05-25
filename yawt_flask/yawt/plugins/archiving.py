@@ -118,8 +118,8 @@ class ArchiveCounter(object):
         archive_counts_dump.sort(key = lambda item: (item['year'], item['month']),
                                  reverse = True)
         
-        self._save_info(_plugin_config()['archive_file'], archive_counts_dump)
-        self._save_info(_plugin_config()['name_file'], self._name_infos)
+        self._save_info(_get_archive_file(), archive_counts_dump)
+        self._save_info(_get_name_file(), self._name_infos)
 
     def update(self, statuses):
         archive_counts_dump = _load_archive_counts()
@@ -146,7 +146,7 @@ class ArchiveCounter(object):
         self.post_walk()
    
     def _save_info(self, filename, info):
-        archive_dir = _get_plugin_config()['archive_dir']
+        archive_dir = _get_archive_dir()
         if not os.path.exists(archive_dir):
             os.mkdir(archive_dir)
         stream = file(filename, 'w')
@@ -168,6 +168,10 @@ def init(app):
         slug = os.path.split(article.fullname)[1]
         return url_for('permalink', _external=external,
                        year=year, month=month, day=day, slug=slug)
+
+    @app.template_filter('archive_url')
+    def archive_url(relative_url):
+        return request.url_root + relative_url
 
     # Permalinks
     @app.route('/<int:year>/<int:month>/<int:day>/<slug>')
@@ -219,15 +223,24 @@ def updater(store):
     return ArchiveCounter(store, flask_app)
 
 def _load_archive_counts():
-    return yawt.util.load_yaml(_plugin_config()['archive_file'])
+    return yawt.util.load_yaml(_get_archive_file())
 
 def _load_name_infos():
-    return yawt.util.load_yaml(_plugin_config()['name_file'])
+    return yawt.util.load_yaml(_get_name_file())
 
 def _plugin_config():
-    return flask_app.config['yawt.plugins.archiving']
+    return flask_app.config[__name__]
 
 def _load_config():
-    if 'yawt.plugins.archiving' not in flask_app.config:
-        flask_app.config['yawt.plugins.archiving'] = {}
-    flask_app.config['yawt.plugins.archiving'].update(default_config)
+    if __name__ not in flask_app.config:
+        flask_app.config[__name__] = {}
+    flask_app.config[__name__].update(default_config)
+    
+def _get_archive_dir():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_dir'])
+
+def _get_archive_file():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_file'])
+
+def _get_name_file():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['name_file'])
