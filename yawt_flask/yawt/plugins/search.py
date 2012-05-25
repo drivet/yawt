@@ -6,7 +6,7 @@ from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
 from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
 
-index_dir = 'whoosh_index'
+index_dir = '_whoosh_index'
 index_name = 'fulltextsearch'
 
 class SearchView(object):
@@ -163,3 +163,4 @@ def init(app):
            
 def walker(store):
     return CleanIndexer(store, index_dir, index_name)
+

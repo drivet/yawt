@@ -7,6 +7,7 @@ from flask import Flask, g, request
 from yawt.article import ArticleStore
 from yawt.view import create_article_view, create_category_view
 from yawt.util import Plugins
+import yawt
 
 default_config = {
     'metadata': {
@@ -26,20 +27,20 @@ default_config = {
 }
 
 def _load_config():
-    yawt.util.load_yaml('config.yaml')
+    return yawt.util.load_yaml('config.yaml')
 
-def create_app(config=None): 
+def create_app(config=None):
     if config is None:
         try:
             config = _load_config()
-        except Exception:
+        except IOError as e:
+            print 'Exception thrown loading config: ' + str(e)
             config = {}
-            
+
     app = Flask(__name__)
     app.config.update(default_config)
     app.config.update(config)
     app.template_folder = app.config['path_to_templates']
-    
     plugins = {}
     if 'plugins' in app.config:
         for name in app.config['plugins']:
@@ -95,7 +96,8 @@ def create_app(config=None):
 
         cv = create_category_view()
         return cv.dispatch_request(flav, category, page,
-                                   g.config['page_size'], request.base_url)
+                                   int(g.config['page_size']),
+                                   request.base_url)
         
     # filter for date and time formatting
     @app.template_filter('dateformat')

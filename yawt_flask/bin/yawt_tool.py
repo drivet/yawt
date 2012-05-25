@@ -25,15 +25,20 @@ def _hg_add(filename):
 
 def _hg_commit(message):
     subprocess.call(['hg', 'ci', '-m', message])
-        
-class Walk(Command):
+
+class YawtCommand(Command):
+    def handle(self, app, *args, **kwargs):
+        self.app = app
+        super(YawtCommand, self).handle(app, *args, **kwargs)
+    
+class Walk(YawtCommand):
     """
     The walk command will visit every article in the repo and let each
     plugin do something with it.
     """
-    def handle(self, app):
-        store = ArticleStore.get(app.config, app.plugins)
-        walkers = app.plugins.walkers(store)
+    def run(self):
+        store = ArticleStore.get(self.app.config, self.app.plugins)
+        walkers = self.app.plugins.walkers(store)
         
         map(lambda w: w.pre_walk(), walkers)
         for fullname in store.walk_articles():
@@ -41,7 +46,7 @@ class Walk(Command):
         map(lambda w: w.post_walk(), walkers)
         
 
-class Update(Command):
+class Update(YawtCommand):
     """
     The update command will take input like this
 
@@ -56,9 +61,9 @@ class Update(Command):
         Option('statuses'),
     )
     
-    def handle(self, app, statuses): 
-        store = ArticleStore.get(app.config, app.plugins)
-        updaters = app.plugins.updaters(store) 
+    def run(self, statuses): 
+        store = ArticleStore.get(self.app.config, self.app.plugins)
+        updaters = self.app.plugins.updaters(store) 
         status_map = self._file_statuses(statuses)
         map(lambda u: u.update(status_map), updaters)
      
@@ -73,7 +78,7 @@ class Update(Command):
         return file_statuses
 
 
-class NewBlog(Command):
+class NewBlog(YawtCommand):
     """
     The newblog command will create take a directory and create a new hg
     repository there.  In addition to the hg repository, you'll get a
@@ -95,7 +100,7 @@ class NewBlog(Command):
         Option('directory'),
     )
     
-    def handle(self, app, directory):
+    def run(self, directory):
         _hg_init(directory)
         os.chdir(directory)
         _save_add_yaml('config.yaml', yawt.default_config)
@@ -109,15 +114,15 @@ class NewBlog(Command):
         _hg_commit('initial commit')
 
 
-class NewArticle(Command):
+class NewArticle(YawtCommand):
     option_list = (
         Option('article'),
     )
     
-    def handle(self, app, article):
+    def run(self, article):
         if _is_hg_repo_root():
-            ext = app.config['ext']
-            article_file = os.path.join(app.config['path_to_articles'], article + '.' + ext)
+            ext = self.app.config['ext']
+            article_file = os.path.join(self.app.config['path_to_articles'], article + '.' + ext)
             _save_add_str(article_file,'')
         else:
             print "error: not at hg repository root"

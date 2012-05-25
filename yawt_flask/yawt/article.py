@@ -124,7 +124,7 @@ class ArticleStore(object):
     # factory method to fetch an article store
     @staticmethod
     def get(config, plugins):
-        return ArticleStore(_FileSystem(), plugins,
+        return ArticleStore(plugins,
                             config['path_to_articles'],
                             config['ext'],
                             config['meta_ext'])

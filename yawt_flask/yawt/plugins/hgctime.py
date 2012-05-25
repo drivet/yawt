@@ -67,8 +67,9 @@ class HgCtimeArticle(object):
     
 def init(app):
     global hgstore
-    config = app.config
-    hgstore = HgCtimeStore(config['repopath'], config['contentpath'], config['ext'])
+    hgstore = HgCtimeStore(app.config['repopath'],
+                           app.config['contentpath'],
+                           app.config['ext'])
 
 def on_article_fetch(article):
     global hgstore

@@ -5,10 +5,18 @@ import yaml
 from yawt.view import YawtView, PagingInfo
 from flask import g, url_for, request
 
-archive_dir = 'archive_counts'
-archive_file = archive_dir + '/archive_counts.yaml'
-name_file = archive_dir + '/name_infos.yaml'
+flask_app = None
 
+_archive_dir = '_archive_counts'
+_archive_file = _archive_dir + '/archive_counts.yaml'
+_name_file = _archive_dir + '/name_infos.yaml'
+    
+default_config = {
+    'archive_dir': _archive_dir,
+    'archive_file': _archive_file,
+    'name_file': _name_file,
+}
+    
 class PermalinkView(object):
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
@@ -27,8 +35,7 @@ def _create_permalink_view():
     return PermalinkView(ArchivingStore(g.store),
                          YawtView(g.plugins,
                                   g.config['metadata'],
-                                  g.config['content_types'],
-                                  g.config['page_size']))
+                                  g.config['content_types']))
 
 class ArchiveView(object):
     def __init__(self, store, yawtview):
@@ -82,8 +89,9 @@ class ArchivingStore(object):
                (slug is None or slug == current_slug)
    
 class ArchiveCounter(object):
-    def __init__(self, store):
+    def __init__(self, store, app):
         self._store = store
+        self._app = app
         self._archive_counts = None
         self._name_infos = None
 
@@ -110,8 +118,8 @@ class ArchiveCounter(object):
         archive_counts_dump.sort(key = lambda item: (item['year'], item['month']),
                                  reverse = True)
         
-        self._save_info(archive_file, archive_counts_dump)
-        self._save_info(name_file, self._name_infos)
+        self._save_info(_plugin_config()['archive_file'], archive_counts_dump)
+        self._save_info(_plugin_config()['name_file'], self._name_infos)
 
     def update(self, statuses):
         archive_counts_dump = _load_archive_counts()
@@ -138,6 +146,7 @@ class ArchiveCounter(object):
         self.post_walk()
    
     def _save_info(self, filename, info):
+        archive_dir = _get_plugin_config()['archive_dir']
         if not os.path.exists(archive_dir):
             os.mkdir(archive_dir)
         stream = file(filename, 'w')
@@ -145,6 +154,11 @@ class ArchiveCounter(object):
         stream.close()
         
 def init(app):
+    global flask_app
+    flask_app = app
+
+    _load_config()
+    
     # filter for showing article permalinks
     @app.template_filter('permalink')
     def permalink(article, external=True):
@@ -193,18 +207,27 @@ def init(app):
         av = _create_archive_view()
         return av.dispatch_request(flav, year, month, day,
                                    page, g.config['page_size'], request.base_url)
+
     
 def template_vars():
     return {'archives':_load_archive_counts()}
 
 def walker(store):
-    return ArchiveCounter(store)
+    return ArchiveCounter(store, flask_app)
 
 def updater(store):
-    return ArchiveCounter(store)
+    return ArchiveCounter(store, flask_app)
 
 def _load_archive_counts():
-    return yawt.util.load_yaml(archive_file)
+    return yawt.util.load_yaml(_plugin_config()['archive_file'])
 
 def _load_name_infos():
-    return yawt.util.load_yaml(name_file)
+    return yawt.util.load_yaml(_plugin_config()['name_file'])
+
+def _plugin_config():
+    return flask_app.config['yawt.plugins.archiving']
+
+def _load_config():
+    if 'yawt.plugins.archiving' not in flask_app.config:
+        flask_app.config['yawt.plugins.archiving'] = {}
+    flask_app.config['yawt.plugins.archiving'].update(default_config)
