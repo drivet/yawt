@@ -45,7 +45,13 @@ def has_method(obj, method):
     return hasattr(obj, method) and callable(getattr(obj, method))
     
 def load_yaml(filename):
-    f = open(filename, 'r')
-    obj = yaml.load(f)
-    f.close()
-    return obj
+    with open(filename, 'r') as f:
+        return yaml.load(f)
+
+def save_yaml(filename, obj):
+    with open(filename, 'w') as f:
+        yaml.dump(obj, f)
+
+def save_string(filename, str):
+    with open(filename, 'w') as f:
+        f.write(str)

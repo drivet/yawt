@@ -8,20 +8,38 @@ from yawt.article import ArticleStore
 from yawt.view import create_article_view, create_category_view
 from yawt.util import Plugins
 
-def load_config():
-    with open('config.yaml', 'r') as f:
-        return yaml.load(f)
+default_config = {
+    'metadata': {
+        'blogtitle': 'Awesome Blog Title',
+        'blogdescription': 'Awesome Blog Description',
+        'bloglang': 'en',
+        'blogurl': 'http://www.awesome.net/blog'
+    },
+    'content_types': {
+        'rss': 'application/rss+xml'
+    },
+    'page_size': '10',
+    'path_to_templates': 'templates',
+    'path_to_articles': 'entries',
+    'ext': 'txt',
+    'meta_ext': 'meta',
+}
+
+def _load_config():
+    yawt.util.load_yaml('config.yaml')
 
 def create_app(config=None): 
     if config is None:
-        config = load_config()
-        
-    if 'path_to_templates' in config and config['path_to_templates']:
-        app = Flask(__name__, template_folder=config['path_to_templates'])
-    else:
-        app = Flask(__name__)
+        try:
+            config = _load_config()
+        except Exception:
+            config = {}
+            
+    app = Flask(__name__)
+    app.config.update(default_config)
     app.config.update(config)
-
+    app.template_folder = app.config['path_to_templates']
+    
     plugins = {}
     if 'plugins' in app.config:
         for name in app.config['plugins']:

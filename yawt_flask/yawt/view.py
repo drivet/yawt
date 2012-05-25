@@ -1,5 +1,57 @@
 from flask import render_template, g, make_response, request, redirect, url_for
 
+default_article_template = """<html>
+    <head>
+        <title>{{ article.title }}</title>
+    </head>
+    <body>
+        <h1>{{global.blogtitle}}</h1>
+        <h2>{{global.blogdescription}}</h2>
+        <h1>{{ article.title }}</h1>
+        <p>Posted on {{article.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{article.fullname}}</p>
+        <p>Last modified on {{article.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
+        <p>{{article}}</p>
+    </body>
+</html>
+"""
+
+default_article_list_template = """<html>
+    <head>
+        <title>{{global.blogtitle}} - {{collection_title}}</title>
+    </head>
+    <body>
+    <h1>{{global.blogtitle}}</h1>
+    <h2>{{global.blogdescription}}</h2>
+    <h1>{{collection_title}}</h1>
+
+    {% if total_pages > 1 %} 
+    <p>
+       {% if prevpage %} <a href="{{prevpage}}">Prev</a> {% endif %}
+       Page {{page}} of {{total_pages}}
+       {% if nextpage %} <a href="{{nextpage}}">Next</a> {% endif %}
+    </p>
+    {% endif %}
+
+    {% for a in articles: %} 
+        <h1>{{ a.title }}</h1>
+        <p>Posted on {{a.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{a.fullname}}</p>
+        <p>Last modified on {{a.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
+        <p>{{a}}</p>
+    {% endfor %}
+    </body>
+</html>
+"""
+
+default_404_template = """<html>
+    <head>
+        <title>Not found</title>
+    </head>
+    <body>  
+	  <p>Not found</p>
+    </body>
+</html>
+"""
+
 def _render(template_base, template_vars={}, flavour=None, content_type=None):
     if flavour is None:
         flavour = 'html'
