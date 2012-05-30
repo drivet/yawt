@@ -33,9 +33,7 @@ class PermalinkView(object):
          
 def _create_permalink_view():
     return PermalinkView(ArchivingStore(g.store),
-                         YawtView(g.plugins,
-                                  g.config['metadata'],
-                                  g.config['content_types']))
+                         YawtView(g.plugins, g.config['content_types']))
 
 class ArchiveView(object):
     def __init__(self, store, yawtview):
@@ -60,9 +58,7 @@ class ArchiveView(object):
 
 def _create_archive_view():
     return ArchiveView(ArchivingStore(g.store),
-                       YawtView(g.plugins,
-                                g.config['metadata'],
-                                g.config['content_types']))
+                       YawtView(g.plugins, g.config['content_types']))
    
 class ArchivingStore(object):
     def __init__(self, store):

@@ -58,7 +58,6 @@ class TagView(object):
 def _create_tag_view():
     return TagView(g.store,
                    YawtView(g.plugins,
-                            g.config['metadata'],
                             g.config['content_types']))
 
 

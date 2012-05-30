@@ -12,20 +12,19 @@ import yawt
 import os
 
 default_config = {
-    'metadata': {
-        'blogtitle': 'Awesome Blog Title',
-        'blogdescription': 'Awesome Blog Description',
-        'bloglang': 'en',
-        'blogurl': 'http://www.awesome.net/blog'
-    },
-    'content_types': {
-        'rss': 'application/rss+xml'
-    },
+    'blogtitle': 'Awesome Blog Title',
+    'blogdescription': 'Awesome Blog Description',
+    'bloglang': 'en',
+    'blogurl': 'http://www.awesome.net/blog',
     'page_size': '10',
     'path_to_templates': 'templates',
     'path_to_articles': 'entries',
     'ext': 'txt',
     'meta_ext': 'meta',
+    
+    'content_types': {
+        'rss': 'application/rss+xml'
+    },
 }
 
 def _load_config(blogpath):

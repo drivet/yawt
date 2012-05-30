@@ -52,9 +52,7 @@ class SearchView(object):
 
 def _create_search_view():
     return SearchView(g.store,
-                      YawtView(g.plugins,
-                               g.config['metadata'],
-                               g.config['content_types']))
+                      YawtView(g.plugins, g.config['content_types']))
 
 class CleanIndexer(object):
     def __init__(self, store, index_root, index_name):

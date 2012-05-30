@@ -5,9 +5,9 @@ default_article_template = """<html>
         <title>{{ article.title }}</title>
     </head>
     <body>
-        <h1>{{global.blogtitle}}</h1>
-        <h2>{{global.blogdescription}}</h2>
-        <h1>{{ article.title }}</h1>
+        <h1>{{config.blogtitle}}</h1>
+        <h2>{{config.blogdescription}}</h2>
+        <h1>{{article.title}}</h1>
         <p>Posted on {{article.ctime_tm|dateformat('%Y/%m/%d %H:%M')}} at {{article.fullname}}</p>
         <p>Last modified on {{article.mtime_tm|dateformat('%Y/%m/%d %H:%M')}}</p>
         <p>{{article}}</p>
@@ -17,11 +17,11 @@ default_article_template = """<html>
 
 default_article_list_template = """<html>
     <head>
-        <title>{{global.blogtitle}} - {{collection_title}}</title>
+        <title>{{config.blogtitle}} - {{collection_title}}</title>
     </head>
     <body>
-    <h1>{{global.blogtitle}}</h1>
-    <h2>{{global.blogdescription}}</h2>
+    <h1>{{config.blogtitle}}</h1>
+    <h2>{{config.blogdescription}}</h2>
     <h1>{{collection_title}}</h1>
 
     {% if total_pages > 1 %} 
@@ -100,16 +100,15 @@ class PagingInfo(object):
                self.base_url == other.base_url
         
 class YawtView(object):
-    def __init__(self, plugins, metadata, content_types):
+    def __init__(self, plugins, content_types):
         self._plugins = plugins
-        self._global_md = metadata
         self._content_types = content_types
         
     def render_missing_resource(self):
         return render_template("404.html")
 
     def render_article(self, flavour, article):
-        template_vars = {'article': article, 'global': self._global_md}
+        template_vars = {'article': article}
         template_vars = self._plugins.template_vars(template_vars)
         return _render('article', template_vars, flavour, self._content_type(flavour))
     
@@ -119,8 +118,7 @@ class YawtView(object):
                          'page': page_info.page,
                          'nextpage':  page_info.next_url,
                          'prevpage': page_info.prev_url,
-                         'collection_title': title,
-                         'global': self._global_md}
+                         'collection_title': title}
         template_vars = self._plugins.template_vars(template_vars)
         return _render('article_list', template_vars, flavour, self._content_type(flavour))
 
@@ -182,11 +180,7 @@ class CategoryView(object):
         return 'Categories - %s' % category
     
 def create_article_view():
-    return ArticleView(g.store, YawtView(g.plugins,
-                                         g.config['metadata'],
-                                         g.config['content_types']))
+    return ArticleView(g.store, YawtView(g.plugins, g.config['content_types']))
 
 def create_category_view():
-    return CategoryView(g.store, YawtView(g.plugins,
-                                          g.config['metadata'],
-                                          g.config['content_types']))
+    return CategoryView(g.store, YawtView(g.plugins, g.config['content_types']))
