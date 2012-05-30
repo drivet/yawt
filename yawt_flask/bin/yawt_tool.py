@@ -1,10 +1,14 @@
 from flaskext.script import Manager, Server, Command, Option
-from yawt import ArticleStore, create_app
-import yawt.util
+
 import sys
 import subprocess
 import yaml
 import os
+
+import yawt
+import yawt.util
+import yawt.article
+
 
 def _is_hg_repo_root():
     return os.path.isdir('.hg') and subprocess.call(['hg', 'status']) == 0
@@ -37,7 +41,7 @@ class Walk(YawtCommand):
     plugin do something with it.
     """
     def run(self):
-        store = ArticleStore.get(self.app.config, self.app.plugins)
+        store = yawt.article.ArticleStore.get(self.app.config, self.app.plugins)
         walkers = self.app.plugins.walkers(store)
         
         map(lambda w: w.pre_walk(), walkers)
@@ -62,7 +66,7 @@ class Update(YawtCommand):
     )
     
     def run(self, statuses): 
-        store = ArticleStore.get(self.app.config, self.app.plugins)
+        store = yawt.article.ArticleStore.get(self.app.config, self.app.plugins)
         updaters = self.app.plugins.updaters(store) 
         status_map = self._file_statuses(statuses)
         map(lambda u: u.update(status_map), updaters)
@@ -128,9 +132,9 @@ class NewArticle(YawtCommand):
             print "error: not at hg repository root"
         
 
-manager = Manager(create_app)
+manager = Manager(yawt.create_app)
 manager.add_option('-b', '--blogpath', dest='blogpath',
-                   default=os.getcwd(), required=False)
+                   default=os.getcwd(), required=True)
  
 server = Server(use_debugger=True, use_reloader=True)
 server.description = 'runs the yawt local server.'

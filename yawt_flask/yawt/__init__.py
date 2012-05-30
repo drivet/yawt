@@ -1,15 +1,13 @@
+import os
 import sys
 import time
-
 import yaml
-from flask import Flask, g, request
+import copy
 
-from copy import deepcopy
-from yawt.article import ArticleStore
+from flask import Flask, g, request
 from yawt.view import create_article_view, create_category_view
-from yawt.util import Plugins
-import yawt
-import os
+from yawt.util import get_abs_path, Plugins, load_yaml
+from yawt.article import ArticleStore
 
 default_config = {
     'blogtitle': 'Awesome Blog Title',
@@ -29,15 +27,15 @@ default_config = {
 
 def _load_config(blogpath):
     try:
-        return yawt.util.load_yaml(os.path.join(blogpath, 'config.yaml'))
+        return load_yaml(os.path.join(blogpath, 'config.yaml'))
     except IOError as e:
         print 'Exception thrown loading config: ' + str(e)
         return {}
 
 def create_app(blogpath=None):
-    config = deepcopy(default_config)
+    config = copy.deepcopy(default_config)
     config.update(_load_config(blogpath))
-    template_folder = yawt.util.get_abs_path(blogpath, config['path_to_templates'])
+    template_folder = get_abs_path(blogpath, config['path_to_templates'])
     app = Flask(__name__, template_folder=template_folder)
     app.config['blogpath'] = blogpath
     app.config.update(config)
