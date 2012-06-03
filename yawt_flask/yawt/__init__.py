@@ -17,6 +17,7 @@ default_config = {
     'page_size': '10',
     'path_to_templates': 'templates',
     'path_to_articles': 'entries',
+    'path_to_static': 'static',
     'ext': 'txt',
     'meta_ext': 'meta',
     
@@ -36,7 +37,8 @@ def create_app(blogpath=None):
     config = copy.deepcopy(default_config)
     config.update(_load_config(blogpath))
     template_folder = get_abs_path(blogpath, config['path_to_templates'])
-    app = Flask(__name__, template_folder=template_folder)
+    static_folder = get_abs_path(blogpath, config['path_to_static'])
+    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
     app.config['blogpath'] = blogpath
     app.config.update(config)
  
@@ -109,7 +111,14 @@ def create_app(blogpath=None):
         words = article.content.split()[0:word_count]
         words.append("[...]")
         return " ".join(words)
-
+    
+    #XXX maybe not useful
+    @app.template_filter('url')
+    def url(relative_url):
+        base_url = app.config['blogurl'] or request.url_root
+        url = base_url.rstrip('/') + '/' + relative_url.lstrip('/')
+        return url
+    
     @app.before_request
     def before_request():
         g.config = app.config

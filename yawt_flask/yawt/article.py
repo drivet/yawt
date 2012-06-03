@@ -180,7 +180,7 @@ class ArticleStore(object):
 
     def category_exists(self, fullname):
         return os.path.isdir(self._name2dir(fullname))
-
+      
     def walk_articles(self, category=""):
         """
         iterates over articles in category.  Yields fullnames.

@@ -31,6 +31,10 @@ def _hg_commit(message):
     subprocess.call(['hg', 'ci', '-m', message])
 
 class YawtCommand(Command):
+    """
+    Exactly the same as Command, except it saves the app object
+    when handle() is called.
+    """
     def handle(self, app, *args, **kwargs):
         self.app = app
         super(YawtCommand, self).handle(app, *args, **kwargs)
@@ -54,30 +58,30 @@ class Update(YawtCommand):
     """
     The update command will take input like this
 
-    A file1
-    M file2
-    R file3
+    A fullname1
+    M fullname2
+    R fullname3
 
-    and interpret it as file statuses.  A means added,
+    and interpret it as article statuses.  A means added,
     M means modified, R means removed.
     """
     option_list = (
         Option('statuses'),
     )
     
-    def run(self, statuses): 
+    def run(self, statuses):
         store = yawt.article.ArticleStore.get(self.app.config, self.app.plugins)
         updaters = self.app.plugins.updaters(store) 
-        status_map = self._file_statuses(statuses)
+        status_map = self._file_statuses(store, statuses)
         map(lambda u: u.update(status_map), updaters)
      
-    def _file_statuses(self, status_output):
+    def _file_statuses(self, store, status_output):
         status_tokens = status_output.split() if status_output is not None else ''
         file_statuses = {}
         for i in xrange(0, len(status_tokens), 2):
             s = status_tokens[i]
-            if s in ['A','M','R']:   
-                f = status_tokens[i+1]
+            f = status_tokens[i+1]
+            if s in ['A','M','R']:
                 file_statuses[f] = s
         return file_statuses
 
@@ -119,6 +123,9 @@ class NewBlog(YawtCommand):
 
 
 class NewArticle(YawtCommand):
+    """
+    Create empty new article
+    """
     option_list = (
         Option('article'),
     )
@@ -130,6 +137,20 @@ class NewArticle(YawtCommand):
             _save_add_str(article_file,'')
         else:
             print "error: not at hg repository root"
+        
+class Info(YawtCommand):
+    """
+    Query configuration items
+    """
+    option_list = (
+        Option('path'),
+    )
+    
+    def run(self, path):
+        if path in self.app.config:
+            print self.app.config[path]
+        else:
+            print 'no configuration item found at ' + path
         
 
 manager = Manager(yawt.create_app)
@@ -143,6 +164,7 @@ manager.add_command('newblog', NewBlog())
 manager.add_command('newarticle', NewArticle())
 manager.add_command('walk', Walk())
 manager.add_command('update', Update())
+manager.add_command('info', Info())
 
 if __name__ == '__main__':
     manager.run()

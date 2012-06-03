@@ -98,21 +98,23 @@ class TagCounter(object):
         
         for fullname in statuses.keys():
             status = statuses[fullname]
-            assert status in ['A','M','R']
+            if status not in ['A','M','R']:
+                continue
 
             # no matter what, remove all old tags.
-            old_tags = self._name_infos[fullname]
-            for tag in old_tags:
-                if tag in self._tag_infos.keys():
-                    self._tag_infos[tag]['count'] -= 1
-                    if self._tag_infos[tag]['count'] == 0:
-                        del self._tag_infos[tag]
-            del self._name_infos[fullname]
+            if 'fullname' in self._name_infos:
+                old_tags = self._name_infos[fullname]
+                for tag in old_tags:
+                    if tag in self._tag_infos.keys():
+                        self._tag_infos[tag]['count'] -= 1
+                        if self._tag_infos[tag]['count'] == 0:
+                            del self._tag_infos[tag]
+                del self._name_infos[fullname]
  
             # if this is a R status, then removing the old tags was all we needed to do
             if status in ('A', 'M'):
                 # file added or modified - treat it the same way.
-                # namely add the tags (since we deleted all the old ones
+                # namely add the tags (since we deleted all the old ones)
                 self.visit_article(fullname)
         self.post_walk()
           
@@ -138,12 +140,7 @@ def init(app):
             return ', '.join(tags)
         else:
             return ''
-
-    #XXX maybe not useful
-    @app.template_filter('tag_url')
-    def tag_url(relative_url):
-        return request.url_root + relative_url
-        
+     
     @app.route('/tags/<tag>/')
     def tag_canonical(tag):
         return _handle_tag_url(None, tag)

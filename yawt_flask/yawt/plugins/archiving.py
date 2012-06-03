@@ -127,7 +127,8 @@ class ArchiveCounter(object):
         
         for fullname in statuses.keys():
             status = statuses[fullname]
-            assert status in ['A','M','R']
+            if status not in ['A','M','R']:
+                continue
 
             old_date = self._name_infos[fullname]
             ym = (old_date[0], old_date[1])
