@@ -1,4 +1,6 @@
 from flask import render_template, g, make_response, request, redirect, url_for
+from jinja2.loaders import BaseLoader, TemplateNotFound
+import os
 
 default_article_template = """<html>
     <head>
@@ -52,15 +54,51 @@ default_404_template = """<html>
 </html>
 """
 
-def _render(template_base, template_vars={}, flavour=None, content_type=None):
+class YawtLoader(BaseLoader):
+    def __init__(self, root):
+        self.root = root
+        
+    def get_source(self, environment, template):
+        current_category = os.path.dirname(template)
+        template_name = template
+        while current_category and not self._exists(template_name):
+            current_category = os.path.dirname(category)
+            template_name = _join(current_category, template_file)
+
+        if not self._exists(template_name):
+            raise TemplateNotFound(template)
+
+        template_file = self._file(template_name)
+        mtime = os.path.getmtime(template_file)
+        with file(template_file) as f:
+            source = f.read().decode('utf-8')
+        return source, template_file, lambda: mtime == os.path.getmtime(template_file)
+
+    def _file(self, template_name):
+        return os.path.join(self.root, template_name)
+    
+    def _exists(self, template_name):
+        return os.path.exists(self._file(template_name))
+
+
+def _render(template_base, flavour=None, template_vars={}, content_type=None, category=""):
+    template_root = g.config['path_to_templates']
+    
     if flavour is None:
         flavour = 'html'
-    template = template_base + "." + flavour
+    template_file = template_base + "." + flavour
+  
+    current_category = category
+    template_path = _join(current_category, template_file)
+    while current_category and not os.path.exists(os.path.join(template_root, template_path)):
+        current_category = os.path.dirname(category)
+        template_path = _join(current_category, template_file)
+    
     if (content_type is not None):
-        return make_response(render_template(template, **template_vars),
+        return make_response(render_template(template_path, **template_vars),
                              200, None, None, content_type)
     else:
-        return render_template(template, **template_vars)
+        return render_template(template_path, **template_vars)
 
 def _join(category, slug):
     if category:
@@ -119,9 +157,10 @@ class YawtView(object):
     def render_article(self, flavour, article):
         template_vars = {'article': article}
         template_vars = self._plugins.template_vars(template_vars)
-        return _render('article', template_vars, flavour, self._content_type(flavour))
+        return _render('article', flavour, template_vars, self._content_type(flavour),
+                       article.category)
     
-    def render_collection(self, flavour, articles, title, page_info):
+    def render_collection(self, flavour, articles, title, page_info, category=""):
         template_vars = {'articles': articles[page_info.start:page_info.end],
                          'total_pages': page_info.total_pages,
                          'page': page_info.page,
@@ -129,7 +168,8 @@ class YawtView(object):
                          'prevpage': page_info.prev_url,
                          'collection_title': title}
         template_vars = self._plugins.template_vars(template_vars)
-        return _render('article_list', template_vars, flavour, self._content_type(flavour))
+        return _render('article_list', flavour, template_vars,
+                       self._content_type(flavour), category)
 
     def _content_type(self, flavour):
         return self._content_types.get(flavour, None)
@@ -158,6 +198,11 @@ class ArticleView(object):
                 return self._yawtview.render_missing_resource()
         else:
             return self._yawtview.render_article(flavour, article)
+
+
+def create_article_view():
+    return ArticleView(g.store, YawtView(g.plugins, g.config['content_types']))
+
 
 class CategoryView(object):
     """
@@ -189,15 +234,13 @@ class CategoryView(object):
                 
     def _render_collection(self, flavour, articles, category, page_info):
         title = self._category_title(category)
-        return self._yawtview.render_collection(flavour, articles, title, page_info)
+        return self._yawtview.render_collection(flavour, articles, title, page_info, category)
                                                       
     def _category_title(self, category):
         if category is None or len(category) == 0:
             return ''
         return 'Categories - %s' % category
-    
-def create_article_view():
-    return ArticleView(g.store, YawtView(g.plugins, g.config['content_types']))
+
 
 def create_category_view():
     return CategoryView(g.store, YawtView(g.plugins, g.config['content_types']))

@@ -1,7 +1,7 @@
 from flask import Markup
 import markdown
 
-def init(app):
+def init(app, modname):
     @app.template_filter('markdown_content')
     def markdown_content(article):
         md = markdown.Markdown()

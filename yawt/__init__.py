@@ -5,7 +5,8 @@ import yaml
 import copy
 
 from flask import Flask, g, request
-from yawt.view import create_article_view, create_category_view
+from jinja2.loaders import ChoiceLoader
+from yawt.view import create_article_view, create_category_view, YawtLoader
 from yawt.util import get_abs_path, Plugins, load_yaml
 from yawt.article import ArticleStore
 
@@ -33,6 +34,14 @@ def _load_config(blogpath):
         print 'Exception thrown loading config: ' + str(e)
         return {}
 
+def _mod_config(app, mod, plugin_name):
+    mod_config = {}
+    if hasattr(mod, 'default_config'):
+        mod_config = copy.deepcopy(mod.default_config)
+        if plugin_name in app.config:
+            mod_config.update(app.config[plugin_name])
+    return mod_config
+    
 def create_app(blogpath=None):
     config = copy.deepcopy(default_config)
     config.update(_load_config(blogpath))
@@ -44,14 +53,17 @@ def create_app(blogpath=None):
  
     plugins = {}
     if 'plugins' in app.config:
-        for name in app.config['plugins']:
-            modname = app.config['plugins'][name]
-            mod = __import__(modname)
-            plugins[name] = sys.modules[modname]
-            plugins[name].init(app)
-
+        for plugin_name in app.config['plugins']:
+            mod_name = app.config['plugins'][plugin_name]
+            __import__(mod_name)
+            plugins[plugin_name] = sys.modules[mod_name]
+            app.config[plugin_name] = _mod_config(app, plugins[plugin_name], plugin_name)
+            plugins[plugin_name].init(app, plugin_name)
     app.plugins = Plugins(plugins)
 
+    old_loader = app.jinja_loader
+    app.jinja_loader = ChoiceLoader([YawtLoader(template_folder), old_loader])
+    
     # Article URLs
     # I believe this is the only semi-ambiguous URL.  Really, it means article,
     # but it can also mean category if there is no such article.
@@ -98,7 +110,7 @@ def create_app(blogpath=None):
         cv = create_category_view()
         return cv.dispatch_request(flav, category, page,
                                    int(g.config['page_size']),
-                                   request.url_root)
+                                   request.base_url)
         
     # filter for date and time formatting
     @app.template_filter('dateformat')

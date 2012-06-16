@@ -6,15 +6,18 @@ from yawt.view import YawtView, PagingInfo
 from flask import g, url_for, request
 
 flask_app = None
+name = None
 
 _archive_dir = '_archive_counts'
 _archive_file = _archive_dir + '/archive_counts.yaml'
 _name_file = _archive_dir + '/name_infos.yaml'
-    
+_base = ''
+
 default_config = {
     'archive_dir': _archive_dir,
     'archive_file': _archive_file,
     'name_file': _name_file,
+    'base': _base
 }
     
 class PermalinkView(object):
@@ -48,11 +51,11 @@ class ArchiveView(object):
         else:
             date = yawt.util.Date(year, month, day)
             page_info = PagingInfo(page, page_size, len(articles), base_url)
-            return self._render_collection(flavour, articles, date, page_info)
+            return self._render_collection(flavour, articles, date, page_info, category)
 
-    def _render_collection(self, flavour, articles, date, page_info):
+    def _render_collection(self, flavour, articles, date, page_info, category):
         title = self._archive_title(date)
-        return self._yawtview.render_collection(flavour, articles, title, page_info)
+        return self._yawtview.render_collection(flavour, articles, title, page_info, category)
        
     def _archive_title(self, date):
         return 'Archives - %s' % str(date)
@@ -97,13 +100,17 @@ class ArchiveCounter(object):
         self._name_infos = {}
     
     def visit_article(self, fullname):
+        archive_base = _get_archive_base()
+        if not fullname.startswith(archive_base):
+            return
+        
         article = self._store.fetch_article_by_fullname(fullname)
         ym = (article.ctime_tm.tm_year, article.ctime_tm.tm_mon)
 
         self._name_infos[fullname] = [ym[0], ym[1]]
 
         if ym not in self._archive_counts.keys():
-            archive_url = '/%s/%s/' % (ym[0], ym[1])
+            archive_url = '/%s/%s/%s/' % (archive_base, ym[0], ym[1])
             self._archive_counts[ym] = {'count':0, 'url': archive_url}
         self._archive_counts[ym]['count'] = self._archive_counts[ym]['count'] + 1
 
@@ -151,11 +158,12 @@ class ArchiveCounter(object):
         yaml.dump(info, stream)
         stream.close()
         
-def init(app):
+def init(app, plugin_name):
     global flask_app
     flask_app = app
 
-    _load_config()
+    global name
+    name = plugin_name
     
     # filter for showing article permalinks
     @app.template_filter('permalink')
@@ -253,12 +261,7 @@ def _load_name_infos():
     return yawt.util.load_yaml(_get_name_file())
 
 def _plugin_config():
-    return flask_app.config[__name__]
-
-def _load_config():
-    if __name__ not in flask_app.config:
-        flask_app.config[__name__] = {}
-    flask_app.config[__name__].update(default_config)
+    return flask_app.config[name]
     
 def _get_archive_dir():
     return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_dir'])
@@ -268,3 +271,7 @@ def _get_archive_file():
 
 def _get_name_file():
     return yawt.util.get_abs_path_app(flask_app, _plugin_config()['name_file'])
+
+def _get_archive_base():
+    base = _plugin_config()['base'].strip()
+    return base.rstrip('/')

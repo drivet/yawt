@@ -48,6 +48,17 @@ class Article(object):
         else:
             return pieces[0]
 
+    def is_in_category(self, category):
+        category.strip()
+
+        if not category:
+            return True
+       
+        if not category.endswith('/'):
+            category += '/'
+            
+        return self.fullname.startswith(category)
+
     @property
     def ctime(self):
         """

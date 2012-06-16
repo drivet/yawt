@@ -17,17 +17,18 @@ class SearchView(object):
         self._yawtview = yawtview
         self._store = store
   
-    def dispatch_request(self, flavour, search_text, page, page_size, base_url):
-        articles = self._fetch_articles_by_text(search_text)
+    def dispatch_request(self, flavour, category, search_text, page, page_size, base_url):
+        articles = filter(lambda a: a.is_in_category(category),
+                          self._fetch_articles_by_text(search_text))
         if len(articles) < 1:
             return self._yawtview.render_missing_resource()
         else:
             page_info = PagingInfo(page, page_size, len(articles), base_url)
-            return self._render_collection(flavour, articles, search_text, page_info)
+            return self._render_collection(flavour, articles, search_text, page_info, category)
         
-    def _render_collection(self, flavour, articles, search_text, page_info):
+    def _render_collection(self, flavour, articles, search_text, page_info, category):
         title = self._search_title(search_text)
-        return self._yawtview.render_collection(flavour, articles, title, page_info)
+        return self._yawtview.render_collection(flavour, articles, title, page_info, category)
                                                       
     def _search_title(self, search_text):
         return 'Search results for: %s' % search_text
@@ -136,24 +137,36 @@ class IncrementalIndexer(object):
     def post_walk(self):
         self._writer.commit()
   
-def init(app):
+def init(app, name):
     global flask_app
     flask_app = app
     
     # Search URL
     @app.route('/search/', methods=['POST', 'GET'])
     def full_text_search():
-        return _full_text_search(request, None)
-
+        return _full_text_search(request, None, '')
+    
+    @app.route('/<path:category>/search/', methods=['POST', 'GET'])
+    def full_text_search(category):
+        return _full_text_search(request, None, category)
+    
     @app.route('/search/index', methods=['POST', 'GET'])
     def full_text_search_index():
-        return _full_text_search(request, None)
+        return _full_text_search(request, None, '')
+
+    @app.route('/<path:category>/search/index', methods=['POST', 'GET'])
+    def full_text_search_index(category):
+        return _full_text_search(request, None, category)
 
     @app.route('/search/index.<flav>', methods=['POST', 'GET'])
     def full_text_search_index():
-        return _full_text_search(request, flav)
+        return _full_text_search(request, flav, '')
 
-    def _full_text_search(request, flav):
+    @app.route('/<path:category>/search/index.<flav>', methods=['POST', 'GET'])
+    def full_text_search_index(category):
+        return _full_text_search(request, flav, category)
+
+    def _full_text_search(request, flav, category):
         page = 1
         try:
             page = int(request.args.get('page', '1'))
@@ -162,7 +175,7 @@ def init(app):
 
         search_text = request.args.get('searchtext', '')
         sv = _create_search_view()
-        return sv.dispatch_request(flav, search_text,
+        return sv.dispatch_request(flav, category, search_text,
                                    page, g.config['page_size'], request.base_url)
            
 def walker(store):

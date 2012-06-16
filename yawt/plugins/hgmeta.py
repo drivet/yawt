@@ -60,7 +60,7 @@ class HgStore(object):
             
         return (ctime, mtime, author)
     
-def init(app):
+def init(app, modname):
     global hgstore
     hgstore = HgStore(app.config['blogpath'],
                       app.config['path_to_articles'],
