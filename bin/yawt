@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from flaskext.script import Manager, Server, Command, Option
 
 import sys

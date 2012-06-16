@@ -1,21 +1,21 @@
 #!/bin/bash
 
-YAWT=/home/dcr/repos/desmondrivet/yawt_flask/bin/yawt_tool.py
+YAWT=yawt
 BLOGROOT=$PWD
 
 update() {
     STATUSES=$1
     if [[ -n $STATUSES ]]; then
         #echo "Running: $YAWT update \"$STATUSES\" -b $BLOGROOT"
-        python $YAWT update "$STATUSES" -b $BLOGROOT
+        $YAWT update "$STATUSES" -b $BLOGROOT
     fi
 }
 
 hg update
 
-CONTENTROOT=`python $YAWT info 'path_to_articles' -b $BLOGROOT`
-EXT=`python $YAWT info 'ext' -b $BLOGROOT`
-METAEXT=`python $YAWT info 'meta_ext' -b $BLOGROOT`
+CONTENTROOT=`$YAWT info 'path_to_articles' -b $BLOGROOT`
+EXT=`$YAWT info 'ext' -b $BLOGROOT`
+METAEXT=`$YAWT info 'meta_ext' -b $BLOGROOT`
 
 STATUSES=$(hg status --change $HG_NODE | grep "^\([AMR]\) $CONTENTROOT/\(.*\)\.\($EXT\|$METAEXT\)$"| sed "s|^\([AMR]\) $CONTENTROOT/\(.*\)\.\(.*\)$|\1 \2|")
 update "$STATUSES"

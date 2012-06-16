@@ -61,7 +61,13 @@ def _render(template_base, template_vars={}, flavour=None, content_type=None):
                              200, None, None, content_type)
     else:
         return render_template(template, **template_vars)
-        
+
+def _join(category, slug):
+    if category:
+        return category + '/' + slug
+    else:
+        return slug
+
 class PagingInfo(object):
     def __init__(self, page, page_size, total_count, base_url):
         self.page_size = page_size
@@ -100,6 +106,9 @@ class PagingInfo(object):
                self.base_url == other.base_url
         
 class YawtView(object):
+    """
+    Collection of utility methods for rendering YAWT views
+    """
     def __init__(self, plugins, content_types):
         self._plugins = plugins
         self._content_types = content_types
@@ -126,6 +135,10 @@ class YawtView(object):
         return self._content_types.get(flavour, None)
 
 class ArticleView(object):
+    """
+    Class for rendering YAWT article views, which are views meant
+    to display just one entry on your blog or site.
+    """
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
         self._store = store
@@ -134,7 +147,7 @@ class ArticleView(object):
         article = self._store.fetch_article_by_category_slug(category, slug)
         if article is None:
             # no article by that name, but there might be a category
-            fullname = category + '/' + slug
+            fullname = _join(category, slug)
             if self._store.category_exists(fullname):
                 # Normally flask handles this, but I don't think it
                 # can in this case
@@ -147,6 +160,10 @@ class ArticleView(object):
             return self._yawtview.render_article(flavour, article)
 
 class CategoryView(object):
+    """
+    Class for rendering YAWT category view, which are views meant to display
+    categories, which usually have a reverse time list of articles.
+    """
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
         self._store = store
@@ -155,7 +172,7 @@ class CategoryView(object):
     # defaults to a list of posts
     def dispatch_request(self, flavour, category,
                          page=1, page_size=10, base_url='http://localhost'):
-        category_article = category + '/index'
+        category_article = _join(category, 'index')
         if self._store.article_exists(category_article):
             article = self._store.fetch_article_by_fullname(category_article)
             # index file exists
