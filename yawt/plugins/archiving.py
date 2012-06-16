@@ -22,8 +22,8 @@ class PermalinkView(object):
         self._yawtview = yawtview
         self._store = store
         
-    def dispatch_request(self, flavour, year, month, day, slug):
-        articles = self._store.fetch_dated_articles(year, month, day, slug)
+    def dispatch_request(self, flavour, category, year, month, day, slug):
+        articles = self._store.fetch_dated_articles(year, month, day, slug, category=category)
         if len(articles) < 1:
             return self._yawtview.render_missing_resource()
         else:
@@ -40,8 +40,9 @@ class ArchiveView(object):
         self._yawtview = yawtview
         self._store = store
         
-    def dispatch_request(self, flavour, year, month, day, page, page_size, base_url):
-        articles =  self._store.fetch_dated_articles(year, month, day)
+    def dispatch_request(self, flavour, category, year, month, day,
+                         page, page_size, base_url):
+        articles =  self._store.fetch_dated_articles(year, month, day, category=category)
         if len(articles) < 1:
             return self._yawtview.render_missing_resource()
         else:
@@ -64,14 +65,14 @@ class ArchivingStore(object):
     def __init__(self, store):
         self._store = store
 
-    def fetch_dated_articles(self, year, month=None, day=None, slug=None):
+    def fetch_dated_articles(self, year, month=None, day=None, slug=None, category=""):
         """
         Finds article collection by create time and slug.  Only year is required.
         If you specify everything, this becomes a permalink, and only
         one entry should be returned (but in a list)
         """
         results = []
-        for af in self._store.walk_articles():
+        for af in self._store.walk_articles(category):
             article = self._store.fetch_article_by_fullname(af)
             if self._date_match(article, year, month, day, slug):
                 results.append(article)
@@ -171,34 +172,60 @@ def init(app):
         return request.url_root + relative_url
 
     # Permalinks
+    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/<slug>')
+    def permalink(year, month, day, slug):
+        return _create_permalink_view().dispatch_request(None, category, year, month, day, slug)
+
     @app.route('/<int:year>/<int:month>/<int:day>/<slug>')
     def permalink(year, month, day, slug):
-        return _create_permalink_view().dispatch_request(None, year, month, day, slug)
-       
+        return _create_permalink_view().dispatch_request(None, "", year, month, day, slug)
+   
+    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/<slug>.<flav>')
+    def permalink_flav(year, month, day, slug, flav):
+        return _create_permalink_view().dispatch_request(flav, category, year, month, day, slug)
+         
     @app.route('/<int:year>/<int:month>/<int:day>/<slug>.<flav>')
     def permalink_flav(year, month, day, slug, flav):
-        return _create_permalink_view().dispatch_request(flav, year, month, day, slug)
-   
+        return _create_permalink_view().dispatch_request(flav, "", year, month, day, slug)
+
     # Date URLs
+    @app.route('/<path:category>/<int:year>/')
+    @app.route('/<path:category>/<int:year>/<int:month>/')
+    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/')
+    def archive_category(category, year, month=None, day=None):
+        return _handle_archive_url(None, category, year, month, day)
+
     @app.route('/<int:year>/')
     @app.route('/<int:year>/<int:month>/')
     @app.route('/<int:year>/<int:month>/<int:day>/')
     def archive(year, month=None, day=None):
-        return _handle_archive_url(None, year, month, day)
-       
+        return _handle_archive_url(None, "", year, month, day)
+        
+    @app.route('/<path:category>/<int:year>/index')
+    @app.route('/<path:category>/<int:year>/<int:month>/index')
+    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/index')
+    def archive_category_index(category, year, month=None, day=None):
+        return _handle_archive_url(None, category, year, month, day)
+
     @app.route('/<int:year>/index')
     @app.route('/<int:year>/<int:month>/index')
     @app.route('/<int:year>/<int:month>/<int:day>/index')
     def archive_index(year, month=None, day=None):
-        return _handle_archive_url(None, year, month, day)
+        return _handle_archive_url(None, "", year, month, day)
+
+    @app.route('/<path:category>/<int:year>/index.<flav>')
+    @app.route('/<path:category>/<int:year>/<int:month>/index.<flav>')
+    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/index.<flav>')
+    def archive_category_index_flav(category, year, month=None, day=None, flav=None):
+        return _handle_archive_url(flav, category, year, month, day)
 
     @app.route('/<int:year>/index.<flav>')
     @app.route('/<int:year>/<int:month>/index.<flav>')
     @app.route('/<int:year>/<int:month>/<int:day>/index.<flav>')
     def archive_index_flav(year, month=None, day=None, flav=None):
-        return _handle_archive_url(flav, year, month, day)
-
-    def _handle_archive_url(flav, year, month, day):
+        return _handle_archive_url(flav, "", year, month, day)
+    
+    def _handle_archive_url(flav, category, year, month, day):
         page = 1
         try:
             page = int(request.args.get('page', '1'))
@@ -206,7 +233,7 @@ def init(app):
             page = 1
 
         av = _create_archive_view()
-        return av.dispatch_request(flav, year, month, day,
+        return av.dispatch_request(flav, category, year, month, day,
                                    page, g.config['page_size'], request.base_url)
 
     
