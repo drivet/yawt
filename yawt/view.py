@@ -106,6 +106,15 @@ def _join(category, slug):
     else:
         return slug
 
+def _breadcrumbs(pathstr):
+    breadcrumbs = []
+    pathurl = ''
+    for piece in pathstr.split('/'):
+        pathurl += '/' + piece
+        breadcrumbs.append({'crumb': piece, 'url': pathurl})
+    return breadcrumbs
+        
+
 class PagingInfo(object):
     def __init__(self, page, page_size, total_count, base_url):
         self.page_size = page_size
@@ -154,19 +163,20 @@ class YawtView(object):
     def render_missing_resource(self):
         return render_template("404.html")
 
-    def render_article(self, flavour, article):
+    def render_article(self, flavour, article, breadcrumbs=None):
         template_vars = {'article': article}
         template_vars = self._plugins.template_vars(template_vars)
         return _render('article', flavour, template_vars, self._content_type(flavour),
                        article.category)
     
-    def render_collection(self, flavour, articles, title, page_info, category=""):
+    def render_collection(self, flavour, articles, title, page_info, category="", breadcrumbs=None):
         template_vars = {'articles': articles[page_info.start:page_info.end],
                          'total_pages': page_info.total_pages,
                          'page': page_info.page,
                          'nextpage':  page_info.next_url,
                          'prevpage': page_info.prev_url,
-                         'collection_title': title}
+                         'collection_title': title,
+                         'breadcrumbs': breadcrumbs}
         template_vars = self._plugins.template_vars(template_vars)
         return _render('article_list', flavour, template_vars,
                        self._content_type(flavour), category)
@@ -233,7 +243,9 @@ class CategoryView(object):
                 
     def _render_collection(self, flavour, articles, category, page_info):
         title = self._category_title(category)
-        return self._yawtview.render_collection(flavour, articles, title, page_info, category)
+        return self._yawtview.render_collection(flavour, articles, '',
+                                                page_info, category,
+                                                _breadcrumbs(category))
                                                       
     def _category_title(self, category):
         if category is None or len(category) == 0:
