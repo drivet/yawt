@@ -31,7 +31,11 @@ class Article(object):
         #   - repository metadata (like mercurial)
         self._mtime = mtime
         self._ctime = ctime
-  
+
+    @property
+    def categorized_url(self):
+        return '/' + self.fullname
+    
     @property
     def category(self):
         pieces = self.fullname.rsplit('/', 1)

@@ -10,7 +10,7 @@ name = None
 
 _archive_dir = '_archive_counts'
 _archive_file = _archive_dir + '/archive_counts.yaml'
-_name_file = _archive_dir + '/name_infos.yaml'
+_name_file = _archive_dir + '/name_infos.yaml' # used for updates
 _base = ''
 
 default_config = {
@@ -58,7 +58,7 @@ class ArchiveView(object):
         return self._yawtview.render_collection(flavour, articles, title, page_info, category)
        
     def _archive_title(self, date):
-        return 'Archives - %s' % str(date)
+        return 'Archives: %s' % str(date)
 
 def _create_archive_view():
     return ArchiveView(ArchivingStore(g.store),
@@ -110,9 +110,9 @@ class ArchiveCounter(object):
         self._name_infos[fullname] = [ym[0], ym[1]]
 
         if ym not in self._archive_counts.keys():
-            archive_url = '/%s/%s/%s/' % (archive_base, ym[0], ym[1])
+            archive_url = '/%s/%04d/%02d/' % (archive_base, ym[0], ym[1])
             self._archive_counts[ym] = {'count':0, 'url': archive_url}
-        self._archive_counts[ym]['count'] = self._archive_counts[ym]['count'] + 1
+        self._archive_counts[ym]['count'] += 1
 
     def post_walk(self):
         archive_counts_dump = []

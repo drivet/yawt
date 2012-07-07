@@ -189,8 +189,7 @@ class ArticleView(object):
             # no article by that name, but there might be a category
             fullname = _join(category, slug)
             if self._store.category_exists(fullname):
-                # Normally flask handles this, but I don't think it
-                # can in this case
+                # Normally flask handles this, but I don't think it can in this case
                 # Basically, we have trouble figuring out if cooking/indian/madras
                 # is an article or a category
                 return redirect(url_for('category_canonical', category=fullname))
@@ -239,7 +238,7 @@ class CategoryView(object):
     def _category_title(self, category):
         if category is None or len(category) == 0:
             return ''
-        return 'Categories - %s' % category
+        return ' :: '.join(category.split('/'))
 
 
 def create_category_view():

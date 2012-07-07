@@ -31,7 +31,7 @@ class SearchView(object):
         return self._yawtview.render_collection(flavour, articles, title, page_info, category)
                                                       
     def _search_title(self, search_text):
-        return 'Search results for: %s' % search_text
+        return 'Search results for: "%s"' % search_text
  
     def _fetch_articles_by_text(self, searchtext):
         """

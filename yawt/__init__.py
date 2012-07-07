@@ -75,6 +75,14 @@ def create_app(blogpath=None):
     def post_flav(category, slug, flav):
         return create_article_view().dispatch_request(flav, category, slug)
 
+    @app.route('/<slug>.<flav>')
+    def post_flav_no_cat(slug, flav):
+        return create_article_view().dispatch_request(flav, '', slug)
+
+    @app.route('/<slug>')
+    def post_slug(slug):
+        return create_article_view().dispatch_request(None, '', slug)
+
     # Category URLs
     @app.route('/')
     def home():
@@ -91,7 +99,7 @@ def create_app(blogpath=None):
     @app.route('/<path:category>/')
     def category_canonical(category):
         return _handle_category_url(None, category)
-   
+    
     @app.route('/<path:category>/index')
     def category_index(category):
         return _handle_category_url(None, category)
@@ -107,10 +115,10 @@ def create_app(blogpath=None):
         except ValueError:
             page = 1
 
-        cv = create_category_view()
-        return cv.dispatch_request(flav, category, page,
-                                   int(g.config['page_size']),
-                                   request.base_url)
+        category_view = create_category_view()
+        return category_view.dispatch_request(flav, category, page,
+                                              int(g.config['page_size']),
+                                              request.base_url)
         
     # filter for date and time formatting
     @app.template_filter('dateformat')
@@ -130,7 +138,7 @@ def create_app(blogpath=None):
         base_url = app.config['blogurl'] or request.url_root
         url = base_url.rstrip('/') + '/' + relative_url.lstrip('/')
         return url
-    
+
     @app.before_request
     def before_request():
         g.config = app.config

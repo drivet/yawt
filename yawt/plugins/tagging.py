@@ -42,7 +42,7 @@ class TagView(object):
         return self._yawtview.render_collection(flavour, articles, title, page_info, category)
     
     def _tag_title(self, tag):
-        return 'Tags - %s' % tag
+        return 'Tag results for: "%s"' % tag
  
     def _fetch_tagged_articles(self, category, tag):
         """
@@ -149,9 +149,13 @@ def init(app, plugin_name):
     def tags(article):
         tags = article.get_metadata('tags')
         if tags is not None:
-            return ', '.join(tags)
+            base = _get_tagging_base()
+            tag_links = []
+            for tag in tags:
+                tag_links.append({'tag': tag, 'url': _tag_url(base, tag)})
+            return tag_links
         else:
-            return ''
+            return None
      
     @app.route('/tags/<tag>/')
     def tag_canonical(tag):
@@ -188,7 +192,6 @@ def init(app, plugin_name):
         return tag_view.dispatch_request(flavour, category, tag, page,
                                          int(g.config['page_size']), request.base_url)
             
-    
 def template_vars():
     return {'tags':_load_tag_infos()}
 

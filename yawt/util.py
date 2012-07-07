@@ -35,12 +35,12 @@ class Date(object):
         self.day = day
         
     def __str__(self):
-        dl = [str(self.year)]
+        dl = ["%04d" % (self.year)]
         if self.month is not None:
-            dl.append(str(self.month))
+            dl.append("%02d" % (self.month))
         if self.day is not None:
-            dl.append(str(self.day))
-        return '/'.join(dl)
+            dl.append("%02d" % (self.day))
+        return ' / '.join(dl)
     
 def has_method(obj, method):
     return hasattr(obj, method) and callable(getattr(obj, method))
