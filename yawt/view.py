@@ -164,7 +164,8 @@ class YawtView(object):
         return render_template("404.html")
 
     def render_article(self, flavour, article, breadcrumbs=None):
-        template_vars = {'article': article}
+        template_vars = {'article': article,
+                         'breadcrumbs': breadcrumbs}
         template_vars = self._plugins.template_vars(template_vars)
         return _render('article', flavour, template_vars, self._content_type(flavour),
                        article.category)
@@ -206,7 +207,8 @@ class ArticleView(object):
             else:
                 return self._yawtview.render_missing_resource()
         else:
-            return self._yawtview.render_article(flavour, article)
+            return self._yawtview.render_article(flavour, article,
+                                                 _breadcrumbs(article.fullname))
 
 
 def create_article_view():
