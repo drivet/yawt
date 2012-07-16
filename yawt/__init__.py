@@ -4,7 +4,7 @@ import time
 import yaml
 import copy
 
-from flask import Flask, g, request
+from flask import Flask, g, request, url_for
 from jinja2.loaders import ChoiceLoader
 from yawt.view import create_article_view, create_category_view, YawtLoader
 from yawt.util import get_abs_path, Plugins, load_yaml
@@ -64,50 +64,36 @@ def create_app(blogpath=None):
     old_loader = app.jinja_loader
     app.jinja_loader = ChoiceLoader([YawtLoader(template_folder), old_loader])
     
-    # Article URLs
-    # I believe this is the only semi-ambiguous URL.  Really, it means article,
-    # but it can also mean category if there is no such article.
-    @app.route('/<path:category>/<slug>')
-    def post(category, slug):
-        return create_article_view().dispatch_request(None, category, slug)
-
-    @app.route('/<path:category>/<slug>.<flav>')
-    def post_flav(category, slug, flav):
-        return create_article_view().dispatch_request(flav, category, slug)
-
-    @app.route('/<slug>.<flav>')
-    def post_flav_no_cat(slug, flav):
-        return create_article_view().dispatch_request(flav, '', slug)
-
-    @app.route('/<slug>')
-    def post_slug(slug):
-        return create_article_view().dispatch_request(None, '', slug)
-
-    # Category URLs
     @app.route('/')
     def home():
         return _handle_category_url(None, '')
-
-    @app.route('/index')
-    def home_index():
-        return _handle_category_url(None, '')
-
-    @app.route('/index.<flav>')
-    def home_index_flav(flav):
-        return _handle_category_url(flav, '')
     
     @app.route('/<path:category>/')
     def category_canonical(category):
         return _handle_category_url(None, category)
-    
-    @app.route('/<path:category>/index')
-    def category_index(category):
-        return _handle_category_url(None, category)
-    
-    @app.route('/<path:category>/index.<flav>')
-    def category_index_flav(category, flav):
-        return _handle_category_url(flav, category)
 
+    @app.route('/<path:category>/<slug>')
+    def post(category, slug):
+        return _handle_categorized_url(None, category, slug)
+
+    @app.route('/<path:category>/<slug>.<flav>')
+    def post_flav(category, slug, flav):
+        return _handle_categorized_url(flav, category, slug)
+
+    @app.route('/<slug>.<flav>')
+    def post_flav_no_cat(slug, flav):
+        return _handle_categorized_url(flav, '', slug)
+
+    @app.route('/<slug>')
+    def post_slug(slug):
+        return _handle_categorized_url(None, '', slug)
+
+    def _handle_categorized_url(flav, category, slug):
+        if slug == 'index':
+            return _handle_category_url(flav, category)
+        else:
+            return create_article_view().dispatch_request(flav, category, slug)
+        
     def _handle_category_url(flav, category):
         page = 1
         try:
@@ -139,10 +125,13 @@ def create_app(blogpath=None):
         url = base_url.rstrip('/') + '/' + relative_url.lstrip('/')
         return url
 
+    @app.template_filter('static')
+    def static(filename):
+        return url_for('static', filename=filename)
+
     @app.before_request
     def before_request():
         g.config = app.config
         g.plugins = app.plugins
         g.store = ArticleStore.get(app.config, g.plugins)
-
     return app

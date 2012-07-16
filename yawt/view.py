@@ -95,8 +95,9 @@ def _render(template_base, flavour=None, template_vars={}, content_type=None, ca
         template_path = _join(current_category, template_file)
     
     if (content_type is not None):
-        return make_response(render_template(template_path, **template_vars),
-                             200, None, None, content_type)
+        response = make_response(render_template(template_path, **template_vars))
+        response.headers['Content-Type'] = content_type
+        return response
     else:
         return render_template(template_path, **template_vars)
 
