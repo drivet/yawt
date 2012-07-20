@@ -59,12 +59,13 @@ class YawtLoader(BaseLoader):
         self.root = root
         
     def get_source(self, environment, template):
-        current_category = os.path.dirname(template)
+        (current_category, template_base) = os.path.split(template)
         template_name = template
+      
         while current_category and not self._exists(template_name):
-            current_category = os.path.dirname(category)
-            template_name = _join(current_category, template_file)
-
+            current_category = os.path.dirname(current_category)
+            template_name = _join(current_category, template_base)
+            
         if not self._exists(template_name):
             raise TemplateNotFound(template)
 
@@ -82,24 +83,17 @@ class YawtLoader(BaseLoader):
 
 
 def _render(template_base, flavour=None, template_vars={}, content_type=None, category=""):
-    template_root = g.config['path_to_templates']
-    
+    template_file = _join(category, template_base)
     if flavour is None:
         flavour = 'html'
-    template_file = template_base + "." + flavour
-  
-    current_category = category
-    template_path = _join(current_category, template_file)
-    while current_category and not os.path.exists(os.path.join(template_root, template_path)):
-        current_category = os.path.dirname(category)
-        template_path = _join(current_category, template_file)
+    template_file = template_file + "." + flavour
     
     if (content_type is not None):
-        response = make_response(render_template(template_path, **template_vars))
+        response = make_response(render_template(template_file, **template_vars))
         response.headers['Content-Type'] = content_type
         return response
     else:
-        return render_template(template_path, **template_vars)
+        return render_template(template_file, **template_vars)
 
 def _join(category, slug):
     if category:
