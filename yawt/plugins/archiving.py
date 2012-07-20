@@ -181,7 +181,7 @@ def init(app, plugin_name):
 
     # Permalinks
     @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/<slug>')
-    def permalink(year, month, day, slug):
+    def permalink_category(category, year, month, day, slug):
         return _create_permalink_view().dispatch_request(None, category, year, month, day, slug)
 
     @app.route('/<int:year>/<int:month>/<int:day>/<slug>')
@@ -189,7 +189,7 @@ def init(app, plugin_name):
         return _create_permalink_view().dispatch_request(None, "", year, month, day, slug)
    
     @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/<slug>.<flav>')
-    def permalink_flav(year, month, day, slug, flav):
+    def permalink_category_flav(category, year, month, day, slug, flav):
         return _create_permalink_view().dispatch_request(flav, category, year, month, day, slug)
          
     @app.route('/<int:year>/<int:month>/<int:day>/<slug>.<flav>')
