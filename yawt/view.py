@@ -1,6 +1,7 @@
 from flask import render_template, g, make_response, request, redirect, url_for
 from jinja2.loaders import BaseLoader, TemplateNotFound
 import os
+import yawt
 
 default_article_template = """<html>
     <head>
@@ -101,14 +102,6 @@ def _join(category, slug):
     else:
         return slug
 
-def _breadcrumbs(pathstr):
-    breadcrumbs = []
-    pathurl = ''
-    for piece in pathstr.split('/'):
-        pathurl += '/' + piece
-        breadcrumbs.append({'crumb': piece, 'url': pathurl})
-    return breadcrumbs
-        
 
 class PagingInfo(object):
     def __init__(self, page, page_size, total_count, base_url):
@@ -203,7 +196,7 @@ class ArticleView(object):
                 return self._yawtview.render_missing_resource()
         else:
             return self._yawtview.render_article(flavour, article,
-                                                 _breadcrumbs(article.fullname))
+                                                 yawt.util.breadcrumbs(article.fullname))
 
 
 def create_article_view():
@@ -242,7 +235,7 @@ class CategoryView(object):
         title = self._category_title(category)
         return self._yawtview.render_collection(flavour, articles, '',
                                                 page_info, category,
-                                                _breadcrumbs(category))
+                                                yawt.util.breadcrumbs(category))
                                                       
     def _category_title(self, category):
         if category is None or len(category) == 0:

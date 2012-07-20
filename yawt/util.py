@@ -68,3 +68,12 @@ def get_abs_path_app(app, path):
 
 def get_base_url(app):
     return app.config['base_url'] or request.url_root
+
+def breadcrumbs(pathstr):
+    breadcrumbs = []
+    pathurl = ''
+    for piece in pathstr.split('/'):
+        pathurl += '/' + piece
+        breadcrumbs.append({'crumb': piece, 'url': pathurl})
+    return breadcrumbs
+        

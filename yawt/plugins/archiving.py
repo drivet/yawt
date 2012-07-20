@@ -19,7 +19,22 @@ default_config = {
     'name_file': _name_file,
     'base': _base
 }
-    
+
+def _archivelink(year, month=None, day=None, category=None, slug=None):
+    link = ''
+    if category:
+        link += category + '/'
+    if year:
+        link += '%04d' % year + '/'
+    if month:
+        link += '%02d' % month + '/'
+    if day:
+        link += '%02d' % day + '/'
+    if slug:
+        link += slug
+    return link
+
+
 class PermalinkView(object):
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
@@ -32,7 +47,9 @@ class PermalinkView(object):
         else:
             date = yawt.util.Date(year, month, day)
             article = articles[0]
-            return self._yawtview.render_article(flavour, article)
+            permalink = _archivelink(year, month, day, category, slug)
+            return self._yawtview.render_article(flavour, article,
+                                                 yawt.util.breadcrumbs(permalink))
          
 def _create_permalink_view():
     return PermalinkView(ArchivingStore(g.store),
@@ -54,8 +71,10 @@ class ArchiveView(object):
             return self._render_collection(flavour, articles, date, page_info, category)
 
     def _render_collection(self, flavour, articles, date, page_info, category):
-        title = self._archive_title(date)
-        return self._yawtview.render_collection(flavour, articles, title, page_info, category)
+        #title = self._archive_title(date)
+        link = _archivelink(date.year, date.month, date.day, category)
+        return self._yawtview.render_collection(flavour, articles, '', page_info, category,
+                                                yawt.util.breadcrumbs(link))
        
     def _archive_title(self, date):
         return 'Archives: %s' % str(date)
