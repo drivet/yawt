@@ -191,8 +191,14 @@ def init(app, plugin_name):
         month = article.ctime_tm.tm_mon
         day = article.ctime_tm.tm_mday
         slug = os.path.split(article.fullname)[1]
-        return url_for('permalink', _external=external,
-                       year=year, month=month, day=day, slug=slug)
+        base = _get_archive_base()
+        if base:
+            return url_for('permalink_category', _external=external,
+                           category=base,
+                           year=year, month=month, day=day, slug=slug)
+        else:
+            return url_for('permalink', _external=external,
+                           year=year, month=month, day=day, slug=slug)
 
     @app.template_filter('archive_url')
     def archive_url(relative_url):
