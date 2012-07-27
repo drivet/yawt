@@ -120,7 +120,7 @@ class NewBlog(YawtCommand):
         _save_add_str('templates/article.html', yawt.view.default_article_template)
         _save_add_str('templates/article_list.html', yawt.view.default_article_list_template)
  
-        os.makedirs('entries')
+        os.makedirs('content')
         _hg_commit('initial commit')
 
 

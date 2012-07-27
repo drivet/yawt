@@ -8,8 +8,8 @@ import os
 config = """metadata: {
     blogtitle: Desmond's Soapbox,
     blogdescription: Musings from a Anglo-Quebecer,
-    bloglang: en,
-    blogurl: \"http://www.desmondrivet.net/blog\"
+    lang: en,
+    base_url: \"http://www.desmondrivet.net/blog\"
 }
 
 content_types: {

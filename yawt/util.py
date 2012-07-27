@@ -72,6 +72,8 @@ def get_base_url(app):
 def breadcrumbs(pathstr):
     breadcrumbs = []
     pathurl = ''
+    if pathstr.startswith('/'):
+        pathstr = pathstr[1:]
     for piece in pathstr.split('/'):
         pathurl += '/' + piece
         breadcrumbs.append({'crumb': piece, 'url': pathurl})

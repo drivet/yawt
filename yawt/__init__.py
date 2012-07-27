@@ -11,10 +11,8 @@ from yawt.util import get_abs_path, Plugins, load_yaml
 from yawt.article import ArticleStore
 
 default_config = {
-    'blogtitle': 'Awesome Blog Title',
-    'blogdescription': 'Awesome Blog Description',
-    'bloglang': 'en',
-    'blogurl': 'http://www.awesome.net/blog',
+    'lang': 'en',
+    'base_url': 'http://www.awesome.net/blog',
     'page_size': '10',
     'path_to_templates': 'templates',
     'path_to_articles': 'entries',
@@ -121,7 +119,7 @@ def create_app(blogpath=None):
     # make a usable url out of a site relative one
     @app.template_filter('url')
     def url(relative_url):
-        base_url = app.config['blogurl'] or request.url_root
+        base_url = app.config['base_url'] or request.url_root
         url = base_url.rstrip('/') + '/' + relative_url.lstrip('/')
         return url
 

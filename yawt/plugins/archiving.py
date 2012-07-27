@@ -4,6 +4,7 @@ import yaml
 
 from yawt.view import YawtView, PagingInfo
 from flask import g, url_for, request
+from werkzeug.routing import BaseConverter
 
 flask_app = None
 name = None
@@ -20,6 +21,13 @@ default_config = {
     'base': _base
 }
 
+def url_for_permalink(base, year, month, day, slug):
+    if base:
+        return url_for('permalink_category', category=base,
+                       year=year, month=month, day=day, slug=slug)
+    else:
+        return url_for('permalink', year=year, month=month, day=day, slug=slug)
+        
 def _archivelink(year, month=None, day=None, category=None, slug=None):
     link = ''
     if category:
@@ -34,7 +42,7 @@ def _archivelink(year, month=None, day=None, category=None, slug=None):
         link += slug
     return link
 
-
+    
 class PermalinkView(object):
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
@@ -47,7 +55,8 @@ class PermalinkView(object):
         else:
             date = yawt.util.Date(year, month, day)
             article = articles[0]
-            permalink = _archivelink(year, month, day, category, slug)
+            permalink = url_for_permalink(category, year, month, day, slug)
+            
             return self._yawtview.render_article(flavour, article,
                                                  yawt.util.breadcrumbs(permalink))
          
@@ -176,7 +185,8 @@ class ArchiveCounter(object):
         stream = file(filename, 'w')
         yaml.dump(info, stream)
         stream.close()
-        
+
+
 def init(app, plugin_name):
     global flask_app
     flask_app = app
@@ -186,75 +196,68 @@ def init(app, plugin_name):
     
     # filter for showing article permalinks
     @app.template_filter('permalink')
-    def permalink(article, external=True):
+    def permalink(article):
         year = article.ctime_tm.tm_year
         month = article.ctime_tm.tm_mon
         day = article.ctime_tm.tm_mday
         slug = os.path.split(article.fullname)[1]
-        base = _get_archive_base()
-        if base:
-            return url_for('permalink_category', _external=external,
-                           category=base,
-                           year=year, month=month, day=day, slug=slug)
-        else:
-            return url_for('permalink', _external=external,
-                           year=year, month=month, day=day, slug=slug)
+        return url_for_permalink(_get_archive_base(), year, month, day, slug)
 
     @app.template_filter('archive_url')
     def archive_url(relative_url):
         return request.url_root + relative_url
 
     # Permalinks
-    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/<slug>')
+    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>')
     def permalink_category(category, year, month, day, slug):
         return _create_permalink_view().dispatch_request(None, category, year, month, day, slug)
 
-    @app.route('/<int:year>/<int:month>/<int:day>/<slug>')
+    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>')
     def permalink(year, month, day, slug):
         return _create_permalink_view().dispatch_request(None, "", year, month, day, slug)
    
-    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/<slug>.<flav>')
+    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>')
     def permalink_category_flav(category, year, month, day, slug, flav):
         return _create_permalink_view().dispatch_request(flav, category, year, month, day, slug)
          
-    @app.route('/<int:year>/<int:month>/<int:day>/<slug>.<flav>')
+    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>')
     def permalink_flav(year, month, day, slug, flav):
         return _create_permalink_view().dispatch_request(flav, "", year, month, day, slug)
 
     # Date URLs
     @app.route('/<path:category>/<int:year>/')
-    @app.route('/<path:category>/<int:year>/<int:month>/')
-    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/')
+    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/')
+    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
     def archive_category(category, year, month=None, day=None):
         return _handle_archive_url(None, category, year, month, day)
 
     @app.route('/<int:year>/')
-    @app.route('/<int:year>/<int:month>/')
-    @app.route('/<int:year>/<int:month>/<int:day>/')
+    @app.route('/<int:year>/<int(fixed_digits=2):month>/')
+    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
     def archive(year, month=None, day=None):
         return _handle_archive_url(None, "", year, month, day)
         
     @app.route('/<path:category>/<int:year>/index')
-    @app.route('/<path:category>/<int:year>/<int:month>/index')
-    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/index')
+    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index')
+    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
     def archive_category_index(category, year, month=None, day=None):
         return _handle_archive_url(None, category, year, month, day)
 
     @app.route('/<int:year>/index')
-    @app.route('/<int:year>/<int:month>/index')
-    @app.route('/<int:year>/<int:month>/<int:day>/index')
+    @app.route('/<int:year>/<int(fixed_digits=2):month>/index')
+    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
     def archive_index(year, month=None, day=None):
         return _handle_archive_url(None, "", year, month, day)
 
     @app.route('/<path:category>/<int:year>/index.<flav>')
-    @app.route('/<path:category>/<int:year>/<int:month>/index.<flav>')
-    @app.route('/<path:category>/<int:year>/<int:month>/<int:day>/index.<flav>')
+    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
+    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
     def archive_category_index_flav(category, year, month=None, day=None, flav=None):
         return _handle_archive_url(flav, category, year, month, day)
 
     @app.route('/<int:year>/index.<flav>')
-    @app.route('/<int:year>/<int:month>/index.<flav>')
-    @app.route('/<int:year>/<int:month>/<int:day>/index.<flav>')
+    @app.route('/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
+    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
     def archive_index_flav(year, month=None, day=None, flav=None):
         return _handle_archive_url(flav, "", year, month, day)
     
