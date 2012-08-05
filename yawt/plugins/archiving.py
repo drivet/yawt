@@ -166,13 +166,14 @@ class ArchiveCounter(object):
             if status not in ['A','M','R']:
                 continue
 
-            old_date = self._name_infos[fullname]
-            ym = (old_date[0], old_date[1])
-            if ym in self._archive_counts:
-                self._archive_counts[ym]['count'] -= 1
-                if self._archive_counts[ym]['count'] == 0:
-                    del self._archive_counts[ym]
-            del self._name_infos[fullname]
+            if fullname in self._name_infos:
+                old_date = self._name_infos[fullname]
+                ym = (old_date[0], old_date[1])
+                if ym in self._archive_counts:
+                    self._archive_counts[ym]['count'] -= 1
+                    if self._archive_counts[ym]['count'] == 0:
+                        del self._archive_counts[ym]
+                del self._name_infos[fullname]
             
             if status in ('A', 'M'):
                 self.visit_article(fullname)

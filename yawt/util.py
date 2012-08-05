@@ -50,10 +50,12 @@ def load_yaml(filename):
         return yaml.load(f)
 
 def save_yaml(filename, obj):
+    _ensure_path(os.path.dirname(filename))
     with open(filename, 'w') as f:
         yaml.dump(obj, f)
 
 def save_string(filename, str):
+    _ensure_path(os.path.dirname(filename))
     with open(filename, 'w') as f:
         f.write(str)
 
@@ -79,3 +81,6 @@ def breadcrumbs(pathstr):
         breadcrumbs.append({'crumb': piece, 'url': pathurl})
     return breadcrumbs
         
+def _ensure_path(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
