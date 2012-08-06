@@ -13,7 +13,7 @@ import yawt.article
 
 
 def _is_hg_repo_root():
-    return os.path.isdir('.hg') and subprocess.call(['hg', 'status']) == 0
+    return os.path.isdir('.hg') and subprocess.call(['hg', 'status', '-q']) == 0
 
 def _hg_init(directory):
     subprocess.call(['hg', 'init', directory])
@@ -126,7 +126,7 @@ class NewBlog(YawtCommand):
 
 class NewArticle(YawtCommand):
     """
-    Create empty new article
+    Create empty new article.
     """
     option_list = (
         Option('article'),
