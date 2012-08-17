@@ -15,7 +15,6 @@ class HgStore(object):
         self.ext = ext
         
         self._revision_id = None
-        self._repo_init = False
         self._revision = None # particular revision of a working directory
         self._repo = None
 
@@ -28,14 +27,12 @@ class HgStore(object):
                 revision_id = None
     
     def _init_repo(self):
-        if self._repo_init == False:
-            self.repopath = cmdutil.findrepo(self.repopath)
-            if self.repopath is not None:
-                self._repo = hg.repository(ui.ui(), self.repopath)
-                self._revision_id = self._get_revision_id()
-                self._revision = self._repo[self._revision_id]
-            self._repo_init = True
-
+        self.repopath = cmdutil.findrepo(self.repopath)
+        if self.repopath is not None:
+            self._repo = hg.repository(ui.ui(), self.repopath)
+            self._revision_id = self._get_revision_id()
+            self._revision = self._repo[self._revision_id]
+            
     def fetch_hg_info(self, fullname):
         self._init_repo()
         if self._repo is None:
