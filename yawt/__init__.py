@@ -17,6 +17,7 @@ default_config = {
     'path_to_templates': 'templates',
     'path_to_articles': 'entries',
     'path_to_static': 'static',
+    'static_url': 'static',
     'ext': 'txt',
     'meta_ext': 'meta',
     
@@ -46,7 +47,10 @@ def create_app(blogpath=None):
     config.update(_load_config(blogpath))
     template_folder = get_abs_path(blogpath, config['path_to_templates'])
     static_folder = get_abs_path(blogpath, config['path_to_static'])
-    app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
+    static_url = config['static_url']
+    app = Flask(__name__, template_folder=template_folder,
+                static_url_path=static_url,
+                static_folder=static_folder)
     app.config['blogpath'] = blogpath
     app.config.update(config)
  
