@@ -8,9 +8,15 @@ from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
 
 flask_app = None
+name = None
 
 index_dir = '_whoosh_index'
 index_name = 'fulltextsearch'
+
+default_config = {
+    'index_dir': index_dir,
+    'index_name': index_name,
+}
 
 class SearchView(object):
     def __init__(self, store, yawtview):
@@ -65,7 +71,7 @@ class CleanIndexer(object):
         if not os.path.exists(self._index_root):
             os.mkdir(self._index_root)
             
-        schema = Schema(fullname=ID(stored=True),
+        schema = Schema(fullname=ID(stored=True, unique=True),
                         mtime=STORED,
                         title=TEXT(stored=True),
                         content=TEXT)
@@ -76,6 +82,10 @@ class CleanIndexer(object):
         self._writer = ix.writer()
         
     def visit_article(self, fullname):
+        base = _get_base()
+        if not fullname.startswith(base):
+            return
+        
         article = self._store.fetch_article_by_fullname(fullname)
         mtime = os.path.getmtime(self._store._name2file(fullname))
         self._writer.add_document(fullname = unicode(article.fullname),
@@ -85,7 +95,51 @@ class CleanIndexer(object):
         
     def post_walk(self):
         self._writer.commit()
+
+class SubsetIndexer(object):
+    def __init__(self, store, index_root, index_name):
+        self._store = store
+        self._index_root = index_root
+        self._index_name = index_name
+
+    def update(self, statuses):
+        writer = self._get_writer()
+
+        base = _get_base()
+        for fullname in statuses.keys():
+            if not fullname.startswith(base):
+                continue
+            
+            status = statuses[fullname]
+            if status not in ['A','M','R']:
+                continue
+            
+            article = self._store.fetch_article_by_fullname(fullname)
+            mtime = os.path.getmtime(self._store._name2file(fullname))
+            writer.update_document(fullname = unicode(article.fullname),
+                                   mtime = mtime,
+                                   title = unicode(article.title),
+                                   content = unicode(article.content))
+        writer.commit()
+
+    def _get_writer(self):
+        if not os.path.exists(self._index_root):
+            os.mkdir(self._index_root)
+
+        if not exists_in(self._index_root, self._index_name):
+            schema = Schema(fullname=ID(stored=True, unique=True),
+                            mtime=STORED,
+                            title=TEXT(stored=True),
+                            content=TEXT)
+
+            ix = create_in(self._index_root, schema = schema,
+                           indexname = self._index_name)
+        else:
+            ix = open_dir(self._index_root, indexname = self._index_name)
+            
+        return ix.writer()
         
+
 class IncrementalIndexer(object):
     def __init__(self, store, index_root, index_name):
         self._store = store
@@ -133,13 +187,16 @@ class IncrementalIndexer(object):
                                       mtime = mtime,
                                       title = unicode(article.title),
                                       content = unicode(article.content))
-                
+
     def post_walk(self):
         self._writer.commit()
   
-def init(app, name):
+def init(app, plugin_name):
     global flask_app
     flask_app = app
+      
+    global name
+    name = plugin_name
     
     # Search URL
     @app.route('/search/', methods=['POST', 'GET'])
@@ -181,5 +238,16 @@ def init(app, name):
 def walker(store):
     return CleanIndexer(store, index_dir, index_name)
 
+def updater(store):
+    return SubsetIndexer(store, index_dir, index_name)
+
 def _get_index_dir():
     return yawt.util.get_abs_path_app(flask_app, index_dir)
+
+def _get_base():
+    base = _plugin_config()['base'].strip()
+    return base.rstrip('/')
+
+def _plugin_config():
+    return flask_app.config[name]
+    
