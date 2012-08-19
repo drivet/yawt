@@ -26,10 +26,11 @@ default_config = {
 }
 
 def _load_config(blogpath):
+    config_file = os.path.join(blogpath, 'config.yaml')
     try:
-        return load_yaml(os.path.join(blogpath, 'config.yaml'))
+        return load_yaml(config_file)
     except IOError as e:
-        print 'Exception thrown loading config: ' + str(e)
+        print 'Warning: could not load configuration at ' + config_file
         return {}
 
 def _mod_config(app, mod, plugin_name):

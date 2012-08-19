@@ -13,7 +13,10 @@ import yawt.article
 
 
 def _is_hg_repo_root():
-    return os.path.isdir('.hg') and subprocess.call(['hg', 'status', '-q']) == 0
+    with open(os.devnull, "w") as fnull:
+        return os.path.isdir('.hg') and subprocess.call(['hg', 'status', '-q'],
+                                                        stdout = fnull,
+                                                        stderr = fnull) == 0
 
 def _hg_init(directory):
     subprocess.call(['hg', 'init', directory])
@@ -136,7 +139,11 @@ class NewArticle(YawtCommand):
         if _is_hg_repo_root():
             ext = self.app.config['ext']
             article_file = os.path.join(self.app.config['path_to_articles'], article + '.' + ext)
-            _save_add_str(article_file,'')
+            dirname = os.path.dirname(article_file)
+            if not os.path.exists(dirname):
+                print "error: %s does not exist" % dirname
+            else:
+                _save_add_str(article_file, '')
         else:
             print "error: not at hg repository root"
         
@@ -157,7 +164,7 @@ class Info(YawtCommand):
 
 manager = Manager(yawt.create_app)
 manager.add_option('-b', '--blogpath', dest='blogpath',
-                   default=os.getcwd(), required=True)
+                   default=os.getcwd(), required=False)
  
 server = Server(use_debugger=True, use_reloader=True)
 server.description = 'runs the yawt local server.'

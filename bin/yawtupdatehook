@@ -1,12 +1,13 @@
 #!/bin/bash
 
+# assumed to be run from blog/repo root
+
 YAWT=yawt
 BLOGROOT=$PWD
 
 update() {
     STATUSES=$1
     if [[ -n $STATUSES ]]; then
-        #echo "Running: $YAWT update \"$STATUSES\" -b $BLOGROOT"
         $YAWT update "$STATUSES" -b $BLOGROOT
     fi
 }

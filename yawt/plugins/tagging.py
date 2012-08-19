@@ -102,7 +102,6 @@ class TagCounter(object):
         self._save_info(_get_tag_file(), self._tag_infos)
         self._save_info(_get_name_file(), self._name_infos)
        
-   
     def update(self, statuses):
         self._tag_infos = _load_tag_infos()
         self._name_infos = _load_name_infos()
@@ -113,7 +112,7 @@ class TagCounter(object):
                 continue
 
             # no matter what, remove all old tags.
-            if 'fullname' in self._name_infos:
+            if fullname in self._name_infos:
                 old_tags = self._name_infos[fullname]
                 for tag in old_tags:
                     if tag in self._tag_infos.keys():
