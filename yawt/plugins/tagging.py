@@ -9,13 +9,15 @@ flask_app = None
 name = None
 
 _tag_dir = '_tags'
-_tag_file = _tag_dir + '/tags.yaml'
-_name_file = _tag_dir + '/names.yaml'
+_tag_count_file = _tag_dir + '/tag_counts.yaml'
+_article_tag_file = _tag_dir + '/article_tags.yaml'
+_base = ''
 
 default_config = {
     'tag_dir': _tag_dir,
-    'tag_file': _tag_file,
-    'name_file': _name_file,
+    'tag_count_file': _tag_count_file,
+    'article_tag_file': _article_tag_file,
+    'base': _base
 }
 
 def _tag_url(category, tag):
@@ -71,15 +73,15 @@ def _create_tag_view():
 class TagCounter(object):
     def __init__(self, store):
         self._store = store
-        self._tag_infos = None
-        self._name_infos = None
+        self._tag_counts = None
+        self._article_tags = None
 
     def pre_walk(self):
-        self._tag_infos = {}
-        self._name_infos = {}
+        self._tag_counts = {}
+        self._article_tags = {}
     
     def visit_article(self, fullname):
-        base = _get_tagging_base()
+        base = _get_base()
         if not fullname.startswith(base):
             return
         
@@ -89,22 +91,22 @@ class TagCounter(object):
         # save the tags associated with the article so we can remove
         # them later if they change
         if tags is not None and len(tags) > 0:
-            self._name_infos[fullname] = tags
+            self._article_tags[fullname] = tags
         
         if tags is not None:
             for tag in tags:
-                if tag not in self._tag_infos.keys():
+                if tag not in self._tag_counts.keys():
                     tag_url = _tag_url(base, tag)
-                    self._tag_infos[tag] = {'count': 0, 'url': tag_url}
-                self._tag_infos[tag]['count'] += 1
+                    self._tag_counts[tag] = {'count': 0, 'url': tag_url}
+                self._tag_counts[tag]['count'] += 1
  
     def post_walk(self):
-        self._save_info(_get_tag_file(), self._tag_infos)
-        self._save_info(_get_name_file(), self._name_infos)
+        self._save_info(_get_tag_count_file(), self._tag_counts)
+        self._save_info(_get_article_tag_file(), self._article_tags)
        
     def update(self, statuses):
-        self._tag_infos = _load_tag_infos()
-        self._name_infos = _load_name_infos()
+        self._tag_counts = _load_tag_counts()
+        self._article_tags = _load_article_tags()
         
         for fullname in statuses.keys():
             status = statuses[fullname]
@@ -112,14 +114,14 @@ class TagCounter(object):
                 continue
 
             # no matter what, remove all old tags.
-            if fullname in self._name_infos:
-                old_tags = self._name_infos[fullname]
+            if fullname in self._article_tags:
+                old_tags = self._article_tags[fullname]
                 for tag in old_tags:
-                    if tag in self._tag_infos.keys():
-                        self._tag_infos[tag]['count'] -= 1
-                        if self._tag_infos[tag]['count'] == 0:
-                            del self._tag_infos[tag]
-                del self._name_infos[fullname]
+                    if tag in self._tag_counts.keys():
+                        self._tag_counts[tag]['count'] -= 1
+                        if self._tag_counts[tag]['count'] == 0:
+                            del self._tag_counts[tag]
+                del self._article_tags[fullname]
  
             # if this is a R status, then removing the old tags was all we needed to do
             if status in ('A', 'M'):
@@ -148,7 +150,7 @@ def init(app, plugin_name):
     def tags(article):
         tags = article.get_metadata('tags')
         if tags is not None:
-            base = _get_tagging_base()
+            base = _get_base()
             tag_links = []
             for tag in tags:
                 tag_links.append({'tag': tag, 'url': _tag_url(base, tag)})
@@ -192,7 +194,7 @@ def init(app, plugin_name):
                                          int(g.config['page_size']), request.base_url)
             
 def template_vars():
-    return {'tags':_load_tag_infos()}
+    return {'tags':_load_tag_counts()}
 
 def walker(store):
     return TagCounter(store)
@@ -200,11 +202,11 @@ def walker(store):
 def updater(store):
     return TagCounter(store)
 
-def _load_tag_infos():
-    return yawt.util.load_yaml(_get_tag_file())
+def _load_tag_counts():
+    return yawt.util.load_yaml(_get_tag_count_file())
 
-def _load_name_infos():
-    return yawt.util.load_yaml(_get_name_file())
+def _load_article_tags():
+    return yawt.util.load_yaml(_get_article_tag_file())
 
 def _plugin_config():
     return flask_app.config[name]
@@ -212,12 +214,12 @@ def _plugin_config():
 def _get_tag_dir():
     return yawt.util.get_abs_path_app(flask_app, _plugin_config()['tag_dir'])
 
-def _get_tag_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['tag_file'])
+def _get_tag_count_file():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['tag_count_file'])
 
-def _get_name_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['name_file'])
+def _get_article_tag_file():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['article_tag_file'])
 
-def _get_tagging_base():
+def _get_base():
     base = _plugin_config()['base'].strip()
     return base.rstrip('/')

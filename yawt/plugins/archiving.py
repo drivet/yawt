@@ -10,14 +10,14 @@ flask_app = None
 name = None
 
 _archive_dir = '_archive_counts'
-_archive_file = _archive_dir + '/archive_counts.yaml'
-_name_file = _archive_dir + '/name_infos.yaml' # used for updates
+_archive_count_file = _archive_dir + '/archive_counts.yaml'
+_archive_date_file = _archive_dir + '/archive_dates.yaml' # used for updates
 _base = ''
 
 default_config = {
     'archive_dir': _archive_dir,
-    'archive_file': _archive_file,
-    'name_file': _name_file,
+    'archive_count_file': _archive_count_file,
+    'archive_date_file': _archive_date_file,
     'base': _base
 }
 
@@ -121,11 +121,11 @@ class ArchiveCounter(object):
         self._store = store
         self._app = app
         self._archive_counts = None
-        self._name_infos = None
+        self._article_dates = None
 
     def pre_walk(self):
         self._archive_counts = {}
-        self._name_infos = {}
+        self._article_dates = {}
     
     def visit_article(self, fullname):
         archive_base = _get_archive_base()
@@ -135,7 +135,7 @@ class ArchiveCounter(object):
         article = self._store.fetch_article_by_fullname(fullname)
         ym = (article.ctime_tm.tm_year, article.ctime_tm.tm_mon)
 
-        self._name_infos[fullname] = [ym[0], ym[1]]
+        self._article_dates[fullname] = [ym[0], ym[1]]
 
         if ym not in self._archive_counts.keys():
             archive_url = '/%s/%04d/%02d/' % (archive_base, ym[0], ym[1])
@@ -150,8 +150,8 @@ class ArchiveCounter(object):
         archive_counts_dump.sort(key = lambda item: (item['year'], item['month']),
                                  reverse = True)
         
-        self._save_info(_get_archive_file(), archive_counts_dump)
-        self._save_info(_get_name_file(), self._name_infos)
+        self._save_info(_get_archive_count_file(), archive_counts_dump)
+        self._save_info(_get_archive_date_file(), self._article_dates)
 
     def update(self, statuses):
         archive_counts_dump = _load_archive_counts()
@@ -159,21 +159,21 @@ class ArchiveCounter(object):
         for ac in archive_counts_dump:
             ym = (ac['year'],ac['month'])
             self._archive_counts[ym] = {'count':ac['count'], 'url': ac['url']}
-        self._name_infos = _load_name_infos()
+        self._article_dates = _load_article_dates()
         
         for fullname in statuses.keys():
             status = statuses[fullname]
             if status not in ['A','M','R']:
                 continue
 
-            if fullname in self._name_infos:
-                old_date = self._name_infos[fullname]
+            if fullname in self._article_dates:
+                old_date = self._article_dates[fullname]
                 ym = (old_date[0], old_date[1])
                 if ym in self._archive_counts:
                     self._archive_counts[ym]['count'] -= 1
                     if self._archive_counts[ym]['count'] == 0:
                         del self._archive_counts[ym]
-                del self._name_infos[fullname]
+                del self._article_dates[fullname]
             
             if status in ('A', 'M'):
                 self.visit_article(fullname)
@@ -284,10 +284,10 @@ def updater(store):
     return ArchiveCounter(store, flask_app)
 
 def _load_archive_counts():
-    return yawt.util.load_yaml(_get_archive_file())
+    return yawt.util.load_yaml(_get_archive_count_file())
 
-def _load_name_infos():
-    return yawt.util.load_yaml(_get_name_file())
+def _load_article_dates():
+    return yawt.util.load_yaml(_get_archive_date_file())
 
 def _plugin_config():
     return flask_app.config[name]
@@ -295,11 +295,11 @@ def _plugin_config():
 def _get_archive_dir():
     return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_dir'])
 
-def _get_archive_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_file'])
+def _get_archive_count_file():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_count_file'])
 
-def _get_name_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['name_file'])
+def _get_archive_date_file():
+    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_date_file'])
 
 def _get_archive_base():
     base = _plugin_config()['base'].strip()
