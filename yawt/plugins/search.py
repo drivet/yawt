@@ -7,21 +7,11 @@ from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
 from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
 
-flask_app = None
-name = None
-
-index_dir = '_whoosh_index'
-index_name = 'fulltextsearch'
-
-default_config = {
-    'index_dir': index_dir,
-    'index_name': index_name,
-}
-
 class SearchView(object):
-    def __init__(self, store, yawtview):
+    def __init__(self, store, yawtview, plugin):
         self._yawtview = yawtview
         self._store = store
+        self._plugin = plugin
   
     def dispatch_request(self, flavour, category, search_text, page, page_size, base_url):
         articles = filter(lambda a: a.is_in_category(category),
@@ -43,7 +33,7 @@ class SearchView(object):
         """
         Fetch collection of articles by searchtext.
         """
-        ix = open_dir(_get_index_dir(), indexname = index_name)
+        ix = open_dir(self._plugin._get_index_dir(), indexname = self._plugin.index_name)
         search_results = None
         searcher = None
         results = []
@@ -57,15 +47,13 @@ class SearchView(object):
                     results.append(article)
         return results
 
-def _create_search_view():
-    return SearchView(g.store,
-                      YawtView(g.plugins, g.config['content_types']))
 
 class CleanIndexer(object):
-    def __init__(self, store, index_root, index_name):
+    def __init__(self, store, plugin):
         self._store = store
-        self._index_root = index_root
-        self._index_name = index_name
+        self._index_root = plugin.index_dir
+        self._index_name = plugin.index_name
+        self._plugin = plugin
 
     def pre_walk(self):
         if not os.path.exists(self._index_root):
@@ -82,7 +70,7 @@ class CleanIndexer(object):
         self._writer = ix.writer()
         
     def visit_article(self, fullname):
-        base = _get_base()
+        base = self._plugin._get_base()
         if not fullname.startswith(base):
             return
         
@@ -97,15 +85,16 @@ class CleanIndexer(object):
         self._writer.commit()
 
 class SubsetIndexer(object):
-    def __init__(self, store, index_root, index_name):
+    def __init__(self, store, plugin):
         self._store = store
-        self._index_root = index_root
-        self._index_name = index_name
-
+        self._index_root = plugin.index_dir
+        self._index_name = plugin.index_name
+        self._plugin = plugin
+ 
     def update(self, statuses):
         writer = self._get_writer()
 
-        base = _get_base()
+        base = self._plugin._get_base()
         for fullname in statuses.keys():
             if not fullname.startswith(base):
                 continue
@@ -190,64 +179,77 @@ class IncrementalIndexer(object):
 
     def post_walk(self):
         self._writer.commit()
-  
-def init(app, plugin_name):
-    global flask_app
-    flask_app = app
-      
-    global name
-    name = plugin_name
+
+class SearchPlugin(object):
+    def __init__(self):
+        self.index_dir = '_whoosh_index'
+        self.index_name = 'fulltextsearch'
+
+        self.default_config = {
+            'index_dir': self.index_dir,
+            'index_name': self.index_name,
+        }
+        
+    def init(self, app, plugin_name):
+        self.app = app
+        self.name = plugin_name
     
-    # Search URL
-    @app.route('/search/', methods=['POST', 'GET'])
-    def full_text_search():
-        return _full_text_search(request, None, '')
+        # Search URL
+        @app.route('/search/', methods=['POST', 'GET'])
+        def full_text_search():
+            return self._full_text_search(request, None, '')
+        
+        @app.route('/<path:category>/search/', methods=['POST', 'GET'])
+        def full_text_search(category):
+            return self._full_text_search(request, None, category)
+        
+        @app.route('/search/index', methods=['POST', 'GET'])
+        def full_text_search_index():
+            return self._full_text_search(request, None, '')
+        
+        @app.route('/<path:category>/search/index', methods=['POST', 'GET'])
+        def full_text_search_index(category):
+            return self._full_text_search(request, None, category)
+        
+        @app.route('/search/index.<flav>', methods=['POST', 'GET'])
+        def full_text_search_index():
+            return self._full_text_search(request, flav, '')
+        
+        @app.route('/<path:category>/search/index.<flav>', methods=['POST', 'GET'])
+        def full_text_search_index(category):
+            return self._full_text_search(request, flav, category)
+
+    def walker(self, store):
+        return CleanIndexer(store, self)
+
+    def updater(self, store):
+        return SubsetIndexer(store, self)
+
+    def _get_index_dir(self):
+        return yawt.util.get_abs_path_app(self.app, self.index_dir)
+
+    def _get_base(self):
+        base = self._plugin_config()['base'].strip()
+        return base.rstrip('/')
+
+    def _plugin_config(self):
+        return self.app.config[self.name]
     
-    @app.route('/<path:category>/search/', methods=['POST', 'GET'])
-    def full_text_search(category):
-        return _full_text_search(request, None, category)
-    
-    @app.route('/search/index', methods=['POST', 'GET'])
-    def full_text_search_index():
-        return _full_text_search(request, None, '')
-
-    @app.route('/<path:category>/search/index', methods=['POST', 'GET'])
-    def full_text_search_index(category):
-        return _full_text_search(request, None, category)
-
-    @app.route('/search/index.<flav>', methods=['POST', 'GET'])
-    def full_text_search_index():
-        return _full_text_search(request, flav, '')
-
-    @app.route('/<path:category>/search/index.<flav>', methods=['POST', 'GET'])
-    def full_text_search_index(category):
-        return _full_text_search(request, flav, category)
-
-    def _full_text_search(request, flav, category):
+    def _full_text_search(self, request, flav, category):
         page = 1
         try:
             page = int(request.args.get('page', '1'))
         except ValueError:
             page = 1
-
+            
         search_text = request.args.get('searchtext', '')
-        sv = _create_search_view()
+        sv = self._create_search_view()
         return sv.dispatch_request(flav, category, search_text,
                                    page, g.config['page_size'], request.base_url)
-           
-def walker(store):
-    return CleanIndexer(store, index_dir, index_name)
 
-def updater(store):
-    return SubsetIndexer(store, index_dir, index_name)
+    def _create_search_view(self):
+        return SearchView(g.store, YawtView(g.plugins, g.config['content_types']), self)
 
-def _get_index_dir():
-    return yawt.util.get_abs_path_app(flask_app, index_dir)
 
-def _get_base():
-    base = _plugin_config()['base'].strip()
-    return base.rstrip('/')
-
-def _plugin_config():
-    return flask_app.config[name]
-    
+def create_plugin():
+    return SearchPlugin()

@@ -5,27 +5,29 @@ import yaml
 from yawt.view import YawtView, PagingInfo
 from flask import g, request, url_for
 
-flask_app = None
-name = None
-
-_tag_dir = '_tags'
-_tag_count_file = _tag_dir + '/tag_counts.yaml'
-_article_tag_file = _tag_dir + '/article_tags.yaml'
-_base = ''
-
-default_config = {
-    'tag_dir': _tag_dir,
-    'tag_count_file': _tag_count_file,
-    'article_tag_file': _article_tag_file,
-    'base': _base
-}
-
 def _tag_url(category, tag):
     if category:
         return url_for('tag_category_canonical', category=category, tag=tag)
     else:
         return url_for('tag_canonical', tag=tag)
         
+def _create_tag_view():
+    return TagView(g.store,
+                   YawtView(g.plugins,
+                            g.config['content_types']))
+
+def _handle_tag_url(flavour, category, tag):
+    page = 1
+    try:
+        page = int(request.args.get('page', '1'))
+    except ValueError:
+        page = 1
+
+    tag_view = _create_tag_view()
+    return tag_view.dispatch_request(flavour, category, tag, page,
+                                     int(g.config['page_size']), request.base_url)
+
+
 class TagView(object):
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
@@ -64,15 +66,10 @@ class TagView(object):
         return tag in tags
 
 
-def _create_tag_view():
-    return TagView(g.store,
-                   YawtView(g.plugins,
-                            g.config['content_types']))
-
-
 class TagCounter(object):
-    def __init__(self, store):
+    def __init__(self, store, plugin):
         self._store = store
+        self._plugin = plugin
         self._tag_counts = None
         self._article_tags = None
 
@@ -81,7 +78,7 @@ class TagCounter(object):
         self._article_tags = {}
     
     def visit_article(self, fullname):
-        base = _get_base()
+        base = self._plugin._get_base()
         if not fullname.startswith(base):
             return
         
@@ -101,12 +98,12 @@ class TagCounter(object):
                 self._tag_counts[tag]['count'] += 1
  
     def post_walk(self):
-        self._save_info(_get_tag_count_file(), self._tag_counts)
-        self._save_info(_get_article_tag_file(), self._article_tags)
+        self._save_info(self._plugin._get_tag_count_file(), self._tag_counts)
+        self._save_info(self._plugin._get_article_tag_file(), self._article_tags)
        
     def update(self, statuses):
-        self._tag_counts = _load_tag_counts()
-        self._article_tags = _load_article_tags()
+        self._tag_counts = self._plugin._load_tag_counts()
+        self._article_tags = self._plugin._load_article_tags()
         
         for fullname in statuses.keys():
             status = statuses[fullname]
@@ -131,95 +128,97 @@ class TagCounter(object):
         self.post_walk()
           
     def _save_info(self, filename, info):
-        tag_dir = _get_tag_dir()
+        tag_dir = self._plugin._get_tag_dir()
         if not os.path.exists(tag_dir):
             os.mkdir(tag_dir)
         stream = file(filename, 'w')
         yaml.dump(info, stream)
         stream.close()
     
-def init(app, plugin_name):
-    global flask_app
-    flask_app = app
-    
-    global name
-    name = plugin_name
+
+class TaggingPlugin(object):
+    def __init__(self):
+        self._tag_dir = '_tags'
+        self._tag_count_file = self._tag_dir + '/tag_counts.yaml'
+        self._article_tag_file = self._tag_dir + '/article_tags.yaml'
+        self._base = ''
+
+        self.default_config = { 'tag_dir': self._tag_dir,
+                                'tag_count_file': self._tag_count_file,
+                                'article_tag_file': self._article_tag_file,
+                                'base': self._base }
+
+    def init(self, app, plugin_name):
+        self.app = app
+        self.name = plugin_name
  
-    # filter for showing article tags
-    @app.template_filter('tags')
-    def tags(article):
-        tags = article.get_metadata('tags')
-        if tags is not None:
-            base = _get_base()
-            tag_links = []
-            for tag in tags:
-                tag_links.append({'tag': tag, 'url': _tag_url(base, tag)})
-            return tag_links
-        else:
-            return None
+        # filter for showing article tags
+        @app.template_filter('tags')
+        def tags(article):
+            tags = article.get_metadata('tags')
+            if tags is not None:
+                base = self._get_base()
+                tag_links = []
+                for tag in tags:
+                    tag_links.append({'tag': tag, 'url': _tag_url(base, tag)})
+                return tag_links
+            else:
+                return None
      
-    @app.route('/tags/<tag>/')
-    def tag_canonical(tag):
-        return _handle_tag_url(None, '', tag)
+        @app.route('/tags/<tag>/')
+        def tag_canonical(tag):
+            return _handle_tag_url(None, '', tag)
 
-    @app.route('/<path:category>/tags/<tag>/')
-    def tag_category_canonical(category, tag):
-        return _handle_tag_url(None, category, tag)
+        @app.route('/<path:category>/tags/<tag>/')
+        def tag_category_canonical(category, tag):
+            return _handle_tag_url(None, category, tag)
 
-    @app.route('/tags/<tag>/index')
-    def tag_index(tag):
-        return _handle_tag_url(None, '', tag)
+        @app.route('/tags/<tag>/index')
+        def tag_index(tag):
+            return _handle_tag_url(None, '', tag)
 
-    @app.route('/<path:category>/tags/<tag>/index')
-    def tag_category_index(category, tag):
-        return _handle_tag_url(None, category, tag)
+        @app.route('/<path:category>/tags/<tag>/index')
+        def tag_category_index(category, tag):
+            return _handle_tag_url(None, category, tag)
 
-    @app.route('/tags/<tag>/index.<flav>')
-    def tag_index_flav(tag):
-        return _handle_tag_url(flav, '', tag)
+        @app.route('/tags/<tag>/index.<flav>')
+        def tag_index_flav(tag):
+            return _handle_tag_url(flav, '', tag)
 
-    @app.route('/<path:category>/tags/<tag>/index.<flav>')
-    def tag_category_index_flav(category, tag):
-        return _handle_tag_url(flav, category, tag)
+        @app.route('/<path:category>/tags/<tag>/index.<flav>')
+        def tag_category_index_flav(category, tag):
+            return _handle_tag_url(flav, category, tag)
 
-    def _handle_tag_url(flavour, category, tag):
-        page = 1
-        try:
-            page = int(request.args.get('page', '1'))
-        except ValueError:
-            page = 1
+    def template_vars(self):
+        return {'tags':self._load_tag_counts()}
 
-        tag_view = _create_tag_view()
-        return tag_view.dispatch_request(flavour, category, tag, page,
-                                         int(g.config['page_size']), request.base_url)
-            
-def template_vars():
-    return {'tags':_load_tag_counts()}
-
-def walker(store):
-    return TagCounter(store)
-
-def updater(store):
-    return TagCounter(store)
-
-def _load_tag_counts():
-    return yawt.util.load_yaml(_get_tag_count_file())
-
-def _load_article_tags():
-    return yawt.util.load_yaml(_get_article_tag_file())
-
-def _plugin_config():
-    return flask_app.config[name]
+    def walker(self, store):
+        return TagCounter(store, self)
     
-def _get_tag_dir():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['tag_dir'])
-
-def _get_tag_count_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['tag_count_file'])
-
-def _get_article_tag_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['article_tag_file'])
-
-def _get_base():
-    base = _plugin_config()['base'].strip()
-    return base.rstrip('/')
+    def updater(self, store):
+        return TagCounter(store, self)
+    
+    def _load_tag_counts(self):
+        return yawt.util.load_yaml(self._get_tag_count_file())
+    
+    def _load_article_tags(self):
+        return yawt.util.load_yaml(self._get_article_tag_file())
+    
+    def _plugin_config(self):
+        return self.app.config[self.name]
+    
+    def _get_tag_dir(self):
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['tag_dir'])
+    
+    def _get_tag_count_file(self):
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['tag_count_file'])
+    
+    def _get_article_tag_file(self):
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['article_tag_file'])
+        
+    def _get_base(self):
+        base = self._plugin_config()['base'].strip()
+        return base.rstrip('/')
+    
+def create_plugin():
+    return TaggingPlugin()

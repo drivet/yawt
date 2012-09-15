@@ -2,17 +2,12 @@ import os.path
 from flask import g
 from mercurial import hg, ui, cmdutil
 
-flask_app = None
-
-default_config = {
-    'use_uncommitted': True
-}
-
 class HgStore(object):
-    def __init__(self, repopath, contentpath, ext):
+    def __init__(self, repopath, contentpath, ext, use_uncommitted):
         self.repopath = repopath
         self.contentpath = contentpath
         self.ext = ext
+        self.use_uncommitted = use_uncommitted
         
         self._revision_id = None
         self._revision = None # particular revision of a working directory
@@ -20,7 +15,7 @@ class HgStore(object):
 
     def _get_revision_id(self):
         revision_id = None
-        if _plugin_config()['use_uncommitted']:
+        if self.use_uncommitted:
             try:
                 revision_id = self._repo.branchtags()['default']
             except KeyError:
@@ -56,28 +51,36 @@ class HgStore(object):
             mtime = int(last_changeset.date()[0])
             
         return (ctime, mtime, author)
+
+class HgMetaPlugin(object):
+    def __init__(self):
+        self.default_config = {
+            'use_uncommitted': True
+        }
+        
+    def init(self, app, modname):
+        self.app = app
+        self.name = modname
+        self.hgstore = HgStore(app.config['blogpath'],
+                               app.config['path_to_articles'],
+                               app.config['ext'],
+                               app.config[self.name]['use_uncommitted'])
+
+        self._load_config()
     
-def init(app, modname):
-    global hgstore
-    hgstore = HgStore(app.config['blogpath'],
-                      app.config['path_to_articles'],
-                      app.config['ext'])
-    global flask_app
-    flask_app = app
+    def on_article_fetch(self, article):
+        (ctime, mtime, author) = self.hgstore.fetch_hg_info(article.fullname)
+        article._ctime = ctime or article._ctime
+        article._mtime = mtime or article._mtime
+        return article
 
-    _load_config()
-    
-def on_article_fetch(article):
-    global hgstore
-    (ctime, mtime, author) = hgstore.fetch_hg_info(article.fullname)
-    article._ctime = ctime or article._ctime
-    article._mtime = mtime or article._mtime
-    return article
-
-def _plugin_config():
-    return flask_app.config[__name__]
-
-def _load_config():
-    if __name__ not in flask_app.config:
-        flask_app.config[__name__] = {}
-    flask_app.config[__name__].update(default_config)
+    def _plugin_config(self):
+        return self.app.config[__name__]
+        
+    def _load_config(self):
+        if __name__ not in self.app.config:
+            self.app.config[__name__] = {}
+        self.app.config[__name__].update(self.default_config)
+ 
+def create_plugin():
+    return HgMetaPlugin()

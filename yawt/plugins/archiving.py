@@ -6,28 +6,24 @@ from yawt.view import YawtView, PagingInfo
 from flask import g, url_for, request
 from werkzeug.routing import BaseConverter
 
-flask_app = None
-name = None
-
-_archive_dir = '_archive_counts'
-_archive_count_file = _archive_dir + '/archive_counts.yaml'
-_archive_date_file = _archive_dir + '/archive_dates.yaml' # used for updates
-_base = ''
-
-default_config = {
-    'archive_dir': _archive_dir,
-    'archive_count_file': _archive_count_file,
-    'archive_date_file': _archive_date_file,
-    'base': _base
-}
-
 def url_for_permalink(base, year, month, day, slug):
     if base:
         return url_for('permalink_category', category=base,
                        year=year, month=month, day=day, slug=slug)
     else:
         return url_for('permalink', year=year, month=month, day=day, slug=slug)
-        
+
+def _handle_archive_url(flav, category, year, month, day):
+    page = 1
+    try:
+        page = int(request.args.get('page', '1'))
+    except ValueError:
+        page = 1
+                
+    av = _create_archive_view()
+    return av.dispatch_request(flav, category, year, month, day,
+                               page, g.config['page_size'], request.base_url)
+
 def _archivelink(year, month=None, day=None, category=None, slug=None):
     link = ''
     if category:
@@ -42,7 +38,15 @@ def _archivelink(year, month=None, day=None, category=None, slug=None):
         link += slug
     return link
 
-    
+           
+def _create_permalink_view():
+    return PermalinkView(ArchivingStore(g.store),
+                         YawtView(g.plugins, g.config['content_types']))
+
+def _create_archive_view():
+    return ArchiveView(ArchivingStore(g.store),
+                       YawtView(g.plugins, g.config['content_types']))
+
 class PermalinkView(object):
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
@@ -59,11 +63,7 @@ class PermalinkView(object):
             
             return self._yawtview.render_article(flavour, article,
                                                  yawt.util.breadcrumbs(permalink))
-         
-def _create_permalink_view():
-    return PermalinkView(ArchivingStore(g.store),
-                         YawtView(g.plugins, g.config['content_types']))
-
+  
 class ArchiveView(object):
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
@@ -88,10 +88,7 @@ class ArchiveView(object):
     def _archive_title(self, date):
         return 'Archives: %s' % str(date)
 
-def _create_archive_view():
-    return ArchiveView(ArchivingStore(g.store),
-                       YawtView(g.plugins, g.config['content_types']))
-   
+
 class ArchivingStore(object):
     def __init__(self, store):
         self._store = store
@@ -115,11 +112,12 @@ class ArchivingStore(object):
                (month is None or month == article.ctime_tm.tm_mon) and \
                (day is None or day == article.ctime_tm.tm_mday) and \
                (slug is None or slug == current_slug)
-   
+
+
 class ArchiveCounter(object):
-    def __init__(self, store, app):
+    def __init__(self, store, plugin):
         self._store = store
-        self._app = app
+        self._plugin = plugin
         self._archive_counts = None
         self._article_dates = None
 
@@ -128,7 +126,7 @@ class ArchiveCounter(object):
         self._article_dates = {}
     
     def visit_article(self, fullname):
-        archive_base = _get_archive_base()
+        archive_base = self._plugin._get_archive_base()
         if not fullname.startswith(archive_base):
             return
         
@@ -150,16 +148,16 @@ class ArchiveCounter(object):
         archive_counts_dump.sort(key = lambda item: (item['year'], item['month']),
                                  reverse = True)
         
-        self._save_info(_get_archive_count_file(), archive_counts_dump)
-        self._save_info(_get_archive_date_file(), self._article_dates)
+        self._save_info(self._plugin._get_archive_count_file(), archive_counts_dump)
+        self._save_info(self._plugin._get_archive_date_file(), self._article_dates)
 
     def update(self, statuses):
-        archive_counts_dump = _load_archive_counts()
+        archive_counts_dump = self._plugin._load_archive_counts()
         self._archive_counts = {}
         for ac in archive_counts_dump:
             ym = (ac['year'],ac['month'])
             self._archive_counts[ym] = {'count':ac['count'], 'url': ac['url']}
-        self._article_dates = _load_article_dates()
+        self._article_dates = self._plugin._load_article_dates()
         
         for fullname in statuses.keys():
             status = statuses[fullname]
@@ -180,127 +178,128 @@ class ArchiveCounter(object):
         self.post_walk()
    
     def _save_info(self, filename, info):
-        archive_dir = _get_archive_dir()
+        archive_dir = self._plugin._get_archive_dir()
         if not os.path.exists(archive_dir):
             os.mkdir(archive_dir)
         stream = file(filename, 'w')
         yaml.dump(info, stream)
         stream.close()
 
+class ArchivingPlugin(object):
+    def __init__(self):
+        self._archive_dir = '_archive_counts'
+        self._archive_count_file = self._archive_dir + '/archive_counts.yaml'
+        self._archive_date_file = self._archive_dir + '/archive_dates.yaml' # used for updates
+        self._base = ''
 
-def init(app, plugin_name):
-    global flask_app
-    flask_app = app
-
-    global name
-    name = plugin_name
-    
-    # filter for showing article permalinks
-    @app.template_filter('permalink')
-    def permalink(article):
-        year = article.ctime_tm.tm_year
-        month = article.ctime_tm.tm_mon
-        day = article.ctime_tm.tm_mday
-        slug = os.path.split(article.fullname)[1]
-        return url_for_permalink(_get_archive_base(), year, month, day, slug)
-
-    @app.template_filter('archive_url')
-    def archive_url(relative_url):
-        return request.url_root + relative_url
-
-    # Permalinks
-    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>')
-    def permalink_category(category, year, month, day, slug):
-        return _create_permalink_view().dispatch_request(None, category, year, month, day, slug)
-
-    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>')
-    def permalink(year, month, day, slug):
-        return _create_permalink_view().dispatch_request(None, "", year, month, day, slug)
-   
-    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>')
-    def permalink_category_flav(category, year, month, day, slug, flav):
-        return _create_permalink_view().dispatch_request(flav, category, year, month, day, slug)
-         
-    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>')
-    def permalink_flav(year, month, day, slug, flav):
-        return _create_permalink_view().dispatch_request(flav, "", year, month, day, slug)
-
-    # Date URLs
-    @app.route('/<path:category>/<int:year>/')
-    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/')
-    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
-    def archive_category(category, year, month=None, day=None):
-        return _handle_archive_url(None, category, year, month, day)
-
-    @app.route('/<int:year>/')
-    @app.route('/<int:year>/<int(fixed_digits=2):month>/')
-    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
-    def archive(year, month=None, day=None):
-        return _handle_archive_url(None, "", year, month, day)
+        self.default_config = {
+            'archive_dir': self._archive_dir,
+            'archive_count_file': self._archive_count_file,
+            'archive_date_file': self._archive_date_file,
+            'base': self._base
+        }
         
-    @app.route('/<path:category>/<int:year>/index')
-    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index')
-    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
-    def archive_category_index(category, year, month=None, day=None):
-        return _handle_archive_url(None, category, year, month, day)
-
-    @app.route('/<int:year>/index')
-    @app.route('/<int:year>/<int(fixed_digits=2):month>/index')
-    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
-    def archive_index(year, month=None, day=None):
-        return _handle_archive_url(None, "", year, month, day)
-
-    @app.route('/<path:category>/<int:year>/index.<flav>')
-    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
-    @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
-    def archive_category_index_flav(category, year, month=None, day=None, flav=None):
-        return _handle_archive_url(flav, category, year, month, day)
-
-    @app.route('/<int:year>/index.<flav>')
-    @app.route('/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
-    @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
-    def archive_index_flav(year, month=None, day=None, flav=None):
-        return _handle_archive_url(flav, "", year, month, day)
+    def init(self, app, plugin_name):
+        self.app = app
+        self.name = plugin_name
     
-    def _handle_archive_url(flav, category, year, month, day):
-        page = 1
-        try:
-            page = int(request.args.get('page', '1'))
-        except ValueError:
-            page = 1
+        # filter for showing article permalinks
+        @app.template_filter('permalink')
+        def permalink(article):
+            year = article.ctime_tm.tm_year
+            month = article.ctime_tm.tm_mon
+            day = article.ctime_tm.tm_mday
+            slug = os.path.split(article.fullname)[1]
+            return url_for_permalink(self._get_archive_base(), year, month, day, slug)
 
-        av = _create_archive_view()
-        return av.dispatch_request(flav, category, year, month, day,
-                                   page, g.config['page_size'], request.base_url)
+        @app.template_filter('archive_url')
+        def archive_url(relative_url):
+            return request.url_root + relative_url
 
+        # Permalinks
+        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>')
+        def permalink_category(category, year, month, day, slug):
+            return _create_permalink_view().dispatch_request(None, category, year, month, day, slug)
+
+        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>')
+        def permalink(year, month, day, slug):
+            return _create_permalink_view().dispatch_request(None, "", year, month, day, slug)
+   
+        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>')
+        def permalink_category_flav(category, year, month, day, slug, flav):
+            return _create_permalink_view().dispatch_request(flav, category, year, month, day, slug)
+         
+        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>')
+        def permalink_flav(year, month, day, slug, flav):
+            return _create_permalink_view().dispatch_request(flav, "", year, month, day, slug)
+
+        # Date URLs
+        @app.route('/<path:category>/<int:year>/')
+        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/')
+        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
+        def archive_category(category, year, month=None, day=None):
+            return _handle_archive_url(None, category, year, month, day)
+
+        @app.route('/<int:year>/')
+        @app.route('/<int:year>/<int(fixed_digits=2):month>/')
+        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
+        def archive(year, month=None, day=None):
+            return _handle_archive_url(None, "", year, month, day)
+        
+        @app.route('/<path:category>/<int:year>/index')
+        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index')
+        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
+        def archive_category_index(category, year, month=None, day=None):
+            return _handle_archive_url(None, category, year, month, day)
+
+        @app.route('/<int:year>/index')
+        @app.route('/<int:year>/<int(fixed_digits=2):month>/index')
+        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
+        def archive_index(year, month=None, day=None):
+            return _handle_archive_url(None, "", year, month, day)
+
+        @app.route('/<path:category>/<int:year>/index.<flav>')
+        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
+        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
+        def archive_category_index_flav(category, year, month=None, day=None, flav=None):
+            return _handle_archive_url(flav, category, year, month, day)
+
+        @app.route('/<int:year>/index.<flav>')
+        @app.route('/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
+        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
+        def archive_index_flav(year, month=None, day=None, flav=None):
+            return _handle_archive_url(flav, "", year, month, day)
+      
+    def template_vars(self):
+        return {'archives':self._load_archive_counts()}
+
+    def walker(self, store):
+        return ArchiveCounter(store, self)
+        
+    def updater(self, store):
+        return ArchiveCounter(store, self)
+        
+    def _load_archive_counts(self):
+        return yawt.util.load_yaml(self._get_archive_count_file())
+
+    def _load_article_dates(self):
+        return yawt.util.load_yaml(self._get_archive_date_file())
+
+    def _plugin_config(self):
+        return self.app.config[self.name]
     
-def template_vars():
-    return {'archives':_load_archive_counts()}
+    def _get_archive_dir(self):
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['archive_dir'])
 
-def walker(store):
-    return ArchiveCounter(store, flask_app)
+    def _get_archive_count_file(self):
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['archive_count_file'])
 
-def updater(store):
-    return ArchiveCounter(store, flask_app)
+    def _get_archive_date_file(self):
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['archive_date_file'])
+        
+    def _get_archive_base(self):
+        base = self._plugin_config()['base'].strip()
+        return base.rstrip('/')
 
-def _load_archive_counts():
-    return yawt.util.load_yaml(_get_archive_count_file())
-
-def _load_article_dates():
-    return yawt.util.load_yaml(_get_archive_date_file())
-
-def _plugin_config():
-    return flask_app.config[name]
-    
-def _get_archive_dir():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_dir'])
-
-def _get_archive_count_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_count_file'])
-
-def _get_archive_date_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['archive_date_file'])
-
-def _get_archive_base():
-    base = _plugin_config()['base'].strip()
-    return base.rstrip('/')
+def create_plugin():
+    return ArchivingPlugin()

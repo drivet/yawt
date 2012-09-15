@@ -60,8 +60,12 @@ def create_app(blogpath=None):
             mod_name = app.config['plugins'][plugin_name]
             __import__(mod_name)
             plugins[plugin_name] = sys.modules[mod_name]
-            app.config[plugin_name] = _mod_config(app, plugins[plugin_name], plugin_name)
-            plugins[plugin_name].init(app, plugin_name)
+           
+            p = plugins[plugin_name].create_plugin()
+            app.config[plugin_name] = _mod_config(app, p, plugin_name)
+            p.init(app, plugin_name)
+            plugins[plugin_name] = p
+                
     app.plugins = Plugins(plugins)
 
     old_loader = app.jinja_loader

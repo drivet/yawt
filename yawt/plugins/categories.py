@@ -4,18 +4,6 @@ import os
 import yaml
 import re
 
-flask_app = None
-name = None
-
-_category_dir = '_categories'
-_category_file = _category_dir + '/categories.yaml'
-
-default_config = {
-    'category_dir': _category_dir,
-    'category_file': _category_file,
-    'base': ''
-}
-
 class CategoryNode(object):
     def __init__(self):
         self.count = 0
@@ -97,14 +85,15 @@ class CategoryTree(object):
    
 
 class CategoryCounter(object):
-    def __init__(self):
+    def __init__(self, plugin):
         self._category_tree = None
+        self._plugin = plugin
        
     def pre_walk(self):
-        self._category_tree = CategoryTree(_get_category_base())
+        self._category_tree = CategoryTree(self._plugin._get_category_base())
     
     def visit_article(self, fullname):
-        base = _get_category_base()
+        base = self._plugin._get_category_base()
         if not fullname.startswith(base):
             return
 
@@ -112,10 +101,10 @@ class CategoryCounter(object):
         self._category_tree.add_item(category)
         
     def post_walk(self):
-        self._save_info(_get_category_file(), self._category_tree.get_dict())
+        self._save_info(self._plugin._get_category_file(), self._category_tree.get_dict())
        
     def update(self, statuses):
-        self._category_tree = CategoryTree.from_dict(_load_categories())
+        self._category_tree = CategoryTree.from_dict(self._plugin._load_categories())
         
         for fullname in statuses.keys():
             status = statuses[fullname]
@@ -131,46 +120,57 @@ class CategoryCounter(object):
         self.post_walk()
 
     def _get_category(self, fullname):
-        base = _get_category_base()
+        base = self._plugin._get_category_base()
         relname = re.sub('^%s/' % (base), '', fullname)
         return os.path.dirname(relname)
     
     def _save_info(self, filename, info):
-        cat_dir = _get_category_dir()
+        cat_dir = self._plugin._get_category_dir()
         if not os.path.exists(cat_dir):
             os.mkdir(cat_dir)
         stream = file(filename, 'w')
         yaml.dump(info, stream)
         stream.close()
 
-def init(app, plugin_name):
-    global flask_app
-    flask_app = app
+class CategoriesPlugin(object):
+    def __init__(self):
+        self._category_dir = '_categories'
+        self._category_file =  self._category_dir + '/categories.yaml'
+
+        self.default_config = {
+            'category_dir':  self._category_dir,
+            'category_file':  self._category_file,
+            'base': ''
+        }
+        
+    def init(self, app, plugin_name):
+        self.app = app
+        self.name = plugin_name
     
-    global name
-    name = plugin_name
-    
-def template_vars():
-    return {'categories':_load_categories()}
+    def template_vars(self):
+        return {'categories': self._load_categories()}
 
-def walker(store):
-    return CategoryCounter()
+    def walker(self, store):
+        return CategoryCounter(self)
 
-def updater(store):
-    return CategoryCounter()
+    def updater(self, store):
+        return CategoryCounter(self)
 
-def _plugin_config():
-    return flask_app.config[name]
+    def _plugin_config(self):
+        return self.app.config[self.name]
 
-def _get_category_dir():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['category_dir'])
+    def _get_category_dir(self):
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['category_dir'])
 
-def _get_category_file():
-    return yawt.util.get_abs_path_app(flask_app, _plugin_config()['category_file'])
+    def _get_category_file(self):
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['category_file'])
 
-def _get_category_base():
-    base = _plugin_config()['base'].strip()
-    return base.rstrip('/')
+    def _get_category_base(self):
+        base = self._plugin_config()['base'].strip()
+        return base.rstrip('/')
 
-def _load_categories():
-    return yawt.util.load_yaml(_get_category_file())
+    def _load_categories(self):
+        return yawt.util.load_yaml(self._get_category_file())
+
+def create_plugin():
+    return CategoriesPlugin()
