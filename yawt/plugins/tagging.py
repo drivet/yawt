@@ -3,9 +3,8 @@ import yaml
 import os
 
 from yawt.view import YawtView, PagingInfo
-from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher
+from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher, ListIndexView
 from flask import g, request, url_for, current_app
-from flask.views import View
 
 from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
 from whoosh.index import create_in, open_dir, exists_in
@@ -36,42 +35,16 @@ class TagIndexer(ArticleIndexer):
         return {'tags': unicode(tags)}
 
      
-class TagView(View):
-    def __init__(self, plugin_config):
-        self._plugin_config = plugin_config
-        
-    def dispatch_request(self, tag, flavour=None, category=''):
-        yawtview = YawtView(g.plugins, yawt.util.get_content_types())
-        fetcher = ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name())
-        
-        page = 1
-        try:
-            page = int(request.args.get('page', '1'))
-        except ValueError:
-            page = 1
-
-        page_size = int(g.config['YAWT_PAGE_SIZE'])
-        
-        articles =  fetcher.fetch(category, 'tags', unicode(tag))
-        if len(articles) < 1:
-            return yawtview.render_missing_resource()
-        else:
-            page_info = PagingInfo(page, page_size, len(articles), request.base_url)
-            return self._render_collection(yawtview, flavour, articles, tag, page_info, category)
-         
-    def _render_collection(self, yawtview, flavour, articles, tag, page_info, category):
-        title = self._tag_title(tag)
-        return yawtview.render_collection(flavour, articles, title, page_info, category)
-    
-    def _tag_title(self, tag):
+class TagView(ListIndexView):
+    def _title(self, tag, *args, **kwargs):
         return 'Tag results for: "%s"' % tag
     
-    def _get_index_dir(self):
-        return yawt.util.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
-
-    def _get_index_name(self):
-        return self._plugin_config['INDEX_NAME']
-
+    def _default_field(self, *args, **kwargs):
+        return 'tags'
+    
+    def _query(self, tag, *args, **kwargs):
+        return unicode(tag)
+    
 
 class TaggingPlugin(object):
     def __init__(self):

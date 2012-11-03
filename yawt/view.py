@@ -158,7 +158,7 @@ class YawtView(object):
         return _render('article', flavour, template_vars, self._content_type(flavour),
                        article.category)
     
-    def render_collection(self, flavour, articles, title, page_info, category="", breadcrumbs=None):
+    def render_collection(self, flavour, articles, title, page_info, category='', breadcrumbs=None):
         template_vars = {'articles': articles[page_info.start:page_info.end],
                          'total_pages': page_info.total_pages,
                          'page': page_info.page,

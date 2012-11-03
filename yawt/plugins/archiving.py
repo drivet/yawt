@@ -8,7 +8,7 @@ from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
 
 from yawt.view import YawtView, PagingInfo
-from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher
+from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher, ListIndexView, IndexView
 from flask import g, url_for, request, current_app
 from werkzeug.routing import BaseConverter
 from flask.views import View
@@ -57,11 +57,11 @@ class ArchiveIndexer(ArticleIndexer):
         return {'ctime': ctime_dt}
 
         
-class PermalinkView(View):
+class PermalinkView(IndexView):
     def __init__(self, plugin_config):
         self._plugin_config = plugin_config
         
-    def dispatch_request(self, year, month, day, slug, flavour=None, category='' ):
+    def dispatch_request(self, year, month, day, slug, flavour=None, category=''):
         yawtview = YawtView(g.plugins, yawt.util.get_content_types())
         fetcher = ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name())
         
@@ -74,51 +74,18 @@ class PermalinkView(View):
             permalink = url_for_permalink(category, year, month, day, slug)
             return yawtview.render_article(flavour, article,
                                            yawt.util.breadcrumbs(permalink))
-    def _get_index_dir(self):
-        return yawt.util.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
 
-    def _get_index_name(self):
-        return self._plugin_config['INDEX_NAME']
-    
-
-class ArchiveView(View):
-    def __init__(self, plugin_config):
-        self._plugin_config = plugin_config
-        
-    def dispatch_request(self, year, month=None, day=None, flavour=None, category=''):
-        yawtview = YawtView(g.plugins, yawt.util.get_content_types())
-        fetcher = ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name())
-        
-        page = 1
-        try:
-            page = int(request.args.get('page', '1'))
-        except ValueError:
-            page = 1
-
-        page_size = int(g.config['YAWT_PAGE_SIZE'])
-        
-        articles = fetcher.fetch(category, 'ctime', unicode(_datestr(year, month, day)))
-        if len(articles) < 1:
-            return self._yawtview.render_missing_resource()
-        else:
-            page_info = PagingInfo(page, page_size, len(articles), request.base_url)
-            return self._render_collection(yawtview, flavour, articles,
-                                           yawt.util.Date(year, month, day),
-                                           page_info, category)
-
-    def _render_collection(self, yawtview, flavour, articles, date, page_info, category):
-        link = _archivelink(date.year, date.month, date.day, category)
-        return yawtview.render_collection(flavour, articles, '', page_info, category,
-                                          yawt.util.breadcrumbs(link))
+   
+class ArchiveView(ListIndexView):
+    def _breadcrumbs(self, year, month=None, day=None, category='', *args, **kwargs):
+        return yawt.util.breadcrumbs(_archivelink(year, month, day, category))
        
-    def _archive_title(self, date):
-        return 'Archives: %s' % str(date)
+    def _default_field(self, *args, **kwargs):
+        return 'ctime'
+    
+    def _query(self, year, month=None, day=None, *args, **kwargs):
+        return unicode(_datestr(year, month, day))
 
-    def _get_index_dir(self):
-        return yawt.util.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
-
-    def _get_index_name(self):
-        return self._plugin_config['INDEX_NAME']
     
 class ArchivingPlugin(object):
     def __init__(self):
