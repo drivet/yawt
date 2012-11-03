@@ -99,8 +99,8 @@ class Article(object):
     @property
     def content(self):
         return self._article_content.content
-      
-    def get_metadata(self, key):
+        
+    def get_metadata(self, key, default=None):
         if key in self._local_metadata:
             return self._local_metadata[key]
         elif key in self._external_metadata:
@@ -109,6 +109,8 @@ class Article(object):
             return self._vc_metadata[key]
         elif key in self._file_metadata:
             return self._file_metadata[key]
+        else:
+            return default
         
     @cached_property
     def _article_content(self):
