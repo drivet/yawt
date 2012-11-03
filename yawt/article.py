@@ -5,6 +5,7 @@ import fnmatch
 import yaml
 import yawt
 from werkzeug.utils import cached_property
+from mercurial import hg, ui, cmdutil
 
 
 class Article(object):
@@ -215,10 +216,10 @@ class ArticleStore(object):
                 for filename in files if self._article_file(filename)]
 
     def _fetch_metadata(self, fullname):
-        return (self._fetch_local_metadata,
-                self._fetch_external_metadata,
-                self._fetch_vc_metadata,
-                self._fetch_file_metadata)
+        return (self._fetch_local_metadata(fullname),
+                self._fetch_external_metadata(fullname),
+                self._fetch_vc_metadata(fullname),
+                self._fetch_file_metadata(fullname))
 
     def _fetch_local_metadata(self, fullname):
         return {}
@@ -235,7 +236,7 @@ class ArticleStore(object):
         return {'ctime': ctime, 'mtime': mtime}
 
     def _fetch_external_metadata(self, fullname):
-        md = None
+        md = {}
         md_filename = self._name2metadata_file(fullname)
         if os.path.isfile(md_filename):
             f = open(md_filename, 'r')

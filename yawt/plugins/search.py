@@ -8,10 +8,11 @@ from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
 
 class SearchView(object):
-    def __init__(self, store, yawtview, plugin):
+    def __init__(self, store, yawtview, index_dir, index_name):
         self._yawtview = yawtview
         self._store = store
-        self._plugin = plugin
+        self._index_dir = index_dir
+        self._index_name = index_name
   
     def dispatch_request(self, flavour, category, search_text, page, page_size, base_url):
         articles = filter(lambda a: a.is_in_category(category),
@@ -33,9 +34,7 @@ class SearchView(object):
         """
         Fetch collection of articles by searchtext.
         """
-        print self._plugin._get_index_dir()
-        print self._plugin._get_index_name()
-        ix = open_dir(self._plugin._get_index_dir(), indexname = self._plugin._get_index_name())
+        ix = open_dir(self._index_dir, indexname = self._index_name)
         search_results = None
         searcher = None
         results = []
@@ -51,29 +50,28 @@ class SearchView(object):
 
 
 class CleanIndexer(object):
-    def __init__(self, store, plugin):
+    def __init__(self, store, index_dir, index_name, doc_root):
         self._store = store
-        self._index_root = plugin._get_index_dir()
-        self._index_name = plugin._get_index_name()
-        self._plugin = plugin
+        self._index_dir = index_dir
+        self._index_name = index_name
+        self._doc_root = doc_root
 
     def pre_walk(self):
-        if not os.path.exists(self._index_root):
-            os.mkdir(self._index_root)
+        if not os.path.exists(self._index_dir):
+            os.mkdir(self._index_dir)
             
         schema = Schema(fullname=ID(stored=True, unique=True),
                         mtime=STORED,
                         title=TEXT(stored=True),
                         content=TEXT)
              
-        ix = create_in(self._index_root, schema = schema,
+        ix = create_in(self._index_dir, schema = schema,
                        indexname = self._index_name)
     
         self._writer = ix.writer()
         
     def visit_article(self, fullname):
-        base = self._plugin._get_base()
-        if not fullname.startswith(base):
+        if not fullname.startswith(self._doc_root):
             return
         
         article = self._store.fetch_article_by_fullname(fullname)
@@ -87,17 +85,17 @@ class CleanIndexer(object):
         self._writer.commit()
 
 class SubsetIndexer(object):
-    def __init__(self, store, plugin):
+    def __init__(self, store, index_dir, index_name, doc_root):
         self._store = store
-        self._index_root = plugin.get_index_dir()
-        self._index_name = plugin.get_index_name()
-        self._base = plugin._get_base()
+        self._index_dir = index_dir
+        self._index_name = index_name
+        self._doc_root = doc_root
  
     def update(self, statuses):
         writer = self._get_writer()
 
         for fullname in statuses.keys():
-            if not fullname.startswith(self._base):
+            if not fullname.startswith(self._doc_root):
                 continue
             
             status = statuses[fullname]
@@ -113,23 +111,24 @@ class SubsetIndexer(object):
         writer.commit()
 
     def _get_writer(self):
-        if not os.path.exists(self._index_root):
-            os.mkdir(self._index_root)
+        if not os.path.exists(self._index_dir):
+            os.mkdir(self._index_dir)
 
-        if not exists_in(self._index_root, self._index_name):
+        if not exists_in(self._index_dir, self._index_name):
             schema = Schema(fullname=ID(stored=True, unique=True),
                             mtime=STORED,
                             title=TEXT(stored=True),
                             content=TEXT)
 
-            ix = create_in(self._index_root, schema = schema,
+            ix = create_in(self._index_dir, schema = schema,
                            indexname = self._index_name)
         else:
-            ix = open_dir(self._index_root, indexname = self._index_name)
+            ix = open_dir(self._index_dir, indexname = self._index_name)
             
         return ix.writer()
         
 
+# NOT USED
 class IncrementalIndexer(object):
     def __init__(self, store, index_root, index_name):
         self._store = store
@@ -219,10 +218,10 @@ class SearchPlugin(object):
             return self._full_text_search(request, flav, category)
 
     def walker(self, store):
-        return CleanIndexer(store, self)
+        return CleanIndexer(store, self._get_index_dir(), self._get_index_name(), self._get_base())
 
     def updater(self, store):
-        return SubsetIndexer(store, self)
+        return SubsetIndexer(store, self._get_index_dir(), self._get_index_name(), self._get_base())
 
     def _get_index_dir(self):
         return yawt.util.get_abs_path_app(self.app, self._plugin_config()['INDEX_DIR'])
@@ -250,7 +249,8 @@ class SearchPlugin(object):
                                    page, g.config['YAWT_PAGE_SIZE'], request.base_url)
 
     def _create_search_view(self):
-        return SearchView(g.store, YawtView(g.plugins, yawt.util.get_content_types()), self)
+        return SearchView(g.store, YawtView(g.plugins, yawt.util.get_content_types()),
+                          self._get_index_dir(), self._get_index_name())
 
 
 def create_plugin():
