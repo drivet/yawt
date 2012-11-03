@@ -63,9 +63,9 @@ class TagCounter(object):
     
 class TagCounterPlugin(object):
     def __init__(self):
-        self.default_config = { 'TAG_DIR': '_tags',
-                                'TAG_COUNT_FILE': '_tags/tag_counts.yaml',
-                                'ARTICLE_TAG_FILE': '_tags/article_tags.yaml',
+        self.default_config = { 'TAG_DIR': '_tagscounter',
+                                'TAG_COUNT_FILE': '_tagscounter/tag_counts.yaml',
+                                'ARTICLE_TAG_FILE': '_tagscounter/article_tags.yaml',
                                 'BASE': '' }
 
     def init(self, app, plugin_name):
