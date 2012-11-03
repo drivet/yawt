@@ -61,9 +61,9 @@ class HgMetaPlugin(object):
     def init(self, app, modname):
         self.app = app
         self.name = modname
-        self.hgstore = HgStore(app.config['blogpath'],
-                               app.config['path_to_articles'],
-                               app.config['ext'],
+        self.hgstore = HgStore(app.config['YAWT_BLOGPATH'],
+                               app.config['YAWT_PATH_TO_ARTICLES'],
+                               app.config['YAWT_EXT'],
                                app.config[self.name]['use_uncommitted'])
 
         self._load_config()

@@ -1,6 +1,7 @@
 from flask import render_template, g, make_response, request, redirect, url_for
 from jinja2.loaders import BaseLoader, TemplateNotFound
 import os
+import re
 import yawt
 
 default_article_template = """<html>
@@ -173,6 +174,7 @@ class YawtView(object):
     def _content_type(self, flavour):
         return self._content_types.get(flavour, None)
 
+    
 class ArticleView(object):
     """
     Class for rendering YAWT article views, which are views meant
@@ -200,8 +202,7 @@ class ArticleView(object):
 
 
 def create_article_view():
-    return ArticleView(g.store, YawtView(g.plugins, g.config['content_types']))
-
+    return ArticleView(g.store, YawtView(g.plugins, yawt.util.get_content_types()))
 
 class CategoryView(object):
     """
@@ -244,4 +245,4 @@ class CategoryView(object):
 
 
 def create_category_view():
-    return CategoryView(g.store, YawtView(g.plugins, g.config['content_types']))
+    return CategoryView(g.store, YawtView(g.plugins, yawt.util.get_content_types()))

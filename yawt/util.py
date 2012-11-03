@@ -1,5 +1,7 @@
+from flask import g
 import yaml
 import os
+import re
 
 class Plugins(object):
     def __init__(self, plugins):
@@ -66,10 +68,10 @@ def get_abs_path(blogpath, path):
         return os.path.join(blogpath, path)
 
 def get_abs_path_app(app, path):
-    return get_abs_path(app.config['blogpath'], path)
+    return get_abs_path(app.config['YAWT_BLOGPATH'], path)
 
 def get_base_url(app):
-    return app.config['base_url'] or request.url_root
+    return app.config['YAWT_BASE_URL'] or request.url_root
 
 def breadcrumbs(pathstr):
     breadcrumbs = []
@@ -84,3 +86,11 @@ def breadcrumbs(pathstr):
 def _ensure_path(path):
     if not os.path.exists(path):
         os.makedirs(path)
+
+def get_content_types():
+    def _extract_type(key):
+        m = re.compile('YAWT_CONTENT_TYPES_(.*)').match(key)
+        if m:
+            return (m.group(1).lower(), g.config[m.group(0)])
+        return None
+    return dict(filter(None, map(_extract_type, g.config.keys())))

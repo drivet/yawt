@@ -22,7 +22,7 @@ def _handle_archive_url(flav, category, year, month, day):
                 
     av = _create_archive_view()
     return av.dispatch_request(flav, category, year, month, day,
-                               page, g.config['page_size'], request.base_url)
+                               page, g.config['YAWT_PAGE_SIZE'], request.base_url)
 
 def _archivelink(year, month=None, day=None, category=None, slug=None):
     link = ''
@@ -41,11 +41,11 @@ def _archivelink(year, month=None, day=None, category=None, slug=None):
            
 def _create_permalink_view():
     return PermalinkView(ArchivingStore(g.store),
-                         YawtView(g.plugins, g.config['content_types']))
+                         YawtView(g.plugins, yawt.util.get_content_types()))
 
 def _create_archive_view():
     return ArchiveView(ArchivingStore(g.store),
-                       YawtView(g.plugins, g.config['content_types']))
+                       YawtView(g.plugins, yawt.util.get_content_types()))
 
 class PermalinkView(object):
     def __init__(self, store, yawtview):
@@ -187,16 +187,11 @@ class ArchiveCounter(object):
 
 class ArchivingPlugin(object):
     def __init__(self):
-        self._archive_dir = '_archive_counts'
-        self._archive_count_file = self._archive_dir + '/archive_counts.yaml'
-        self._archive_date_file = self._archive_dir + '/archive_dates.yaml' # used for updates
-        self._base = ''
-
         self.default_config = {
-            'archive_dir': self._archive_dir,
-            'archive_count_file': self._archive_count_file,
-            'archive_date_file': self._archive_date_file,
-            'base': self._base
+            'ARCHIVE_DIR': '_archive_counts',
+            'ARCHIVE_COUNT_FILE': '_archive_counts/archive_counts.yaml',
+            'ARCHIVE_DATE_FILE': '_archive_counts/archive_dates.yaml',
+            'BASE': ''
         }
         
     def init(self, app, plugin_name):
@@ -244,7 +239,7 @@ class ArchivingPlugin(object):
         @app.route('/<int:year>/<int(fixed_digits=2):month>/')
         @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
         def archive(year, month=None, day=None):
-            return _handle_archive_url(None, "", year, month, day)
+            return _handle_archive_url(None, '', year, month, day)
         
         @app.route('/<path:category>/<int:year>/index')
         @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index')
@@ -256,7 +251,7 @@ class ArchivingPlugin(object):
         @app.route('/<int:year>/<int(fixed_digits=2):month>/index')
         @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
         def archive_index(year, month=None, day=None):
-            return _handle_archive_url(None, "", year, month, day)
+            return _handle_archive_url(None, '', year, month, day)
 
         @app.route('/<path:category>/<int:year>/index.<flav>')
         @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
@@ -268,7 +263,7 @@ class ArchivingPlugin(object):
         @app.route('/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
         @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
         def archive_index_flav(year, month=None, day=None, flav=None):
-            return _handle_archive_url(flav, "", year, month, day)
+            return _handle_archive_url(flav, '', year, month, day)
       
     def template_vars(self):
         return {'archives':self._load_archive_counts()}
@@ -289,16 +284,16 @@ class ArchivingPlugin(object):
         return self.app.config[self.name]
     
     def _get_archive_dir(self):
-        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['archive_dir'])
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_DIR'])
 
     def _get_archive_count_file(self):
-        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['archive_count_file'])
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_COUNT_FILE'])
 
     def _get_archive_date_file(self):
-        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['archive_date_file'])
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_DATE_FILE'])
         
     def _get_archive_base(self):
-        base = self._plugin_config()['base'].strip()
+        base = self._plugin_config()['BASE'].strip()
         return base.rstrip('/')
 
 def create_plugin():

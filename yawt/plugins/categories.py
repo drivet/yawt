@@ -134,13 +134,10 @@ class CategoryCounter(object):
 
 class CategoriesPlugin(object):
     def __init__(self):
-        self._category_dir = '_categories'
-        self._category_file =  self._category_dir + '/categories.yaml'
-
         self.default_config = {
-            'category_dir':  self._category_dir,
-            'category_file':  self._category_file,
-            'base': ''
+            'CATEGORY_DIR':  '_categories',
+            'CATEGORY_FILE': '_categories/categories.yaml',
+            'BASE': ''
         }
         
     def init(self, app, plugin_name):
@@ -160,13 +157,13 @@ class CategoriesPlugin(object):
         return self.app.config[self.name]
 
     def _get_category_dir(self):
-        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['category_dir'])
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_DIR'])
 
     def _get_category_file(self):
-        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['category_file'])
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_FILE'])
 
     def _get_category_base(self):
-        base = self._plugin_config()['base'].strip()
+        base = self._plugin_config()['BASE'].strip()
         return base.rstrip('/')
 
     def _load_categories(self):

@@ -5,22 +5,21 @@ import tempfile
 import shutil
 import os
 
-config = """metadata: {
-    blogtitle: Desmond's Soapbox,
-    blogdescription: Musings from a Anglo-Quebecer,
-    lang: en,
-    base_url: \"http://www.desmondrivet.net/blog\"
-}
+config = """
+YAWT_BLOGTITLE: Desmond's Soapbox,
+YAWT_BLOGDESCRIPTION: Musings from a Anglo-Quebecer,
+YAWT_LANG: en,
+YAWT_BASE_URL: \"http://www.desmondrivet.net/blog\"
 
 content_types: {
     rss: application/rss+xml
 }
 
-page_size: 10
-path_to_articles: /tmp
-path_to_templates: /tmp/templates
-ext: txt
-meta_ext: md
+YAWT_PAGE_SIZE: 10
+YAWT_PATH_TO_ARTICLES: /tmp
+YAWT_PATH_TO_TEMPLATES: /tmp/templates
+YAWT_EXT: txt
+YAWT_META_EXT: md
 """
 
 # mixture of articles, meant to to test various features

@@ -139,11 +139,12 @@ class ArticleStore(object):
     # factory method to fetch an article store
     @staticmethod
     def get(config, plugins):
-        article_root = yawt.util.get_abs_path(config['blogpath'], config['path_to_articles'])
+        article_root = yawt.util.get_abs_path(config['YAWT_BLOGPATH'],
+                                              config['YAWT_PATH_TO_ARTICLES'])
         return ArticleStore(plugins,
                             article_root,
-                            config['ext'],
-                            config['meta_ext'])
+                            config['YAWT_EXT'],
+                            config['YAWT_META_EXT'])
          
     def fetch_articles_by_category(self, category):
         """

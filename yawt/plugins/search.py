@@ -33,7 +33,9 @@ class SearchView(object):
         """
         Fetch collection of articles by searchtext.
         """
-        ix = open_dir(self._plugin._get_index_dir(), indexname = self._plugin.index_name)
+        print self._plugin._get_index_dir()
+        print self._plugin._get_index_name()
+        ix = open_dir(self._plugin._get_index_dir(), indexname = self._plugin._get_index_name())
         search_results = None
         searcher = None
         results = []
@@ -51,8 +53,8 @@ class SearchView(object):
 class CleanIndexer(object):
     def __init__(self, store, plugin):
         self._store = store
-        self._index_root = plugin.index_dir
-        self._index_name = plugin.index_name
+        self._index_root = plugin._get_index_dir()
+        self._index_name = plugin._get_index_name()
         self._plugin = plugin
 
     def pre_walk(self):
@@ -87,16 +89,15 @@ class CleanIndexer(object):
 class SubsetIndexer(object):
     def __init__(self, store, plugin):
         self._store = store
-        self._index_root = plugin.index_dir
-        self._index_name = plugin.index_name
-        self._plugin = plugin
+        self._index_root = plugin.get_index_dir()
+        self._index_name = plugin.get_index_name()
+        self._base = plugin._get_base()
  
     def update(self, statuses):
         writer = self._get_writer()
 
-        base = self._plugin._get_base()
         for fullname in statuses.keys():
-            if not fullname.startswith(base):
+            if not fullname.startswith(self._base):
                 continue
             
             status = statuses[fullname]
@@ -182,12 +183,10 @@ class IncrementalIndexer(object):
 
 class SearchPlugin(object):
     def __init__(self):
-        self.index_dir = '_whoosh_index'
-        self.index_name = 'fulltextsearch'
-
         self.default_config = {
-            'index_dir': self.index_dir,
-            'index_name': self.index_name,
+            'INDEX_DIR': '_whoosh_index',
+            'INDEX_NAME': 'fulltextsearch',
+            'BASE': ''
         }
         
     def init(self, app, plugin_name):
@@ -226,10 +225,13 @@ class SearchPlugin(object):
         return SubsetIndexer(store, self)
 
     def _get_index_dir(self):
-        return yawt.util.get_abs_path_app(self.app, self.index_dir)
+        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['INDEX_DIR'])
+
+    def _get_index_name(self):
+        return self._plugin_config()['INDEX_NAME']
 
     def _get_base(self):
-        base = self._plugin_config()['base'].strip()
+        base = self._plugin_config()['BASE'].strip()
         return base.rstrip('/')
 
     def _plugin_config(self):
@@ -245,10 +247,10 @@ class SearchPlugin(object):
         search_text = request.args.get('searchtext', '')
         sv = self._create_search_view()
         return sv.dispatch_request(flav, category, search_text,
-                                   page, g.config['page_size'], request.base_url)
+                                   page, g.config['YAWT_PAGE_SIZE'], request.base_url)
 
     def _create_search_view(self):
-        return SearchView(g.store, YawtView(g.plugins, g.config['content_types']), self)
+        return SearchView(g.store, YawtView(g.plugins, yawt.util.get_content_types()), self)
 
 
 def create_plugin():

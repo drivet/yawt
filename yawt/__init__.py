@@ -11,19 +11,16 @@ from yawt.util import get_abs_path, Plugins, load_yaml
 from yawt.article import ArticleStore
 
 default_config = {
-    'lang': 'en',
-    'base_url': 'http://www.awesome.net/blog',
-    'page_size': '10',
-    'path_to_templates': 'templates',
-    'path_to_articles': 'entries',
-    'path_to_static': 'static',
-    'static_url': 'static',
-    'ext': 'txt',
-    'meta_ext': 'meta',
-    
-    'content_types': {
-        'rss': 'application/rss+xml'
-    },
+    'YAWT_LANG': 'en',
+    'YAWT_BASE_URL': 'http://www.awesome.net/blog',
+    'YAWT_PAGE_SIZE': '10',
+    'YAWT_PATH_TO_TEMPLATES': 'templates',
+    'YAWT_PATH_TO_ARTICLES': 'entries',
+    'YAWT_PATH_TO_STATIC': 'static',
+    'YAWT_STATIC_URL': 'static',
+    'YAWT_EXT': 'txt',
+    'YAWT_META_EXT': 'meta',
+    'YAWT_CONTENT_TYPES_RSS': 'application/rss+xml',
 }
 
 def _load_config(blogpath):
@@ -45,19 +42,19 @@ def _mod_config(app, mod, plugin_name):
 def create_app(blogpath=None):
     config = copy.deepcopy(default_config)
     config.update(_load_config(blogpath))
-    template_folder = get_abs_path(blogpath, config['path_to_templates'])
-    static_folder = get_abs_path(blogpath, config['path_to_static'])
-    static_url = config['static_url']
+    template_folder = get_abs_path(blogpath, config['YAWT_PATH_TO_TEMPLATES'])
+    static_folder = get_abs_path(blogpath, config['YAWT_PATH_TO_STATIC'])
+    static_url = config['YAWT_STATIC_URL']
     app = Flask(__name__, template_folder=template_folder,
                 static_url_path=static_url,
                 static_folder=static_folder)
-    app.config['blogpath'] = blogpath
+    app.config['YAWT_BLOGPATH'] = blogpath
     app.config.update(config)
  
     plugins = {}
-    if 'plugins' in app.config:
-        for plugin_name in app.config['plugins']:
-            mod_name = app.config['plugins'][plugin_name]
+    if 'YAWT_PLUGINS' in app.config:
+        for plugin_name in app.config['YAWT_PLUGINS']:
+            mod_name = app.config['YAWT_PLUGINS'][plugin_name]
             __import__(mod_name)
             plugins[plugin_name] = sys.modules[mod_name]
            
@@ -110,7 +107,7 @@ def create_app(blogpath=None):
 
         category_view = create_category_view()
         return category_view.dispatch_request(flav, category, page,
-                                              int(g.config['page_size']),
+                                              int(g.config['YAWT_PAGE_SIZE']),
                                               request.base_url)
         
     # filter for date and time formatting
@@ -128,7 +125,7 @@ def create_app(blogpath=None):
     # make a usable url out of a site relative one
     @app.template_filter('url')
     def url(relative_url):
-        base_url = app.config['base_url'] or request.url_root
+        base_url = app.config['YAWT_BASE_URL'] or request.url_root
         url = base_url.rstrip('/') + '/' + relative_url.lstrip('/')
         return url
 
