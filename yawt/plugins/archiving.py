@@ -9,8 +9,9 @@ from whoosh.qparser import QueryParser
 
 from yawt.view import YawtView, PagingInfo
 from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher
-from flask import g, url_for, request
+from flask import g, url_for, request, current_app
 from werkzeug.routing import BaseConverter
+from flask.views import View
 
 def url_for_permalink(base, year, month, day, slug):
     if base:
@@ -56,48 +57,69 @@ class ArchiveIndexer(ArticleIndexer):
         return {'ctime': ctime_dt}
 
         
-class PermalinkView(object):
-    def __init__(self, fetcher, yawtview):
-        self._yawtview = yawtview
-        self._fetcher = fetcher
+class PermalinkView(View):
+    def __init__(self, plugin_config):
+        self._plugin_config = plugin_config
         
-    def dispatch_request(self, flavour, category, year, month, day, slug):
-        articles = self._fetcher.fetch(category, 'ctime', unicode(_datestr(year, month, day)))
+    def dispatch_request(self, year, month, day, slug, flavour=None, category='' ):
+        yawtview = YawtView(g.plugins, yawt.util.get_content_types())
+        fetcher = ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name())
+        
+        articles = fetcher.fetch(category, 'ctime', unicode(_datestr(year, month, day)))
         articles = filter(lambda a: a.slug == slug, articles)
         if len(articles) < 1:
-            return self._yawtview.render_missing_resource()
+            return yawtview.render_missing_resource()
         else:
-            date = yawt.util.Date(year, month, day)
             article = articles[0]
             permalink = url_for_permalink(category, year, month, day, slug)
-            
-            return self._yawtview.render_article(flavour, article,
-                                                 yawt.util.breadcrumbs(permalink))
-  
-class ArchiveView(object):
-    def __init__(self, fetcher, yawtview):
-        self._yawtview = yawtview
-        self._fetcher = fetcher
+            return yawtview.render_article(flavour, article,
+                                           yawt.util.breadcrumbs(permalink))
+    def _get_index_dir(self):
+        return yawt.util.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
+
+    def _get_index_name(self):
+        return self._plugin_config['INDEX_NAME']
+    
+
+class ArchiveView(View):
+    def __init__(self, plugin_config):
+        self._plugin_config = plugin_config
         
-    def dispatch_request(self, flavour, category, year, month, day,
-                         page, page_size, base_url):
-        articles = self._fetcher.fetch(category, 'ctime', unicode(_datestr(year, month, day)))
+    def dispatch_request(self, year, month=None, day=None, flavour=None, category=''):
+        yawtview = YawtView(g.plugins, yawt.util.get_content_types())
+        fetcher = ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name())
+        
+        page = 1
+        try:
+            page = int(request.args.get('page', '1'))
+        except ValueError:
+            page = 1
+
+        page_size = int(g.config['YAWT_PAGE_SIZE'])
+        
+        articles = fetcher.fetch(category, 'ctime', unicode(_datestr(year, month, day)))
         if len(articles) < 1:
             return self._yawtview.render_missing_resource()
         else:
-            page_info = PagingInfo(page, page_size, len(articles), base_url)
-            return self._render_collection(flavour, articles, yawt.util.Date(year, month, day),
+            page_info = PagingInfo(page, page_size, len(articles), request.base_url)
+            return self._render_collection(yawtview, flavour, articles,
+                                           yawt.util.Date(year, month, day),
                                            page_info, category)
 
-    def _render_collection(self, flavour, articles, date, page_info, category):
+    def _render_collection(self, yawtview, flavour, articles, date, page_info, category):
         link = _archivelink(date.year, date.month, date.day, category)
-        return self._yawtview.render_collection(flavour, articles, '', page_info, category,
-                                                yawt.util.breadcrumbs(link))
+        return yawtview.render_collection(flavour, articles, '', page_info, category,
+                                          yawt.util.breadcrumbs(link))
        
     def _archive_title(self, date):
         return 'Archives: %s' % str(date)
 
+    def _get_index_dir(self):
+        return yawt.util.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
 
+    def _get_index_name(self):
+        return self._plugin_config['INDEX_NAME']
+    
 class ArchivingPlugin(object):
     def __init__(self):
         self.default_config = {
@@ -124,59 +146,62 @@ class ArchivingPlugin(object):
             return request.url_root + relative_url
 
         # Permalinks
-        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>')
-        def permalink_category(category, year, month, day, slug):
-            return self._create_permalink_view().dispatch_request(None, category, year, month, day, slug)
-
-        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>')
-        def permalink(year, month, day, slug):
-            return self._create_permalink_view().dispatch_request(None, "", year, month, day, slug)
-   
-        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>')
-        def permalink_category_flav(category, year, month, day, slug, flav):
-            return self._create_permalink_view().dispatch_request(flav, category, year, month, day, slug)
-         
-        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>')
-        def permalink_flav(year, month, day, slug, flav):
-            return self._create_permalink_view().dispatch_request(flav, "", year, month, day, slug)
-
+        app.add_url_rule('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>',
+                         view_func = self._pl_view_func('permalink_category'))
+       
+        app.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>',
+                         view_func = self._pl_view_func('permalink'))
+       
+        app.add_url_rule('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>',
+                         view_func = self._pl_view_func('permalink_category_flav'))
+       
+        app.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/<slug>.<flav>',
+                         view_func = self._pl_view_func('permalink_flav'))
+       
         # Date URLs
-        @app.route('/<path:category>/<int:year>/')
-        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/')
-        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
-        def archive_category(category, year, month=None, day=None):
-            return self._handle_archive_url(None, category, year, month, day)
+        app.add_url_rule('/<path:category>/<int:year>/',
+                         view_func = self._view_func('archive_category'))
+        app.add_url_rule('/<path:category>/<int:year>/<int(fixed_digits=2):month>/',
+                         view_func = self._view_func('archive_category'))
+        app.add_url_rule('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/',
+                         view_func = self._view_func('archive_category'))
 
-        @app.route('/<int:year>/')
-        @app.route('/<int:year>/<int(fixed_digits=2):month>/')
-        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/')
-        def archive(year, month=None, day=None):
-            return self._handle_archive_url(None, '', year, month, day)
+        app.add_url_rule('/<int:year>/', view_func = self._view_func('archive'))
+        app.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/',
+                         view_func = self._view_func('archive'))
+        app.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/',
+                         view_func = self._view_func('archive'))
         
-        @app.route('/<path:category>/<int:year>/index')
-        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index')
-        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
-        def archive_category_index(category, year, month=None, day=None):
-            return self._handle_archive_url(None, category, year, month, day)
+ 
+        app.add_url_rule('/<path:category>/<int:year>/index',
+                         view_func = self._view_func('archive_category_index'))
+        app.add_url_rule('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index',
+                         view_func = self._view_func('archive_category_index'))
+        app.add_url_rule('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index',
+                         view_func = self._view_func('archive_category_index'))
 
-        @app.route('/<int:year>/index')
-        @app.route('/<int:year>/<int(fixed_digits=2):month>/index')
-        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index')
-        def archive_index(year, month=None, day=None):
-            return self._handle_archive_url(None, '', year, month, day)
-
-        @app.route('/<path:category>/<int:year>/index.<flav>')
-        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
-        @app.route('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
-        def archive_category_index_flav(category, year, month=None, day=None, flav=None):
-            return self._handle_archive_url(flav, category, year, month, day)
-
-        @app.route('/<int:year>/index.<flav>')
-        @app.route('/<int:year>/<int(fixed_digits=2):month>/index.<flav>')
-        @app.route('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>')
-        def archive_index_flav(year, month=None, day=None, flav=None):
-            return self._handle_archive_url(flav, '', year, month, day)
-
+        app.add_url_rule('/<int:year>/index',
+                         view_func = self._view_func('archive_index'))
+        app.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/index',
+                         view_func = self._view_func('archive_index'))
+        app.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index',
+                         view_func = self._view_func('archive_index'))
+        
+        
+        app.add_url_rule('/<path:category>/<int:year>/index.<flav>',
+                         view_func = self._view_func('archive_category_index_flav'))
+        app.add_url_rule('/<path:category>/<int:year>/<int(fixed_digits=2):month>/index.<flav>',
+                         view_func = self._view_func('archive_category_index_flav'))
+        app.add_url_rule('/<path:category>/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>',
+                         view_func = self._view_func('archive_category_index_flav'))
+        
+        app.add_url_rule('/<int:year>/index.<flav>',
+                         view_func = self._view_func('archive_index_flav'))
+        app.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/index.<flav>',
+                         view_func = self._view_func('archive_index_flav'))
+        app.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/<int(fixed_digits=2):day>/index.<flav>',
+                         view_func = self._view_func('archive_index_flav'))
+        
     def walker(self, store):
         return ArchiveIndexer(store, self._get_index_dir(), self._get_index_name())
 
@@ -196,25 +221,12 @@ class ArchivingPlugin(object):
         base = self._plugin_config()['BASE'].strip()
         return base.rstrip('/')
 
-    def _handle_archive_url(self, flav, category, year, month, day):
-        page = 1
-        try:
-            page = int(request.args.get('page', '1'))
-        except ValueError:
-            page = 1
-            
-        av = self._create_archive_view()
-        return av.dispatch_request(flav, category, year, month, day,
-                                   page, g.config['YAWT_PAGE_SIZE'], request.base_url)
+    def _view_func(self, endpoint):
+        return ArchiveView.as_view(endpoint, plugin_config = self._plugin_config())
 
-    def _create_permalink_view(self):
-        return PermalinkView(ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name()),
-                             YawtView(g.plugins, yawt.util.get_content_types()))
+    def _pl_view_func(self, endpoint):
+        return PermalinkView.as_view(endpoint, plugin_config = self._plugin_config())
 
-    def _create_archive_view(self):
-        return ArchiveView(ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name()),
-                           YawtView(g.plugins, yawt.util.get_content_types()))
-
-
+   
 def create_plugin():
     return ArchivingPlugin()
