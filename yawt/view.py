@@ -153,8 +153,7 @@ class YawtView(object):
         return render_template("404.html")
 
     def render_article(self, flavour, article, breadcrumbs=None):
-        template_vars = {'article': article,
-                         'breadcrumbs': breadcrumbs}
+        template_vars = {'article': article, 'breadcrumbs': breadcrumbs}
         template_vars = self._plugins.template_vars(template_vars)
         return _render('article', flavour, template_vars, self._content_type(flavour),
                        article.category)
