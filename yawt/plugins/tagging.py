@@ -3,6 +3,7 @@ import yaml
 import os
 
 from yawt.view import YawtView, PagingInfo
+from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher
 from flask import g, request, url_for
 
 from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
@@ -21,71 +22,26 @@ def article_tags(article):
     if tagdata is not '':
         tags = tagdata.split(',')
     return tags
-            
-class TagIndexer(object):
+
+class TagIndexer(ArticleIndexer):
     def __init__(self, store, index_dir, index_name, doc_root=None):
-        self._store = store
-        self._index_dir = index_dir
-        self._index_name = index_name
-        self._doc_root = doc_root
+        super(TagIndexer, self).__init__(store, index_dir, index_name, doc_root)
 
-    def pre_walk(self):
-        self._writer = self._get_writer(clean = True)
-        
-    def visit_article(self, fullname):
-        if self._doc_root and not fullname.startswith(self._doc_root):
-            return
-        self._update_document(fullname)
-
-    def update(self, statuses):
-        self.pre_walk()
-        for fullname in statuses.keys():
-            status = statuses[fullname]
-            if status not in ['A','M','R']:
-                continue
-            self.visit_article(fullname)
-        self.post_walk()
-        
-    def post_walk(self):
-        self._writer.commit()
-        
-    def _update_document(self, fullname):
-        article = self._store.fetch_article_by_fullname(fullname)
-        mtime = os.path.getmtime(self._store._name2file(fullname))
-        tags = article.get_metadata('tags', '')
-        self._writer.update_document(fullname = unicode(article.fullname),
-                                     mtime = mtime,
-                                     tags = unicode(tags))
-        
-    def _create_schema(self):
-        schema = Schema(fullname = ID(stored=True, unique=True),
-                        mtime = STORED,
-                        tags = KEYWORD(commas=True))
-        return schema
+    def _get_schema_fields(self):
+        return {'tags': KEYWORD(commas=True)}
     
-    def _get_writer(self, clean):
-        if not os.path.exists(self._index_dir):
-            os.mkdir(self._index_dir)
-
-        if clean or not exists_in(self._index_dir, self._index_name):
-            schema = self._create_schema()
-            ix = create_in(self._index_dir, schema = schema,
-                           indexname = self._index_name)
-        else:
-            ix = open_dir(self._index_dir, indexname = self._index_name)
-            
-        return ix.writer()
-
+    def _get_article_fields(self, article):
+        tags = article.get_metadata('tags', '')
+        return {'tags': unicode(tags)}
+    
 
 class TagView(object):
-    def __init__(self, store, yawtview, index_dir, index_name):
+    def __init__(self, fetcher, yawtview):
         self._yawtview = yawtview
-        self._store = store
-        self._index_dir = index_dir
-        self._index_name = index_name
+        self._fetcher = fetcher
         
     def dispatch_request(self, flavour, category, tag, page, page_size, base_url):
-        articles =  self._fetch_tagged_articles(category, tag)
+        articles =  self._fetcher.fetch(category, 'tags', unicode(tag))
         if len(articles) < 1:
             return self._yawtview.render_missing_resource()
         else:
@@ -99,24 +55,6 @@ class TagView(object):
     def _tag_title(self, tag):
         return 'Tag results for: "%s"' % tag
  
-    def _fetch_tagged_articles(self, category, tag):
-        """
-        Fetch collection of articles by tag.
-        """
-        ix = open_dir(self._index_dir, indexname = self._index_name)
-        search_results = None
-        searcher = None
-        results = []
-        with ix.searcher() as searcher:
-            qp = QueryParser('tags', schema = ix.schema)
-            q = qp.parse(unicode(tag))
-            search_results = searcher.search(q, limit=None)    
-            if search_results is not None:
-                for sr in search_results:
-                    article = self._store.fetch_article_by_fullname(sr['fullname'])
-                    results.append(article)
-        results = filter(lambda a: a.fullname.startswith(category), results)
-        return sorted(results, key = lambda info: info.ctime, reverse=True)
      
 class TaggingPlugin(object):
     def __init__(self):
@@ -181,8 +119,8 @@ class TaggingPlugin(object):
         return self.app.config[self.name]
     
     def _create_tag_view(self):
-        return TagView(g.store, YawtView(g.plugins, yawt.util.get_content_types()),
-                       self._get_index_dir(), self._get_index_name())
+        return TagView(ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name()),
+                       YawtView(g.plugins, yawt.util.get_content_types()))
 
     def _handle_tag_url(self, flavour, category, tag):
         page = 1

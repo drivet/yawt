@@ -1,22 +1,21 @@
 import os
-from yawt.view import YawtView, PagingInfo
 import yawt
-from flask import g, request
 
+from yawt.view import YawtView, PagingInfo
+from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher
+from flask import g, request
 from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
 from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
 
+
 class SearchView(object):
-    def __init__(self, store, yawtview, index_dir, index_name):
+    def __init__(self, fetcher, yawtview):
         self._yawtview = yawtview
-        self._store = store
-        self._index_dir = index_dir
-        self._index_name = index_name
+        self._fetcher = fetcher
   
     def dispatch_request(self, flavour, category, search_text, page, page_size, base_url):
-        articles = filter(lambda a: a.is_in_category(category),
-                          self._fetch_articles_by_text(category, search_text))
+        articles = self._fetcher.fetch(category, 'content', unicode(search_text))
         if len(articles) < 1:
             return self._yawtview.render_missing_resource()
         else:
@@ -30,80 +29,17 @@ class SearchView(object):
     def _search_title(self, search_text):
         return 'Search results for: "%s"' % search_text
  
-    def _fetch_articles_by_text(self, category, searchtext):
-        """
-        Fetch collection of articles by searchtext.
-        """
-        ix = open_dir(self._index_dir, indexname = self._index_name)
-        search_results = None
-        searcher = None
-        results = []
-        with ix.searcher() as searcher:
-            qp = QueryParser('content', schema = ix.schema)
-            q = qp.parse(unicode(searchtext))
-            search_results = searcher.search(q, limit=None)    
-            if search_results is not None:
-                for sr in search_results:
-                    article = self._store.fetch_article_by_fullname(sr['fullname'])
-                    results.append(article)
-        results = filter(lambda a: a.fullname.startswith(category), results)
-        return sorted(results, key = lambda info: info.ctime, reverse=True)
 
-class TextIndexer(object):
+class TextIndexer(ArticleIndexer):
     def __init__(self, store, index_dir, index_name, doc_root=None):
-        self._store = store
-        self._index_dir = index_dir
-        self._index_name = index_name
-        self._doc_root = doc_root
+        super(TextIndexer, self).__init__(store, index_dir, index_name, doc_root)
 
-    def pre_walk(self):
-        self._writer = self._get_writer(clean = True)
-        
-    def visit_article(self, fullname):
-        if self._doc_root and not fullname.startswith(self._doc_root):
-            return
-        self._update_document(fullname)
-
-    def update(self, statuses):
-        self.pre_walk()
-        for fullname in statuses.keys():
-            status = statuses[fullname]
-            if status not in ['A','M','R']:
-                continue
-            self.visit_article(fullname)
-        self.post_walk()
-        
-    def post_walk(self):
-        self._writer.commit()
-        
-    def _update_document(self, fullname):
-        article = self._store.fetch_article_by_fullname(fullname)
-        mtime = os.path.getmtime(self._store._name2file(fullname))
-        self._writer.update_document(fullname = unicode(article.fullname),
-                                     mtime = mtime,
-                                     title = unicode(article.title),
-                                     content = unicode(article.content))
-            
-    def _create_schema(self):
-        schema = Schema(fullname=ID(stored=True, unique=True),
-                        mtime=STORED,
-                        title=TEXT(stored=True),
-                        content=TEXT)
-        return schema
+    def _get_schema_fields(self):
+        return {'title': TEXT(stored=True), 'content': TEXT}
     
-    def _get_writer(self, clean):
-        if not os.path.exists(self._index_dir):
-            os.mkdir(self._index_dir)
-
-        if clean or not exists_in(self._index_dir, self._index_name):
-            schema = self._create_schema()
-            ix = create_in(self._index_dir, schema = schema,
-                           indexname = self._index_name)
-        else:
-            ix = open_dir(self._index_dir, indexname = self._index_name)
-            
-        return ix.writer()
-
+    def _get_article_fields(self, article):
+        return {'title': unicode(article.title), 'content': unicode(article.content)}
+    
 
 class SearchPlugin(object):
     def __init__(self):
@@ -169,8 +105,8 @@ class SearchPlugin(object):
                                    page, g.config['YAWT_PAGE_SIZE'], request.base_url)
 
     def _create_search_view(self):
-        return SearchView(g.store, YawtView(g.plugins, yawt.util.get_content_types()),
-                          self._get_index_dir(), self._get_index_name())
+        return SearchView(ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name()),
+                          YawtView(g.plugins, yawt.util.get_content_types()))
 
 
 def create_plugin():
