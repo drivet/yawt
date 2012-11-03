@@ -20,6 +20,7 @@ default_config = {
     'YAWT_STATIC_URL': 'static',
     'YAWT_EXT': 'txt',
     'YAWT_META_EXT': 'meta',
+    'YAWT_USE_UNCOMMITTED': 'true',
     'YAWT_CONTENT_TYPES_RSS': 'application/rss+xml',
 }
 

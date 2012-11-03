@@ -2,9 +2,54 @@ import unittest
 from mock import patch
 import yawt
 import os.path
-from yawt.article import ArticleStore
+from yawt.article import ArticleStore, Article
 from yawt.test import fake_filesystem
 
+class TestArticle(unittest.TestCase):
+    def test_local_metadata(self):
+        article = Article(local_metadata = {'property1': 'bar'})
+        self.assertEquals(article.get_metadata('property1'), 'bar')
+        
+    def test_external_metadata(self):
+        article = Article(external_metadata = {'property1': 'bar'})
+        self.assertEquals(article.get_metadata('property1'), 'bar')
+
+    def test_vc_metadata(self):
+        article = Article(vc_metadata = {'property1': 'bar'})
+        self.assertEquals(article.get_metadata('property1'), 'bar')
+
+    def test_file_metadata(self):
+        article = Article(file_metadata = {'property1': 'bar'})
+        self.assertEquals(article.get_metadata('property1'), 'bar')
+        
+    def test_local_metadata_overrides_external_metadata(self):
+        article = Article(local_metadata = {'property1': 'foo',
+                                            'property2':'hehe'},                  
+                          external_metadata = {'property1': 'bar',
+                                               'property3': 'stuff'})
+        self.assertEquals(article.get_metadata('property1'), 'foo')
+        self.assertEquals(article.get_metadata('property2'), 'hehe')
+        self.assertEquals(article.get_metadata('property3'), 'stuff')
+        
+    def test_external_metadata_overrides_vc_metadata(self):
+        article = Article(external_metadata = {'property1': 'foo',
+                                               'property2':'hehe'},                  
+                          vc_metadata = {'property1': 'bar',
+                                         'property3': 'stuff'})
+        self.assertEquals(article.get_metadata('property1'), 'foo')
+        self.assertEquals(article.get_metadata('property2'), 'hehe')
+        self.assertEquals(article.get_metadata('property3'), 'stuff')
+        
+    def test_vc_metadata_overrides_file_metadata(self):
+        article = Article(vc_metadata = {'property1': 'foo',
+                                         'property2':'hehe'},                  
+                          file_metadata = {'property1': 'bar',
+                                           'property3': 'stuff'})
+        self.assertEquals(article.get_metadata('property1'), 'foo')
+        self.assertEquals(article.get_metadata('property2'), 'hehe')
+        self.assertEquals(article.get_metadata('property3'), 'stuff')
+        
+        
 class TestArticleStore(unittest.TestCase):     
     def setUp(self):
         self.root_dir = '/root_dir'

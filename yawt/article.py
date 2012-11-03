@@ -15,7 +15,8 @@ class Article(object):
     Reads the file's metadata without asking, because this is required for
     certain computations
     """       
-    def __init__(self, loader, fullname, ctime, mtime, metadata):
+    def __init__(self, loader=None, fullname=None,
+                 local_metadata={}, external_metadata={}, vc_metadata={}, file_metadata={}):
         """
         fullname is the category + slug of the article.
         No root path infomation.
@@ -23,15 +24,12 @@ class Article(object):
         """
         self._loader = loader
         self.fullname = fullname
-        self.metadata = metadata
 
-        # Could come from:
-        #   - the stat function
-        #   - a DB
-        #   - repository metadata (like mercurial)
-        self._mtime = mtime
-        self._ctime = ctime
-
+        self._local_metadata = local_metadata
+        self._external_metadata = external_metadata
+        self._vc_metadata = vc_metadata
+        self._file_metadata = file_metadata
+        
     @property
     def categorized_url(self):
         return '/' + self.fullname
@@ -68,22 +66,14 @@ class Article(object):
         """
         create time, in seconds since the Unix epoch.
         """
-        ctime = self.get_metadata('ctime')
-        if ctime is not None:
-            return int(ctime)
-        else:
-            return self._ctime
-        
+        return self.get_metadata('ctime')
+       
     @property
     def mtime(self):
         """
         last modified time, in seconds since the Unix epoch.
         """
-        mtime = self.get_metadata('mtime')
-        if mtime is not None:
-            return int(mtime)
-        else:
-            return self._mtime
+        return self.get_metadata('mtime')
         
     @property
     def ctime_tm(self):
@@ -110,10 +100,14 @@ class Article(object):
         return self._article_content.content
       
     def get_metadata(self, key):
-        if self.metadata is not None:
-            return self.metadata.get(key, None)
-        else:
-            return None
+        if key in self._local_metadata:
+            return self._local_metadata[key]
+        elif key in self._external_metadata:
+            return self._external_metadata[key]
+        elif key in self._vc_metadata:
+            return self._vc_metadata[key]
+        elif key in self._file_metadata:
+            return self._file_metadata[key]
         
     @cached_property
     def _article_content(self):
@@ -130,18 +124,25 @@ class ArticleStore(object):
     """
     interface to stored articles
     """
-    def __init__(self, plugins, root_dir, ext, meta_ext):
+    def __init__(self, plugins, vcstore, root_dir, ext, meta_ext):
         self._plugins = plugins
         self.root_dir = root_dir
         self.ext = ext
         self.meta_ext = meta_ext
+        self.vcstore = vcstore
        
     # factory method to fetch an article store
     @staticmethod
     def get(config, plugins):
         article_root = yawt.util.get_abs_path(config['YAWT_BLOGPATH'],
                                               config['YAWT_PATH_TO_ARTICLES'])
+        hgstore = HgStore(config['YAWT_BLOGPATH'],
+                          config['YAWT_PATH_TO_ARTICLES'],
+                          config['YAWT_EXT'],
+                          config['YAWT_USE_UNCOMMITTED'])
+        
         return ArticleStore(plugins,
+                            hgstore,
                             article_root,
                             config['YAWT_EXT'],
                             config['YAWT_META_EXT'])
@@ -174,9 +175,12 @@ class ArticleStore(object):
         if not os.path.exists(filename):
             return None
         
-        md = self._fetch_metadata(fullname)
-        times = self._get_times(fullname)
-        article = Article(self, fullname, times[0], times[1], md)
+        all_metadata = self._fetch_metadata(fullname)
+        article = Article(self, fullname,
+                          local_metadata = all_metadata[0],
+                          external_metadata = all_metadata[1],
+                          vc_metadata = all_metadata[2],
+                          file_metadata = all_metadata[3])
 
         return self._plugins.on_article_fetch(article)
 
@@ -209,13 +213,28 @@ class ArticleStore(object):
     def _articles_in_dirpath(self, dirpath, files):
         return [os.path.abspath(os.path.join(dirpath, filename))
                 for filename in files if self._article_file(filename)]
-        
-    def _get_times(self, fullname):
-        sr = os.stat(self._name2file(fullname))
-        mtime = ctime = sr.st_mtime
-        return (ctime, mtime)
 
     def _fetch_metadata(self, fullname):
+        return (self._fetch_local_metadata,
+                self._fetch_external_metadata,
+                self._fetch_vc_metadata,
+                self._fetch_file_metadata)
+
+    def _fetch_local_metadata(self, fullname):
+        return {}
+
+    def _fetch_vc_metadata(self, fullname):
+        vcinfo = self.vcstore.fetch_vc_info(fullname)
+        return {'ctime': vcinfo[0],
+                'mtime': vcinfo[1],
+                'author': vcinfo[2]}
+    
+    def _fetch_file_metadata(self, fullname):
+        sr = os.stat(self._name2file(fullname))
+        mtime = ctime = sr.st_mtime
+        return {'ctime': ctime, 'mtime': mtime}
+
+    def _fetch_external_metadata(self, fullname):
         md = None
         md_filename = self._name2metadata_file(fullname)
         if os.path.isfile(md_filename):
@@ -244,3 +263,54 @@ class ArticleStore(object):
     def _article_file(self, slug):
         indexfile = 'index.' + self.ext
         return fnmatch.fnmatch(slug, "*." + self.ext) and slug != indexfile
+
+
+class HgStore(object):
+    def __init__(self, repopath, contentpath, ext, use_uncommitted):
+        self.repopath = repopath
+        self.contentpath = contentpath
+        self.ext = ext
+        self.use_uncommitted = use_uncommitted
+        
+        self._revision_id = None
+        self._revision = None # particular revision of a working directory
+        self._repo = None
+
+    def _get_revision_id(self):
+        revision_id = None
+        if self.use_uncommitted:
+            try:
+                revision_id = self._repo.branchtags()['default']
+            except KeyError:
+                revision_id = None
+    
+    def _init_repo(self):
+        self.repopath = cmdutil.findrepo(self.repopath)
+        if self.repopath is not None:
+            self._repo = hg.repository(ui.ui(), self.repopath)
+            self._revision_id = self._get_revision_id()
+            self._revision = self._repo[self._revision_id]
+            
+    def fetch_vc_info(self, fullname):
+        self._init_repo()
+        if self._repo is None:
+            return None
+
+        repofile = os.path.join(self.contentpath, fullname + '.' + self.ext)
+        fctx = self._revision[repofile]
+        filelog = fctx.filelog()
+        changesets = list(filelog)
+        
+        ctime = None
+        author = None
+        mtime = None
+        if len(changesets) > 0:
+            # at least one changeset
+            first_changeset = self._repo[filelog.linkrev(0)]
+            ctime = int(first_changeset.date()[0])
+            author = first_changeset.user()
+            
+            last_changeset = self._repo[filelog.linkrev(len(changesets)-1)]
+            mtime = int(last_changeset.date()[0])
+            
+        return (ctime, mtime, author)
