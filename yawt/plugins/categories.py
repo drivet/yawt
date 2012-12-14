@@ -84,8 +84,8 @@ class CategoryCounter(object):
         self._category_tree.add_item(category)
         
     def update(self, statuses):
-        category_counts = yawt.util.load_yaml(self._get_category_file())
-        self._category_tree = CategoryTree.from_dict(category_counts)
+        category_counts = yawt.util.load_yaml(self._category_file)
+        self._category_tree = dict2tree(category_counts)
         
         for fullname in statuses.keys():
             status = statuses[fullname]
@@ -118,9 +118,16 @@ class CategoriesPlugin(object):
     def init(self, app, plugin_name):
         self.app = app
         self.name = plugin_name
-    
+
     def template_vars(self):
-        return {'categories': yawt.util.load_yaml(self._get_category_file())}
+        def _prepend_base(dict, base):
+            dict['url'] = base + "/" + dict['url']
+            for subcat in dict['subcategories']:
+                 _prepend_base(dict['subcategories'][subcat], base)
+            
+        categories = yawt.util.load_yaml(self._get_category_file())
+        _prepend_base(categories, self._get_category_base())
+        return {'categories': categories}
 
     def walker(self, store):
         return CategoryCounter(self._get_category_base(), self._get_category_file())

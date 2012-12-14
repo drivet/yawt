@@ -116,7 +116,7 @@ def create_app(blogpath=None):
     def date_format(value, format='%H:%M / %d-%m-%Y'):
         return time.strftime(format, value)
 
-    # filter for date and time formatting
+    # filter to extract a part of an article
     @app.template_filter('excerpt')
     def excerpt(article, word_count=50):
         words = article.content.split()[0:word_count]

@@ -271,9 +271,9 @@ class HgStore(object):
         self.contentpath = contentpath
         self.ext = ext
         self.use_uncommitted = use_uncommitted
-        
+ 
         self._revision_id = None
-        self._revision = None # particular revision of a working directory
+        self._revision = None # revision of an entire working directory, aka change ctx
         self._repo = None
         self._repo_initialized = False
 
@@ -285,19 +285,17 @@ class HgStore(object):
         repofile = os.path.join(self.contentpath, fullname + '.' + self.ext)
         fctx = self._revision[repofile]
         filelog = fctx.filelog()
-        changesets = list(filelog)
+        changesetcount = len(list(filelog))
+        if changesetcount <= 0:
+            return {}
         
-        ctime = None
-        author = None
-        mtime = None
-        if len(changesets) > 0:
-            # at least one changeset
-            first_changeset = self._repo[filelog.linkrev(0)]
-            ctime = int(first_changeset.date()[0])
-            author = first_changeset.user()
-            
-            last_changeset = self._repo[filelog.linkrev(len(changesets)-1)]
-            mtime = int(last_changeset.date()[0])
+        # at least one changeset
+        first_changeset = self._repo[filelog.linkrev(0)]
+        ctime = int(first_changeset.date()[0])
+        author = first_changeset.user()
+        
+        last_changeset = self._repo[filelog.linkrev(changesetcount-1)]
+        mtime = int(last_changeset.date()[0])
         return {'ctime': ctime, 'mtime': mtime, 'author': author}
 
     def _init_repo(self):
@@ -311,7 +309,7 @@ class HgStore(object):
             
     def _get_revision_id(self):
         revision_id = None
-        if self.use_uncommitted:
+        if not self.use_uncommitted:
             try:
                 revision_id = self._repo.branchtags()['default']
             except KeyError:

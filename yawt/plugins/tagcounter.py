@@ -81,7 +81,9 @@ class TagCounterPlugin(object):
                           self._get_article_tag_file())
     
     def updater(self, store):
-        return TagCounter(store, self)
+        return TagCounter(store, self._get_base(),
+                          self._get_tag_count_file(),
+                          self._get_article_tag_file())
     
     def _load_tag_counts(self):
         return yawt.util.load_yaml(self._get_tag_count_file())

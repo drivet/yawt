@@ -26,7 +26,7 @@ class ArchiveCounter(object):
         self._archive_counts[ym]['count'] += 1
         
     def update(self, statuses):
-        self._article_dates = yawt.util.load_yaml(self._archive_date_file)
+        self._article_dates = yawt.util.load_yaml(self._article_date_file)
         archive_counts_dump = yawt.util.load_yaml(self._archive_count_file)
         self._archive_counts = {}
         for ac in archive_counts_dump:
@@ -82,7 +82,9 @@ class ArchiveCounterPlugin(object):
                               self._get_archive_date_file())
     
     def updater(self, store):
-        return ArchiveCounter(store, self)
+        return ArchiveCounter(store, self._get_base(),
+                              self._get_archive_count_file(),
+                              self._get_archive_date_file())
 
     def _load_archive_counts(self):
         return yawt.util.load_yaml(self._get_archive_count_file())
