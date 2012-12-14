@@ -3,7 +3,29 @@ import yawt.util
 import os
 import yaml
 import re
+ 
+def dict2tree(dict):
+    tree = CategoryTree()
+    tree.root = _dict2tree_r(dict)
+    return tree
 
+def _dict2tree_r(d):
+    node = CategoryNode()
+    node.count = d['count']
+    node.category = d['category']
+    node.url = d['url']
+    for cat in d['subcategories']:
+        node.subcategories[cat] = _dict2tree_r(d['subcategories'][cat])
+    return node
+
+def tree2dict(root):
+    node = {'count': root.count, 'category': root.category,
+            'url': root.url, 'subcategories': {}}
+    for category in root.subcategories:
+        node['subcategories'][category] = \
+            tree2dict(root.subcategories[category])
+    return node
+    
 class CategoryNode(object):
     def __init__(self):
         self.count = 0
@@ -13,98 +35,57 @@ class CategoryNode(object):
 
 
 class CategoryTree(object):
-    def __init__(self, base=''):
+    def __init__(self):
         self.root = CategoryNode()
-        self.base = base
-      
-    @staticmethod
-    def from_dict(d):
-        tree = CategoryTree()
-        tree.root = CategoryTree._from_dict_r(d)
-        return tree
-    
-    @staticmethod
-    def _from_dict_r(d):
-        node = CategoryNode()
-        node.count = d['count']
-        node.category = d['category']
-        node.url = d['url']
-        for cat in d['subcategories']:
-            node.subcategories[cat] = CategoryTree._from_dict_r(d['subcategories'][cat])
-        return node
-        
-    def add_item(self, path):
+            
+    def add_item(self, categorypath):
         self.root.count += 1
-        
-        pathelems = path.split('/')
         node = self.root
-        url = self._get_base_url()
-        for pe in pathelems:
-            url += pe + '/'
-            if pe not in node.subcategories:
+        url = ''
+        for pathelem in categorypath.split('/'):
+            url += pathelem + '/'
+            if pathelem not in node.subcategories:
                 new_node = CategoryNode()
-                new_node.category = pe
+                new_node.category = pathelem
                 new_node.url = url
-                node.subcategories[pe] = new_node
-            node = node.subcategories[pe]
+                new_node.count = 0
+                node.subcategories[pathelem] = new_node
+            node = node.subcategories[pathelem]
             node.count += 1
 
-    def del_item(self, path):
+    def del_item(self, categorypath):
         self.root.count -= 1
-        
-        pathelems = path.split('/')
         node = self.root
-        for pe in pathelems:
-          
-            if pe not in node.subcategories:
+        for pathelem in categorypath.split('/'):
+            if pathelem not in node.subcategories:
                 break
-           
-            node.subcategories[pe].count -= 1
-            if node.subcategories[pe].count == 0:
-                del node.subcategories[pe]
+            node.subcategories[pathelem].count -= 1
+            if node.subcategories[pathelem].count == 0:
+                del node.subcategories[pathelem]
                 break
             else:
-                node = node.subcategories[pe]    
-            
-    def get_dict(self):
-        return self._get_dict_r(self.root)
-
-    def _get_dict_r(self, root):
-        node = {'count': root.count, 'category': root.category,
-                'url': root.url, 'subcategories': {}}
-        for category in root.subcategories:
-            node['subcategories'][category] = \
-                self._get_dict_r(root.subcategories[category])
-        return node
-
-    def _get_base_url(self):
-        if self.base:
-            return '/' + self.base + '/'
-        else:
-            return '/'
+                node = node.subcategories[pathelem]
+           
    
-
 class CategoryCounter(object):
-    def __init__(self, plugin):
+    def __init__(self, base, category_file):
         self._category_tree = None
-        self._plugin = plugin
-       
+        self._base = base
+        self._category_file = category_file
+
     def pre_walk(self):
-        self._category_tree = CategoryTree(self._plugin._get_category_base())
+        self._category_tree = CategoryTree()
     
     def visit_article(self, fullname):
-        base = self._plugin._get_category_base()
-        if not fullname.startswith(base):
+        if not fullname.startswith(self._base):
             return
 
         category = self._get_category(fullname)
         self._category_tree.add_item(category)
         
-    def post_walk(self):
-        self._save_info(self._plugin._get_category_file(), self._category_tree.get_dict())
-       
     def update(self, statuses):
-        self._category_tree = CategoryTree.from_dict(self._plugin._load_categories())
+        category_counts = yawt.util.load_yaml(self._get_category_file())
+        self._category_tree = CategoryTree.from_dict(category_counts)
         
         for fullname in statuses.keys():
             status = statuses[fullname]
@@ -118,20 +99,14 @@ class CategoryCounter(object):
                 self._category_tree.add_item(category)
                 
         self.post_walk()
-
+        
+    def post_walk(self):
+        yawt.util.save_yaml(self._category_file, tree2dict(self._category_tree.root))
+          
     def _get_category(self, fullname):
-        base = self._plugin._get_category_base()
-        relname = re.sub('^%s/' % (base), '', fullname)
+        relname = re.sub('^%s/' % (self._base), '', fullname)
         return os.path.dirname(relname)
     
-    def _save_info(self, filename, info):
-        cat_dir = self._plugin._get_category_dir()
-        if not os.path.exists(cat_dir):
-            os.mkdir(cat_dir)
-        stream = file(filename, 'w')
-        yaml.dump(info, stream)
-        stream.close()
-
 class CategoriesPlugin(object):
     def __init__(self):
         self.default_config = {
@@ -145,13 +120,13 @@ class CategoriesPlugin(object):
         self.name = plugin_name
     
     def template_vars(self):
-        return {'categories': self._load_categories()}
+        return {'categories': yawt.util.load_yaml(self._get_category_file())}
 
     def walker(self, store):
-        return CategoryCounter(self)
+        return CategoryCounter(self._get_category_base(), self._get_category_file())
 
     def updater(self, store):
-        return CategoryCounter(self)
+        return CategoryCounter(self._get_category_base(), self._get_category_file())
 
     def _plugin_config(self):
         return self.app.config[self.name]
@@ -165,9 +140,6 @@ class CategoriesPlugin(object):
     def _get_category_base(self):
         base = self._plugin_config()['BASE'].strip()
         return base.rstrip('/')
-
-    def _load_categories(self):
-        return yawt.util.load_yaml(self._get_category_file())
 
 def create_plugin():
     return CategoriesPlugin()

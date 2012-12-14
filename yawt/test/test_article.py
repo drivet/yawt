@@ -1,5 +1,5 @@
 import unittest
-from mock import patch
+from mock import patch, Mock
 import yawt
 import os.path
 from yawt.article import ArticleStore, Article
@@ -56,7 +56,9 @@ class TestArticleStore(unittest.TestCase):
         self.ext = 'txt'
         self.meta_ext = 'meta'
         self.plugins = yawt.util.Plugins({})
-        self.store = ArticleStore(self.plugins, self.root_dir,
+        self.vcstore = Mock()
+        self.vcstore.fetch_vc_info.return_value = {'ctime': 0, 'mtime':0, 'author': 'dude'}
+        self.store = ArticleStore(self.plugins, self.vcstore, self.root_dir,
                                   self.ext, self.meta_ext)
         self._patch_os()
         
@@ -80,7 +82,7 @@ class TestArticleStore(unittest.TestCase):
 
     def test_fetch_articles_by_category_no_results(self):
         articles = self.store.fetch_articles_by_category('category01')
-        assert len(articles) == 0
+        self.assertEquals(len(articles), 0)
      
     def test_fetch_articles_two_level_category(self):
         self._create_entry_file('entry01', mtime=0)
@@ -94,29 +96,42 @@ class TestArticleStore(unittest.TestCase):
         self._create_entry_file('cat03/entry09', mtime=70)
         self._create_entry_file('cat03/entry10', mtime=80)
         self._create_entry_file('cat03/entry11', mtime=60)
+
+        vc_data = {'entry01': {'ctime': 0, 'mtime': 0, 'author': 'dude'},
+                   'entry02': {'ctime':5, 'mtime':0, 'author': 'dude'},
+                   'cat01/entry03': {'ctime':4, 'mtime':0, 'author': 'dude'},
+                   'cat01/entry04': {'ctime':6, 'mtime': 0, 'author': 'dude'},
+                   'cat01/entry05': {'ctime':10, 'mtime': 00, 'author': 'dude'},
+                   'cat01/cat02/entry06': {'ctime':3, 'mtime': 00, 'author': 'dude'},
+                   'cat01/cat02/entry07': {'ctime':8, 'mtime': 00, 'author': 'dude'},
+                   'cat01/cat02/entry08': {'ctime':7, 'mtime': 00, 'author': 'dude'},
+                   'cat03/entry09': {'ctime':2, 'mtime': 00, 'author': 'dude'},
+                   'cat03/entry10': {'ctime':9, 'mtime': 00, 'author': 'dude'},
+                   'cat03/entry11': {'ctime':1, 'mtime': 00, 'author': 'dude'}}           
+        self._setup_vc_store(vc_data)
         
         articles = self.store.fetch_articles_by_category('')
         assert len(articles) == 11
-        # entries are ordered by mtime
-        self._assert_article(articles[0], 'cat01/cat02/entry07', 'cat01/cat02', 'entry07')
-        self._assert_article(articles[1], 'cat01/entry05', 'cat01', 'entry05')
-        self._assert_article(articles[2], 'cat03/entry10', 'cat03', 'entry10')
-        self._assert_article(articles[3], 'cat03/entry09', 'cat03', 'entry09')
-        self._assert_article(articles[4], 'cat03/entry11', 'cat03', 'entry11')
+        # entries are ordered by ctime, latest one first
+        self._assert_article(articles[0], 'cat01/entry05', 'cat01', 'entry05')
+        self._assert_article(articles[1], 'cat03/entry10', 'cat03', 'entry10')
+        self._assert_article(articles[2], 'cat01/cat02/entry07', 'cat01/cat02', 'entry07')
+        self._assert_article(articles[3], 'cat01/cat02/entry08', 'cat01/cat02', 'entry08')
+        self._assert_article(articles[4], 'cat01/entry04', 'cat01', 'entry04')
         self._assert_article(articles[5], 'entry02', '', 'entry02')
-        self._assert_article(articles[6], 'cat01/cat02/entry08', 'cat01/cat02', 'entry08')
-        self._assert_article(articles[7], 'cat01/entry03', 'cat01', 'entry03')
-        self._assert_article(articles[8], 'cat01/entry04', 'cat01', 'entry04')
-        self._assert_article(articles[9], 'cat01/cat02/entry06', 'cat01/cat02', 'entry06')
+        self._assert_article(articles[6], 'cat01/entry03', 'cat01', 'entry03')
+        self._assert_article(articles[7], 'cat01/cat02/entry06', 'cat01/cat02', 'entry06')
+        self._assert_article(articles[8], 'cat03/entry09', 'cat03', 'entry09')
+        self._assert_article(articles[9], 'cat03/entry11', 'cat03', 'entry11')
         self._assert_article(articles[10], 'entry01', '', 'entry01')
         
         articles = self.store.fetch_articles_by_category('cat01')
         assert len(articles) == 6
-        self._assert_article(articles[0], 'cat01/cat02/entry07', 'cat01/cat02', 'entry07')
-        self._assert_article(articles[1], 'cat01/entry05', 'cat01', 'entry05')
+        self._assert_article(articles[0], 'cat01/entry05', 'cat01', 'entry05')
+        self._assert_article(articles[1], 'cat01/cat02/entry07', 'cat01/cat02', 'entry07')
         self._assert_article(articles[2], 'cat01/cat02/entry08', 'cat01/cat02', 'entry08')
-        self._assert_article(articles[3], 'cat01/entry03', 'cat01', 'entry03')
-        self._assert_article(articles[4], 'cat01/entry04', 'cat01', 'entry04')
+        self._assert_article(articles[3], 'cat01/entry04', 'cat01', 'entry04')
+        self._assert_article(articles[4], 'cat01/entry03', 'cat01', 'entry03')
         self._assert_article(articles[5], 'cat01/cat02/entry06', 'cat01/cat02', 'entry06')
        
         articles = self.store.fetch_articles_by_category('cat01/cat02')
@@ -125,6 +140,12 @@ class TestArticleStore(unittest.TestCase):
         self._assert_article(articles[1], 'cat01/cat02/entry08', 'cat01/cat02', 'entry08')
         self._assert_article(articles[2], 'cat01/cat02/entry06', 'cat01/cat02', 'entry06')
 
+    def _setup_vc_store(self, vc_data):
+        def vc_fetcher(fullname):
+            return vc_data[fullname]
+
+        self.vcstore.fetch_vc_info.side_effect = vc_fetcher
+        
     def test_fetch_article_by_category_and_slug(self):
         self._create_entry_file('cat01/entry03')
         article = self.store.fetch_article_by_category_slug('cat01', 'entry03')
@@ -253,12 +274,6 @@ class TestArticleStore(unittest.TestCase):
         self.assertEquals(article.get_metadata('prop1'), 'stuff1')
         self.assertEquals(article.get_metadata('prop2'), 'stuff2')
 
-    def test_mtime_is_ctime(self):
-        self._create_entry_file('entry01', mtime=1000)
-        article = self.store.fetch_article_by_fullname('entry01')
-        self.assertEquals(article.ctime, 1000)
-        self.assertEquals(article.mtime, 1000)
-    
     def test_metadata_times_override_disk_times(self):
         self._create_entry_file('entry01', mtime=1000)
         self._fs.CreateFile(self._make_meta_filename('entry01'),
@@ -274,9 +289,9 @@ class TestArticleStore(unittest.TestCase):
             self._os.utime(filename, (mtime, mtime))
 
     def _assert_article(self, article, fullname, category, slug):
-        assert article.fullname == fullname
-        assert article.category == category
-        assert article.slug == slug
+        self.assertEquals(article.fullname, fullname)
+        self.assertEquals(article.category, category)
+        self.assertEquals(article.slug, slug)
     
     def _make_filename(self, fullname):
         return os.path.join(self.root_dir, fullname + "." + self.ext)

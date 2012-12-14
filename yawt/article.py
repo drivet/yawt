@@ -6,7 +6,7 @@ import yaml
 import yawt
 from werkzeug.utils import cached_property
 from mercurial import hg, ui, cmdutil
-
+from collections import namedtuple
 
 class Article(object):
     """
@@ -128,7 +128,7 @@ class ArticleStore(object):
     interface to stored articles
     """
     def __init__(self, plugins, vcstore, root_dir, ext, meta_ext):
-        self._plugins = plugins
+        self.plugins = plugins
         self.root_dir = root_dir
         self.ext = ext
         self.meta_ext = meta_ext
@@ -185,7 +185,7 @@ class ArticleStore(object):
                           vc_metadata = all_metadata[2],
                           file_metadata = all_metadata[3])
 
-        return self._plugins.on_article_fetch(article)
+        return self.plugins.on_article_fetch(article)
 
     def load_article(self, article):
         f = open(self._name2file(article.fullname), 'r')
@@ -227,11 +227,8 @@ class ArticleStore(object):
         return {}
 
     def _fetch_vc_metadata(self, fullname):
-        vcinfo = self.vcstore.fetch_vc_info(fullname)
-        return {'ctime': vcinfo[0],
-                'mtime': vcinfo[1],
-                'author': vcinfo[2]}
-    
+        return self.vcstore.fetch_vc_info(fullname)
+       
     def _fetch_file_metadata(self, fullname):
         sr = os.stat(self._name2file(fullname))
         mtime = ctime = sr.st_mtime
@@ -278,26 +275,12 @@ class HgStore(object):
         self._revision_id = None
         self._revision = None # particular revision of a working directory
         self._repo = None
+        self._repo_initialized = False
 
-    def _get_revision_id(self):
-        revision_id = None
-        if self.use_uncommitted:
-            try:
-                revision_id = self._repo.branchtags()['default']
-            except KeyError:
-                revision_id = None
-    
-    def _init_repo(self):
-        self.repopath = cmdutil.findrepo(self.repopath)
-        if self.repopath is not None:
-            self._repo = hg.repository(ui.ui(), self.repopath)
-            self._revision_id = self._get_revision_id()
-            self._revision = self._repo[self._revision_id]
-            
     def fetch_vc_info(self, fullname):
         self._init_repo()
         if self._repo is None:
-            return None
+            return {}
 
         repofile = os.path.join(self.contentpath, fullname + '.' + self.ext)
         fctx = self._revision[repofile]
@@ -315,5 +298,21 @@ class HgStore(object):
             
             last_changeset = self._repo[filelog.linkrev(len(changesets)-1)]
             mtime = int(last_changeset.date()[0])
+        return {'ctime': ctime, 'mtime': mtime, 'author': author}
+
+    def _init_repo(self):
+        if not self._repo_initialized:
+            self.repopath = cmdutil.findrepo(self.repopath)
+            if self.repopath is not None:
+                self._repo = hg.repository(ui.ui(), self.repopath)
+                self._revision_id = self._get_revision_id()
+                self._revision = self._repo[self._revision_id]
+            self._repo_initialized = True
             
-        return (ctime, mtime, author)
+    def _get_revision_id(self):
+        revision_id = None
+        if self.use_uncommitted:
+            try:
+                revision_id = self._repo.branchtags()['default']
+            except KeyError:
+                revision_id = None
