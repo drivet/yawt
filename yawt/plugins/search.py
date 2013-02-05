@@ -39,7 +39,6 @@ class SearchPlugin(object):
         self.default_config = {
             'INDEX_DIR': '_whoosh_index',
             'INDEX_NAME': 'fulltextsearch',
-            'BASE': ''
         }
         
     def init(self, app, plugin_name):
@@ -52,8 +51,8 @@ class SearchPlugin(object):
         app.add_url_rule('/search/index', view_func = self._view_func('full_text_search_index'))
         app.add_url_rule('/<path:category>/search/index',
                          view_func = self._view_func('full_text_search_index_cat'))
-        app.add_url_rule('/search/index.flav', view_func = self._view_func('full_text_search_index_flav'))
-        app.add_url_rule('/<path:category>/search/index.flav',
+        app.add_url_rule('/search/index.<flav>', view_func = self._view_func('full_text_search_index_flav'))
+        app.add_url_rule('/<path:category>/search/index.<flav>',
                          view_func = self._view_func('full_text_search_index_flav_cat'))
         
     def walker(self, store):

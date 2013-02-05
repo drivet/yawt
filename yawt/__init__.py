@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import yaml
@@ -23,6 +24,25 @@ default_config = {
     'YAWT_USE_UNCOMMITTED': 'true',
     'YAWT_CONTENT_TYPES_RSS': 'application/rss+xml',
 }
+
+def _get_page_from_request():
+    page = 1
+    try:
+        page = int(request.args.get('page', '1'))
+    except ValueError:
+        page = 1
+    return page
+
+def _extract_article_info(path):
+    p = re.compile(r'^(.*?)(/([^./]+)(\.([^/.]+))?)?$')
+
+    # path never starts with a slash, but the regex 
+    # is easier to use if it does
+    m = p.match('/' + path)
+    category = re.sub('^/', '', m.group(1)) # strip leading slash
+    slug = m.group(3)
+    flavour = m.group(5)
+    return (category, slug, flavour);
 
 def _load_config(blogpath):
     config_file = os.path.join(blogpath, 'config.yaml')
@@ -49,9 +69,21 @@ def create_app(blogpath=None):
     app = Flask(__name__, template_folder=template_folder,
                 static_url_path=static_url,
                 static_folder=static_folder)
+    app.debug = True
     app.config['YAWT_BLOGPATH'] = blogpath
     app.config.update(config)
  
+    old_loader = app.jinja_loader
+    app.jinja_loader = ChoiceLoader([YawtLoader(template_folder), old_loader])
+    
+    @app.route('/')
+    def home():
+        return _handle_path('')
+    
+    @app.route('/<path:path>')
+    def generic_path(path):
+        return _handle_path(path)
+
     plugins = {}
     if 'YAWT_PLUGINS' in app.config:
         for plugin_name in app.config['YAWT_PLUGINS']:
@@ -66,51 +98,20 @@ def create_app(blogpath=None):
                 
     app.plugins = Plugins(plugins)
 
-    old_loader = app.jinja_loader
-    app.jinja_loader = ChoiceLoader([YawtLoader(template_folder), old_loader])
-    
-    @app.route('/')
-    def home():
-        return _handle_category_url(None, '')
-    
-    @app.route('/<path:category>/')
-    def category_canonical(category):
-        return _handle_category_url(None, category)
+#    for rule in app.url_map.iter_rules():
+#        print rule
 
-    @app.route('/<path:category>/<slug>')
-    def post(category, slug):
-        return _handle_categorized_url(None, category, slug)
-
-    @app.route('/<path:category>/<slug>.<flav>')
-    def post_flav(category, slug, flav):
-        return _handle_categorized_url(flav, category, slug)
-
-    @app.route('/<slug>.<flav>')
-    def post_flav_no_cat(slug, flav):
-        return _handle_categorized_url(flav, '', slug)
-
-    @app.route('/<slug>')
-    def post_slug(slug):
-        return _handle_categorized_url(None, '', slug)
-
-    def _handle_categorized_url(flav, category, slug):
-        if slug == 'index':
-            return _handle_category_url(flav, category)
+    def _handle_path(path):
+        (category, slug, flav) = _extract_article_info(path)
+        if slug is None or slug == 'index':
+            page = _get_page_from_request()
+            category_view = create_category_view()
+            return category_view.dispatch_request(flav, category, page,
+                                                  int(g.config['YAWT_PAGE_SIZE']),
+                                                  request.base_url)
         else:
             return create_article_view().dispatch_request(flav, category, slug)
-        
-    def _handle_category_url(flav, category):
-        page = 1
-        try:
-            page = int(request.args.get('page', '1'))
-        except ValueError:
-            page = 1
-
-        category_view = create_category_view()
-        return category_view.dispatch_request(flav, category, page,
-                                              int(g.config['YAWT_PAGE_SIZE']),
-                                              request.base_url)
-        
+              
     # filter for date and time formatting
     @app.template_filter('dateformat')
     def date_format(value, format='%H:%M / %d-%m-%Y'):

@@ -51,7 +51,6 @@ class TaggingPlugin(object):
         self.default_config = {
             'INDEX_DIR': '_whoosh_index',
             'INDEX_NAME': 'tagging',
-            'BASE': ''
         }
 
     def init(self, app, plugin_name):
@@ -62,15 +61,21 @@ class TaggingPlugin(object):
         def tags(article):
             tag_links = []
             for tag in article_tags(article):
-                tag_links.append({'tag': tag, 'url': tag_url(self._get_base(), tag)})
+                tag_links.append({'tag': tag, 'url': tag_url(None, tag)})
             return tag_links
 
-        app.add_url_rule('/tags/<tag>/', view_func = self._view_func('tag_canonical'))
-        app.add_url_rule('/tags/<tag>/index', view_func = self._view_func('tag_index'))
-        app.add_url_rule('/<path:category>/tags/<tag>/', view_func = self._view_func('tag_category_canonical'))
-        app.add_url_rule('/<path:category>/tags/<tag>/index', view_func = self._view_func('tag_category_index'))
-        app.add_url_rule('/tags/<tag>/index.<flav>', view_func = self._view_func('tag_index_flav'))
-        app.add_url_rule('/<path:category>/tags/<tag>/index.<flav>', view_func = self._view_func('tag_category_index_flav'))
+        app.add_url_rule('/tags/<tag>/', 
+                         view_func = self._view_func('tag_canonical'))
+        app.add_url_rule('/tags/<tag>/index', 
+                         view_func = self._view_func('tag_index'))
+        app.add_url_rule('/<path:category>/tags/<tag>/', 
+                         view_func = self._view_func('tag_category_canonical'))
+        app.add_url_rule('/<path:category>/tags/<tag>/index', 
+                         view_func = self._view_func('tag_category_index'))
+        app.add_url_rule('/tags/<tag>/index.<flav>', 
+                         view_func = self._view_func('tag_index_flav'))
+        app.add_url_rule('/<path:category>/tags/<tag>/index.<flav>', 
+                         view_func = self._view_func('tag_category_index_flav'))
 
     def walker(self, store):
         return TagIndexer(store, self._get_index_dir(), self._get_index_name())
@@ -84,9 +89,6 @@ class TaggingPlugin(object):
     def _get_index_name(self):
         return self._plugin_config()['INDEX_NAME']
 
-    def _get_base(self):
-        return self._plugin_config()['BASE'].strip().rstrip()
-    
     def _plugin_config(self):
         return self.app.config[self.name]
 

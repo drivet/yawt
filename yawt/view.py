@@ -192,7 +192,7 @@ class ArticleView(object):
                 # Normally flask handles this, but I don't think it can in this case
                 # Basically, we have trouble figuring out if cooking/indian/madras
                 # is an article or a category
-                return redirect(url_for('category_canonical', category=fullname))
+                return redirect('/' + fullname + '/')
             else:
                 return self._yawtview.render_missing_resource()
         else:

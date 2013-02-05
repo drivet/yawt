@@ -92,7 +92,6 @@ class ArchivingPlugin(object):
         self.default_config = {
             'INDEX_DIR': '_whoosh_index',
             'INDEX_NAME': 'archiving',
-            'BASE': ''
         }
         
     def init(self, app, plugin_name):
@@ -106,7 +105,7 @@ class ArchivingPlugin(object):
             month = article.ctime_tm.tm_mon
             day = article.ctime_tm.tm_mday
             slug = os.path.split(article.fullname)[1]
-            return url_for_permalink(self._get_archive_base(), year, month, day, slug)
+            return url_for_permalink(None, year, month, day, slug)
 
         @app.template_filter('archive_url')
         def archive_url(relative_url):
@@ -183,11 +182,7 @@ class ArchivingPlugin(object):
     
     def _plugin_config(self):
         return self.app.config[self.name]
-         
-    def _get_archive_base(self):
-        base = self._plugin_config()['BASE'].strip()
-        return base.rstrip('/')
-
+  
     def _view_func(self, endpoint):
         return ArchiveView.as_view(endpoint, plugin_config = self._plugin_config())
 

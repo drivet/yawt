@@ -1,7 +1,6 @@
 import yawt.util
 import os
 
-from flask import url_for
 from yawt.plugins.tagging import article_tags, tag_url
 
 class TagCounter(object):
