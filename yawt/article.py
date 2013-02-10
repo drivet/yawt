@@ -7,31 +7,21 @@ import yawt
 from werkzeug.utils import cached_property
 from collections import namedtuple
 
+from flask import Markup
+import markdown
+
 from mercurial import hg, ui, cmdutil
 import git
 
-class Article(object):
-    """
-    This class hold basic information about an article without actually
-    reading its contents (unless you ask).
-
-    Reads the file's metadata without asking, because this is required for
-    certain computations
-    """       
-    def __init__(self, loader=None, fullname=None,
-                 local_metadata={}, external_metadata={}, vc_metadata={}, file_metadata={}):
+class Article(object):       
+    def __init__(self, loader=None, fullname=None):
         """
         fullname is the category + slug of the article.
         No root path infomation.
         Like this: cooking/indian/madras
-        """
-        self._loader = loader
+        """ 
         self.fullname = fullname
-
-        self._local_metadata = local_metadata
-        self._external_metadata = external_metadata
-        self._vc_metadata = vc_metadata
-        self._file_metadata = file_metadata
+        self._loader = loader
         
     @property
     def categorized_url(self):
@@ -69,15 +59,22 @@ class Article(object):
         """
         create time, in seconds since the Unix epoch.
         """
-        return self.get_metadata('ctime')
+        return int(self.get_metadata('ctime'))
        
     @property
     def mtime(self):
         """
         last modified time, in seconds since the Unix epoch.
         """
-        return self.get_metadata('mtime')
-        
+        return int(self.get_metadata('mtime'))
+
+    @property
+    def title(self):
+        """
+        title of article
+        """
+        return self.get_metadata('title')
+
     @property
     def ctime_tm(self):
         """
@@ -93,18 +90,32 @@ class Article(object):
         tm_year, tm_mon, tm_day.
         """
         return time.localtime(self.mtime)
-    
-    @property
-    def title(self):
-        return self._article_content.title
+
+    def get_metadata(self, key, default=None):
+        return self._loaded_article.get_metadata(key, default)
 
     @property
     def content(self):
-        return self._article_content.content
-        
+        return self._loaded_article.content
+
+    @cached_property
+    def _loaded_article(self):
+        return self._loader.load_article(self.fullname)
+
+    
+class LoadedArticle(object):
+    def __init__(self, local_metadata = None, external_metadata = None, 
+                 vc_metadata = None, file_metadata = None, content = None):
+        self.content = content
+
+        self._local_metadata = local_metadata
+        self._external_metadata = external_metadata
+        self._vc_metadata = vc_metadata
+        self._file_metadata = file_metadata
+ 
     def get_metadata(self, key, default=None):
         if key in self._local_metadata:
-            return self._local_metadata[key]
+            return "\n".join(self._local_metadata[key])
         elif key in self._external_metadata:
             return self._external_metadata[key]
         elif key in self._vc_metadata:
@@ -113,17 +124,6 @@ class Article(object):
             return self._file_metadata[key]
         else:
             return default
-        
-    @cached_property
-    def _article_content(self):
-        return self._loader.load_article(self)
-
-    
-class ArticleContent(object):
-    def __init__(self, title, content):
-        self.title = title
-        self.content = content
-
 
 class ArticleStore(object):
     """
@@ -192,26 +192,23 @@ class ArticleStore(object):
         if not os.path.exists(filename):
             return None
         
-        all_metadata = self._fetch_metadata(fullname)
-        article = Article(self, fullname,
-                          local_metadata = all_metadata[0],
-                          external_metadata = all_metadata[1],
-                          vc_metadata = all_metadata[2],
-                          file_metadata = all_metadata[3])
-
+        article = Article(self, fullname)
         return self.plugins.on_article_fetch(article)
 
-    def load_article(self, article):
-        f = open(self._name2file(article.fullname), 'r')
+    def load_article(self, fullname):
+        f = open(self._name2file(fullname), 'r')
         file_contents = f.read()
         f.close()
+        
+        md = markdown.Markdown(extensions = ['meta'])
+        markup = Markup(md.convert(file_contents))
+        local_meta = md.Meta
+        return LoadedArticle(local_meta,
+                             self._fetch_external_metadata(fullname), 
+                             self._fetch_vc_metadata(fullname),
+                             self._fetch_file_metadata(fullname),
+                             markup)
 
-        m = re.compile('(.*)\n\n((.*\n)*(.+)?)').match(file_contents)
-        if m and m.group() == file_contents:
-            return ArticleContent(m.group(1).strip(), m.group(2))
-        else:
-            return ArticleContent('', file_contents)
-      
     def article_exists(self, fullname):
         return os.path.isfile(self._name2file(fullname))
 
@@ -230,15 +227,6 @@ class ArticleStore(object):
     def _articles_in_dirpath(self, dirpath, files):
         return [os.path.abspath(os.path.join(dirpath, filename))
                 for filename in files if self._article_file(filename)]
-
-    def _fetch_metadata(self, fullname):
-        return (self._fetch_local_metadata(fullname),
-                self._fetch_external_metadata(fullname),
-                self._fetch_vc_metadata(fullname),
-                self._fetch_file_metadata(fullname))
-
-    def _fetch_local_metadata(self, fullname):
-        return {}
 
     def _fetch_vc_metadata(self, fullname):
         if self.vcstore is None:
