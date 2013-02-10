@@ -22,6 +22,7 @@ default_config = {
     'YAWT_EXT': 'txt',
     'YAWT_META_EXT': 'meta',
     'YAWT_USE_UNCOMMITTED': 'true',
+    'YAWT_REPO_TYPE': 'auto',
     'YAWT_CONTENT_TYPES_RSS': 'application/rss+xml',
 }
 

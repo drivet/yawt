@@ -5,8 +5,10 @@ import fnmatch
 import yaml
 import yawt
 from werkzeug.utils import cached_property
-from mercurial import hg, ui, cmdutil
 from collections import namedtuple
+
+from mercurial import hg, ui, cmdutil
+import git
 
 class Article(object):
     """
@@ -137,15 +139,27 @@ class ArticleStore(object):
     # factory method to fetch an article store
     @staticmethod
     def get(config, plugins):
-        article_root = yawt.util.get_abs_path(config['YAWT_BLOGPATH'],
+        blogpath = config['YAWT_BLOGPATH']
+        article_root = yawt.util.get_abs_path(blogpath,
                                               config['YAWT_PATH_TO_ARTICLES'])
-        hgstore = HgStore(config['YAWT_BLOGPATH'],
-                          config['YAWT_PATH_TO_ARTICLES'],
-                          config['YAWT_EXT'],
-                          config['YAWT_USE_UNCOMMITTED'])
+
+        repotype = config['YAWT_REPO_TYPE']
+        vcstore = None
+        if repotype is 'hg' or \
+                (repotype is 'auto' and os.path.isdir(os.path.join(blogpath,'.hg'))):
+            vcstore = HgStore(blogpath,
+                              config['YAWT_PATH_TO_ARTICLES'],
+                              config['YAWT_EXT'],
+                              config['YAWT_USE_UNCOMMITTED'])
+        elif repotype is 'git' or \
+                (repotype is 'auto' and os.path.isdir(os.path.join(blogpath,'.git'))):
+            vcstore = GitStore(blogpath,
+                               config['YAWT_PATH_TO_ARTICLES'],
+                               config['YAWT_EXT'],
+                               config['YAWT_USE_UNCOMMITTED'])
         
         return ArticleStore(plugins,
-                            hgstore,
+                            vcstore,
                             article_root,
                             config['YAWT_EXT'],
                             config['YAWT_META_EXT'])
@@ -227,6 +241,8 @@ class ArticleStore(object):
         return {}
 
     def _fetch_vc_metadata(self, fullname):
+        if self.vcstore is None:
+            return {}
         return self.vcstore.fetch_vc_info(fullname)
        
     def _fetch_file_metadata(self, fullname):
@@ -314,3 +330,44 @@ class HgStore(object):
                 revision_id = self._repo.branchtags()['default']
             except KeyError:
                 revision_id = None
+
+
+class GitStore(object):
+    def __init__(self, repopath, contentpath, ext, use_uncommitted):
+        self.repopath = repopath
+        self.contentpath = contentpath
+        self.ext = ext
+        self.use_uncommitted = use_uncommitted
+
+        self._git = None
+        self._repo = None
+        self._repo_initialized = False
+
+    def fetch_vc_info(self, fullname):
+        self._init_repo()
+        if self._repo is None or self._git is None:
+            return {}
+
+        repofile = os.path.join(self.contentpath, fullname + '.' + self.ext)
+        hexshas = self._git.log('--pretty=%H','--follow','--', repofile).split('\n') 
+        commits = [self._repo.rev_parse(c) for c in hexshas]
+
+        changesetcount = len(commits)
+        if changesetcount <= 0:
+            return {}
+
+        # at least one changeset
+        first_commit = commits[changesetcount-1]
+        ctime = first_commit.committed_date
+        author = first_commit.author
+
+        last_commit = commits[0]
+        mtime = last_commit.committed_date
+
+        return {'ctime': ctime, 'mtime': mtime, 'author': author}
+
+    def _init_repo(self):
+        if not self._repo_initialized:
+            self._git = git.Git(self.repopath) 
+            self._repo = git.Repo(self.repopath)
+            self._repo_initialized = True
