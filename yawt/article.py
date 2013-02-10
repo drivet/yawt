@@ -16,7 +16,7 @@ import git
 class Article(object):       
     def __init__(self, loader=None, fullname=None):
         """
-        fullname is the category + slug of the article.
+        fullname is the catgeory + slug of the article.
         No root path infomation.
         Like this: cooking/indian/madras
         """ 
@@ -73,7 +73,7 @@ class Article(object):
         """
         title of article
         """
-        return self.get_metadata('title')
+        return self.get_metadata('title', '')
 
     @property
     def ctime_tm(self):
@@ -104,8 +104,8 @@ class Article(object):
 
     
 class LoadedArticle(object):
-    def __init__(self, local_metadata = None, external_metadata = None, 
-                 vc_metadata = None, file_metadata = None, content = None):
+    def __init__(self, local_metadata = {}, external_metadata = {}, 
+                 vc_metadata = {}, file_metadata = {}, content = None):
         self.content = content
 
         self._local_metadata = local_metadata
@@ -202,7 +202,9 @@ class ArticleStore(object):
         
         md = markdown.Markdown(extensions = ['meta'])
         markup = Markup(md.convert(file_contents))
-        local_meta = md.Meta
+        local_meta = {}
+        if hasattr(md, 'Meta') and md.Meta is not None:
+            local_meta = md.Meta
         return LoadedArticle(local_meta,
                              self._fetch_external_metadata(fullname), 
                              self._fetch_vc_metadata(fullname),

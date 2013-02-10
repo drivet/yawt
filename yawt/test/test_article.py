@@ -2,49 +2,51 @@ import unittest
 from mock import patch, Mock
 import yawt
 import os.path
-from yawt.article import ArticleStore, Article
+from yawt.article import ArticleStore, LoadedArticle, Article
 from yawt.test import fake_filesystem
 
-class TestArticle(unittest.TestCase):
+from flask import Markup
+
+class TestLoadedArticle(unittest.TestCase):
     def test_local_metadata(self):
-        article = Article(local_metadata = {'property1': 'bar'})
+        article = LoadedArticle(local_metadata = {'property1': ['bar']})
         self.assertEquals(article.get_metadata('property1'), 'bar')
         
     def test_external_metadata(self):
-        article = Article(external_metadata = {'property1': 'bar'})
+        article = LoadedArticle(external_metadata = {'property1': 'bar'})
         self.assertEquals(article.get_metadata('property1'), 'bar')
 
     def test_vc_metadata(self):
-        article = Article(vc_metadata = {'property1': 'bar'})
+        article = LoadedArticle(vc_metadata = {'property1': 'bar'})
         self.assertEquals(article.get_metadata('property1'), 'bar')
 
     def test_file_metadata(self):
-        article = Article(file_metadata = {'property1': 'bar'})
+        article = LoadedArticle(file_metadata = {'property1': 'bar'})
         self.assertEquals(article.get_metadata('property1'), 'bar')
         
     def test_local_metadata_overrides_external_metadata(self):
-        article = Article(local_metadata = {'property1': 'foo',
-                                            'property2':'hehe'},                  
-                          external_metadata = {'property1': 'bar',
-                                               'property3': 'stuff'})
+        article = LoadedArticle(local_metadata = {'property1': ['foo'],
+                                                  'property2':['hehe']},
+                                external_metadata = {'property1': 'bar',
+                                                     'property3': 'stuff'})
         self.assertEquals(article.get_metadata('property1'), 'foo')
         self.assertEquals(article.get_metadata('property2'), 'hehe')
         self.assertEquals(article.get_metadata('property3'), 'stuff')
         
     def test_external_metadata_overrides_vc_metadata(self):
-        article = Article(external_metadata = {'property1': 'foo',
-                                               'property2':'hehe'},                  
-                          vc_metadata = {'property1': 'bar',
-                                         'property3': 'stuff'})
+        article = LoadedArticle(external_metadata = {'property1': 'foo',
+                                                     'property2':'hehe'},                  
+                                vc_metadata = {'property1': 'bar',
+                                               'property3': 'stuff'})
         self.assertEquals(article.get_metadata('property1'), 'foo')
         self.assertEquals(article.get_metadata('property2'), 'hehe')
         self.assertEquals(article.get_metadata('property3'), 'stuff')
         
     def test_vc_metadata_overrides_file_metadata(self):
-        article = Article(vc_metadata = {'property1': 'foo',
-                                         'property2':'hehe'},                  
-                          file_metadata = {'property1': 'bar',
-                                           'property3': 'stuff'})
+        article = LoadedArticle(vc_metadata = {'property1': 'foo',
+                                               'property2':'hehe'},                  
+                                file_metadata = {'property1': 'bar',
+                                                 'property3': 'stuff'})
         self.assertEquals(article.get_metadata('property1'), 'foo')
         self.assertEquals(article.get_metadata('property2'), 'hehe')
         self.assertEquals(article.get_metadata('property3'), 'stuff')
@@ -85,17 +87,17 @@ class TestArticleStore(unittest.TestCase):
         self.assertEquals(len(articles), 0)
      
     def test_fetch_articles_two_level_category(self):
-        self._create_entry_file('entry01', mtime=0)
-        self._create_entry_file('entry02', mtime=50)
-        self._create_entry_file('cat01/entry03', mtime=30)
-        self._create_entry_file('cat01/entry04', mtime=20)
-        self._create_entry_file('cat01/entry05', mtime=90)
-        self._create_entry_file('cat01/cat02/entry06', mtime=10)
-        self._create_entry_file('cat01/cat02/entry07', mtime=100)
-        self._create_entry_file('cat01/cat02/entry08', mtime=40)
-        self._create_entry_file('cat03/entry09', mtime=70)
-        self._create_entry_file('cat03/entry10', mtime=80)
-        self._create_entry_file('cat03/entry11', mtime=60)
+        self._create_entry_file('entry01', mtime=0, contents='')
+        self._create_entry_file('entry02', mtime=50, contents='')
+        self._create_entry_file('cat01/entry03', mtime=30, contents='')
+        self._create_entry_file('cat01/entry04', mtime=20, contents='')
+        self._create_entry_file('cat01/entry05', mtime=90, contents='')
+        self._create_entry_file('cat01/cat02/entry06', mtime=10, contents='')
+        self._create_entry_file('cat01/cat02/entry07', mtime=100, contents='')
+        self._create_entry_file('cat01/cat02/entry08', mtime=40, contents='')
+        self._create_entry_file('cat03/entry09', mtime=70, contents='')
+        self._create_entry_file('cat03/entry10', mtime=80, contents='')
+        self._create_entry_file('cat03/entry11', mtime=60, contents='')
 
         vc_data = {'entry01': {'ctime': 0, 'mtime': 0, 'author': 'dude'},
                    'entry02': {'ctime':5, 'mtime':0, 'author': 'dude'},
@@ -231,42 +233,37 @@ class TestArticleStore(unittest.TestCase):
         self.assertFalse(self.store.category_exists('category01/category02'))
 
     def test_load_article(self):
-        self._create_entry_file('entry01', contents='  awesome title  \n\nline 1\nline2\nstuff\n')
+        self._create_entry_file('entry01', contents='Title: awesome title\n\nline 1\nline2\nstuff\n')
         article = self.store.fetch_article_by_fullname('entry01')
-        article_content = self.store.load_article(article)
-        self.assertEqual(article_content.title, 'awesome title')
-        self.assertEqual(article_content.content, 'line 1\nline2\nstuff\n')
+        self.assertEqual(article.title, 'awesome title')
+        self.assertEqual(article.content, Markup(u'<p>line 1\nline2\nstuff</p>'))
 
     def test_load_empty_article(self):
         self._create_entry_file('entry01', contents='')
         article = self.store.fetch_article_by_fullname('entry01')
-        article_content = self.store.load_article(article)
-        assert article_content.title == ''
-        assert article_content.content == ''
+        self.assertEqual(article.title, '')
+        self.assertEqual(article.content, '')
 
     def test_load_article_no_title(self):
         self._create_entry_file('entry01', contents='line 1\nline2\nstuff\n')
         article = self.store.fetch_article_by_fullname('entry01')
-        article_content = self.store.load_article(article)
-        assert article_content.title == ''
-        assert article_content.content == 'line 1\nline2\nstuff\n'
+        self.assertEqual(article.title, '')
+        self.assertEqual(article.content, Markup(u'<p>line 1\nline2\nstuff</p>'))
 
     def test_load_article_empty_title(self):
         self._create_entry_file('entry01', contents='\n\nline 1\nline2\nstuff\n')
         article = self.store.fetch_article_by_fullname('entry01')
-        article_content = self.store.load_article(article)
-        assert article_content.title == ''
-        assert article_content.content == 'line 1\nline2\nstuff\n'
+        self.assertEqual(article.title, '')
+        self.assertEqual(article.content, Markup(u'<p>line 1\nline2\nstuff</p>'))
 
     def test_load_article_empty_content(self):
-        self._create_entry_file('entry01', contents='awesome title\n\n')
+        self._create_entry_file('entry01', contents='Title: awesome title\n\n')
         article = self.store.fetch_article_by_fullname('entry01')
-        article_content = self.store.load_article(article)
-        assert article_content.title == 'awesome title'
-        assert article_content.content == ''
+        self.assertEquals(article.title, 'awesome title')
+        self.assertEquals(article.content, '')
         
     def test_load_metadata(self):
-        self._create_entry_file('entry01')
+        self._create_entry_file('entry01', contents='')
         self._fs.CreateFile(self._make_meta_filename('entry01'),
                                contents='prop1: stuff1\nprop2: stuff2')
         article = self.store.fetch_article_by_fullname('entry01')
@@ -275,7 +272,7 @@ class TestArticleStore(unittest.TestCase):
         self.assertEquals(article.get_metadata('prop2'), 'stuff2')
 
     def test_metadata_times_override_disk_times(self):
-        self._create_entry_file('entry01', mtime=1000)
+        self._create_entry_file('entry01', mtime=1000, contents='')
         self._fs.CreateFile(self._make_meta_filename('entry01'),
                                contents='ctime: 300\nmtime: 500')
         article = self.store.fetch_article_by_fullname('entry01')
