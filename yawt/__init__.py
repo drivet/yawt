@@ -124,7 +124,12 @@ def create_app(blogpath=None):
         words = article.content.split()[0:word_count]
         words.append("[...]")
         return " ".join(words)
-
+ 
+    # filter to test for multi page 
+    @app.template_filter('is_multi_page')
+    def is_multi_page(total_pages):
+        return total_pages != 1
+  
     # make a usable url out of a site relative one
     @app.template_filter('url')
     def url(relative_url):

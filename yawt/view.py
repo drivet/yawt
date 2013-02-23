@@ -104,11 +104,26 @@ def _join(category, slug):
         return slug
 
 
+class Page(object):
+    """
+    page is 1 based
+    """
+    def __init__(self, page, base_url):
+        self.page = page
+        self.base_url = base_url
+
+    @property
+    def url(self):
+        return self.base_url + "?page=" + str(self.page)
+
+
 class PagingInfo(object):
+    """
+    page is 1 based.  start and end are 0 based.
+    """
     def __init__(self, page, page_size, total_count, base_url):
         self.page_size = page_size
         self.page = page
-        self.base_url = base_url
         self.start = (self.page - 1) * self.page_size
         self.end = self.start + self.page_size
         
@@ -119,28 +134,22 @@ class PagingInfo(object):
 
         self.has_next = self.page < self.total_pages
         self.has_prev = self.page > 1
+        self.multi_page = self.total_pages > 1
 
-    def url(self, page):
-        return self.base_url + "?page=" + str(page)
+        self.pages = []
+        for page in range(self.total_pages):
+            # page here is 0 based
+            self.pages.append(Page(page+1, base_url))
     
-    @property
-    def next_url(self):
-        if not self.has_next:
-            return None
-        return self.url(self.page + 1)
-    
-    @property
-    def prev_url(self):
-        if not self.has_prev:
-            return None
-        return self.url(self.page - 1)
+        self.page_index = self.page - 1
 
     def __eq__(self, other):
         return self.page == other.page and \
                self.page_size == other.page_size and \
                self.total_count == other.total_count and \
                self.base_url == other.base_url
-        
+
+
 class YawtView(object):
     """
     Collection of utility methods for rendering YAWT views
@@ -160,10 +169,7 @@ class YawtView(object):
     
     def render_collection(self, flavour, articles, title, page_info, category='', breadcrumbs=None):
         template_vars = {'articles': articles[page_info.start:page_info.end],
-                         'total_pages': page_info.total_pages,
-                         'page': page_info.page,
-                         'nextpage':  page_info.next_url,
-                         'prevpage': page_info.prev_url,
+                         'page_info': page_info,
                          'collection_title': title,
                          'breadcrumbs': breadcrumbs}
         template_vars = self._plugins.template_vars(template_vars)
