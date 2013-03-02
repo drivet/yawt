@@ -1,22 +1,27 @@
 #!/bin/bash
+source $HOME/virtualenvs/yawt_flask0.9/bin/activate
 
-# assumed to be run from blog/repo root
+# edit accordingly
+export PATH=$PATH:$HOME/sandbox/bin:$HOME/sandbox/YawtFlask/bin
+export PYTHONPATH=$PYTHONPATH:$HOME/sandbox/YawtFlask
 
-YAWT=yawt
+# replace with the path to your yawt
+YAWT=$HOME/sandbox/YawtFlask/bin/yawt
 BLOGROOT=$PWD
 
 update() {
     STATUSES=$1
     if [[ -n $STATUSES ]]; then
-        $YAWT update "$STATUSES" -b $BLOGROOT
+        #echo "Running: python $YAWT update \"$STATUSES\" -b $BLOGROOT"
+        python $YAWT update "$STATUSES" -b $BLOGROOT
     fi
 }
 
 hg update
 
-CONTENTROOT=`$YAWT info 'path_to_articles' -b $BLOGROOT`
-EXT=`$YAWT info 'ext' -b $BLOGROOT`
-METAEXT=`$YAWT info 'meta_ext' -b $BLOGROOT`
+CONTENTROOT=`python $YAWT info 'YAWT_PATH_TO_ARTICLES' -b $BLOGROOT`
+EXT=`python $YAWT info 'YAWT_EXT' -b $BLOGROOT`
+METAEXT=`python $YAWT info 'YAWT_META_EXT' -b $BLOGROOT`
 
 STATUSES=$(hg status --change $HG_NODE | grep "^\([AMR]\) $CONTENTROOT/\(.*\)\.\($EXT\|$METAEXT\)$"| sed "s|^\([AMR]\) $CONTENTROOT/\(.*\)\.\(.*\)$|\1 \2|")
 update "$STATUSES"

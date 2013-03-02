@@ -25,13 +25,13 @@ class ArticleIndexer(object):
         self._update_document(fullname)
 
     def update(self, statuses):
-        self.pre_walk()
+        self._writer = self._get_writer()
         for fullname in statuses.keys():
             status = statuses[fullname]
             if status not in ['A','M','R']:
                 continue
             self.visit_article(fullname)
-        self.post_walk()
+        self._writer.commit()
         
     def post_walk(self):
         self._writer.commit()
@@ -43,7 +43,7 @@ class ArticleIndexer(object):
         fields.update(self._get_article_fields(article))
         self._writer.update_document(**fields)
 
-    def _get_writer(self, clean):
+    def _get_writer(self, clean = False):
         if not os.path.exists(self._index_dir):
             os.mkdir(self._index_dir)
         if clean or not exists_in(self._index_dir, self._index_name):

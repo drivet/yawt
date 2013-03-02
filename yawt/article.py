@@ -320,6 +320,7 @@ class HgStore(object):
                 revision_id = self._repo.branchtags()['default']
             except KeyError:
                 revision_id = None
+        return revision_id
 
 
 class GitStore(object):
