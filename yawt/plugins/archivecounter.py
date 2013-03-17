@@ -46,8 +46,11 @@ class ArchiveCounter(object):
                     if self._archive_counts[ym]['count'] == 0:
                         del self._archive_counts[ym]
                 del self._article_dates[fullname]
-            
-            if status in ('A', 'M'):
+
+            # if this is a R status, then removing the old article_tags was 
+            # all we needed to do
+            if status in ('A', 'M'):  
+                # file added or modified - treat it the same way.
                 self.visit_article(fullname)
         self.post_walk()
         

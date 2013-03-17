@@ -50,11 +50,11 @@ class ArchiveIndexer(ArticleIndexer):
         super(ArchiveIndexer, self).__init__(store, index_dir, index_name, doc_root)
 
     def _get_schema_fields(self):
-        return {'ctime': DATETIME(stored=True)}
+        return {'fullname': ID(stored=True), 'ctime': DATETIME(stored=True)}
     
     def _get_article_fields(self, article):
         ctime_dt = datetime.datetime.fromtimestamp(article.ctime)
-        return {'ctime': ctime_dt}
+        return {'fullname':unicode(article.fullname), 'ctime': ctime_dt}
 
         
 class PermalinkView(IndexView):

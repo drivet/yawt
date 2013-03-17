@@ -28,11 +28,11 @@ class TagIndexer(ArticleIndexer):
         super(TagIndexer, self).__init__(store, index_dir, index_name, doc_root)
 
     def _get_schema_fields(self):
-        return {'tags': KEYWORD(commas=True)}
+        return {'fullname': ID(stored=True), 'tags': KEYWORD(commas=True)}
     
     def _get_article_fields(self, article):
         tags = article.get_metadata('tags', '')
-        return {'tags': unicode(tags)}
+        return {'fullname': unicode(article.fullname), 'tags': unicode(tags)}
 
      
 class TagView(ListIndexView):

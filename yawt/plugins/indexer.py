@@ -28,14 +28,20 @@ class ArticleIndexer(object):
         self._writer = self._get_writer()
         for fullname in statuses.keys():
             status = statuses[fullname]
-            if status not in ['A','M','R']:
+            if status == 'A' or status == 'M':
+                self.visit_article(fullname)
+            elif status == 'R':
+                self._delete_document(fullname)
+            else:
                 continue
-            self.visit_article(fullname)
         self._writer.commit()
-        
+    
     def post_walk(self):
         self._writer.commit()
-        
+    
+    def _delete_document(self, fullname):
+        self._writer.delete_by_term('fullname', unicode(fullname))
+
     def _update_document(self, fullname):
         article = self._store.fetch_article_by_fullname(fullname)
         mtime = os.path.getmtime(self._store._name2file(article.fullname))

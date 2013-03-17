@@ -16,10 +16,12 @@ class TextIndexer(ArticleIndexer):
         super(TextIndexer, self).__init__(store, index_dir, index_name, doc_root)
 
     def _get_schema_fields(self):
-        return {'title': TEXT(stored=True), 'content': TEXT}
+        return {'fullname': ID(stored=True), 'title': TEXT(stored=True), 'content': TEXT}
     
     def _get_article_fields(self, article):
-        return {'title': unicode(article.title), 'content': unicode(article.content)}
+        return {'fullname':unicode(article.fullname),
+                'title': unicode(article.title), 
+                'content': unicode(article.content)}
     
 
 class SearchView(ListIndexView):
