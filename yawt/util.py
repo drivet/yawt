@@ -72,16 +72,6 @@ def get_abs_path_app(app, path):
 
 def get_base_url(app):
     return app.config['YAWT_BASE_URL'] or request.url_root
-
-def breadcrumbs(pathstr):
-    breadcrumbs = []
-    pathurl = ''
-    if pathstr.startswith('/'):
-        pathstr = pathstr[1:]
-    for piece in pathstr.split('/'):
-        pathurl += '/' + piece
-        breadcrumbs.append({'crumb': piece, 'url': pathurl})
-    return breadcrumbs
         
 def _ensure_path(path):
     if not os.path.exists(path):

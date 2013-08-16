@@ -116,8 +116,7 @@ class ListIndexView(IndexView):
         else:
             page_info = self._paging_info(articles)
             title = self._title(*args, **kwargs)
-            breadcrumbs = self._breadcrumbs(category=category, *args, **kwargs)
-            return yawtview.render_collection(flavour, articles, title, page_info, category, breadcrumbs)
+            return yawtview.render_collection(flavour, articles, title, page_info, category)
 
     def _paging_info(self, articles):
         page = 1
@@ -137,6 +136,4 @@ class ListIndexView(IndexView):
     
     def _title(self, *args, **kwargs):
         return ''
-    
-    def _breadcrumbs(self, *args, **kwargs):
-        return None
+

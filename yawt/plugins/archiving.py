@@ -72,14 +72,10 @@ class PermalinkView(IndexView):
         else:
             article = articles[0]
             permalink = url_for_permalink(category, year, month, day, slug)
-            return yawtview.render_article(flavour, article,
-                                           yawt.util.breadcrumbs(permalink))
+            return yawtview.render_article(flavour, article)
 
    
-class ArchiveView(ListIndexView):
-    def _breadcrumbs(self, year, month=None, day=None, category='', *args, **kwargs):
-        return yawt.util.breadcrumbs(_archivelink(year, month, day, category))
-       
+class ArchiveView(ListIndexView):    
     def _default_field(self, *args, **kwargs):
         return 'ctime'
     

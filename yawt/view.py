@@ -161,17 +161,16 @@ class YawtView(object):
     def render_missing_resource(self):
         return render_template("404.html")
 
-    def render_article(self, flavour, article, breadcrumbs=None):
-        template_vars = {'article': article, 'breadcrumbs': breadcrumbs}
+    def render_article(self, flavour, article):
+        template_vars = {'article': article}
         template_vars = self._plugins.template_vars(template_vars)
         return _render('article', flavour, template_vars, self._content_type(flavour),
                        article.category)
     
-    def render_collection(self, flavour, articles, title, page_info, category='', breadcrumbs=None):
+    def render_collection(self, flavour, articles, title, page_info, category=''):
         template_vars = {'articles': articles[page_info.start:page_info.end],
                          'page_info': page_info,
-                         'collection_title': title,
-                         'breadcrumbs': breadcrumbs}
+                         'collection_title': title}
         template_vars = self._plugins.template_vars(template_vars)
         return _render('article_list', flavour, template_vars,
                        self._content_type(flavour), category)
@@ -202,8 +201,7 @@ class ArticleView(object):
             else:
                 return self._yawtview.render_missing_resource()
         else:
-            return self._yawtview.render_article(flavour, article,
-                                                 yawt.util.breadcrumbs(article.fullname))
+            return self._yawtview.render_article(flavour, article)
 
 
 def create_article_view():
@@ -240,8 +238,7 @@ class CategoryView(object):
     def _render_collection(self, flavour, articles, category, page_info):
         title = self._category_title(category)
         return self._yawtview.render_collection(flavour, articles, '',
-                                                page_info, category,
-                                                yawt.util.breadcrumbs(category))
+                                                page_info, category)
                                                       
     def _category_title(self, category):
         if category is None or len(category) == 0:

@@ -35,7 +35,7 @@ default_config = {
     YAWT_PATH_TO_ARTICLES: 'entries',
     YAWT_PATH_TO_STATIC: 'static',
     YAWT_STATIC_URL: 'static',
-    YAWT_EXT: 'txt',
+    YAWT_EXT: ['txt'],
     YAWT_META_EXT: 'meta',
     YAWT_USE_UNCOMMITTED: 'true',
     YAWT_REPO_TYPE: 'auto',
