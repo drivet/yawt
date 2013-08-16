@@ -209,7 +209,7 @@ class ArticleView(object):
 
 class ArticleListView(object):
     def dispatch_request(self, flavour=None, category='', *args, **kwargs):        
-        articles = self._fetcher(category)
+        articles = self._fetch(category, *args, **kwargs)
         if len(articles) < 1:
             return  self._yawtview.render_missing_resource()
         else:
@@ -229,6 +229,9 @@ class ArticleListView(object):
     
     def _title(self, *args, **kwargs):
         return ''
+
+    def _fetch(self, category, *args, **kwargs):
+        return []
    
 class CategoryView(ArticleListView):
     """
@@ -242,7 +245,6 @@ class CategoryView(ArticleListView):
     """
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
-        self._fetcher = lambda c: store.fetch_articles_by_category(c) 
         self._store = store
 
     def dispatch_request(self, flavour, category):
@@ -252,6 +254,8 @@ class CategoryView(ArticleListView):
         else:
             return super(CategoryView, self).dispatch_request(flavour, category)
 
+    def _fetch(self, category):
+        return self._store.fetch_articles_by_category(category)
 
 def create_article_view():
     return ArticleView(g.store, YawtView(g.plugins, yawt.util.get_content_types()))

@@ -75,7 +75,7 @@ class PermalinkView(IndexView):
             return yawtview.render_article(flavour, article)
 
    
-class ArchiveView(ListIndexView):    
+class ArchiveView(ListIndexView):
     def _default_field(self, *args, **kwargs):
         return 'ctime'
     

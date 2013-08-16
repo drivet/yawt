@@ -157,5 +157,5 @@ def create_app(blogpath=None):
                 g.config.update(config)
 
         g.plugins = app.plugins
-        g.store = create_store()
+        g.store = create_store(g.config, g.plugins)
     return app

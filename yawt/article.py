@@ -295,30 +295,30 @@ class ArticleStore(object):
         return md
 
 
-def create_store():
-    article_root = yawt.util.get_abs_path(g.config['YAWT_BLOGPATH'], 
-                                          g.config['YAWT_PATH_TO_ARTICLES'])
-    vcstore = _create_vc_store()
+def create_store(config, plugins):
+    article_root = yawt.util.get_abs_path(config['YAWT_BLOGPATH'], 
+                                          config['YAWT_PATH_TO_ARTICLES'])
+    vcstore = _create_vc_store(config)
     return ArticleStore(article_root,
-                        g.config['YAWT_EXT'],
-                        g.config['YAWT_META_EXT'],
-                        g.plugins,
+                        config['YAWT_EXT'],
+                        config['YAWT_META_EXT'],
+                        plugins,
                         vcstore)
     
-def _create_vc_store(): 
-    blogpath = g.config['YAWT_BLOGPATH']
-    repotype = g.config['YAWT_REPO_TYPE']
+def _create_vc_store(config): 
+    blogpath = config['YAWT_BLOGPATH']
+    repotype = config['YAWT_REPO_TYPE']
     vcstore = None
     if repotype is 'hg' or \
             (repotype is 'auto' and os.path.isdir(os.path.join(blogpath,'.hg'))):
         vcstore = HgStore(blogpath,
-                          g.config['YAWT_PATH_TO_ARTICLES'],
-                          g.config['YAWT_USE_UNCOMMITTED'])
+                          config['YAWT_PATH_TO_ARTICLES'],
+                          config['YAWT_USE_UNCOMMITTED'])
     elif repotype is 'git' or \
             (repotype is 'auto' and os.path.isdir(os.path.join(blogpath,'.git'))):
         vcstore = GitStore(blogpath,
-                           g.config['YAWT_PATH_TO_ARTICLES'],
-                           g.config['YAWT_USE_UNCOMMITTED'])
+                           config['YAWT_PATH_TO_ARTICLES'],
+                           config['YAWT_USE_UNCOMMITTED'])
     return vcstore
 
 

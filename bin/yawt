@@ -50,7 +50,7 @@ class Walk(YawtCommand):
     plugin do something with it.
     """
     def run(self):
-        store = yawt.article.ArticleStore.get(self.app.config, self.app.plugins)
+        store = yawt.article.create_store(self.app.config, self.app.plugins)
         walkers = self.app.plugins.walkers(store)
         
         map(lambda w: w.pre_walk(), walkers)

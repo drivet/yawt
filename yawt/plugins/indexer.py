@@ -7,7 +7,7 @@ from whoosh.qparser import QueryParser
 from flask.views import View
 from flask import g, request, url_for, current_app
 
-from yawt.view import YawtView, PagingInfo
+from yawt.view import YawtView, PagingInfo, ArticleListView
 
 class ArticleIndexer(object):
     def __init__(self, store, index_dir, index_name, doc_root=None):
@@ -44,7 +44,7 @@ class ArticleIndexer(object):
 
     def _update_document(self, fullname):
         article = self._store.fetch_article_by_fullname(fullname)
-        mtime = os.path.getmtime(self._store._name2file(article.fullname))
+        mtime = os.path.getmtime(self._store._name2file(article.fullname, article.ext))
         fields = {'fullname': unicode(article.fullname), 'mtime': mtime}
         fields.update(self._get_article_fields(article))
         self._writer.update_document(**fields)
@@ -103,37 +103,20 @@ class IndexView(View):
     def _get_index_name(self):
         return self._plugin_config['INDEX_NAME']
 
-class ListIndexView(IndexView):
-    def dispatch_request(self, flavour=None, category='', *args, **kwargs):
-        yawtview = YawtView(g.plugins, yawt.util.get_content_types())
+class ListIndexView(ArticleListView, IndexView):
+    def __init__(self, plugin_config):
+        self._plugin_config = plugin_config 
+        self._yawtview = YawtView(g.plugins, yawt.util.get_content_types())
+
+    def _fetch(self, category, *args, **kwargs):
         fetcher = ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name())
-        
-        articles = fetcher.fetch(category,
-                                 self._default_field(*args, **kwargs),
-                                 self._query(*args, **kwargs))
-        if len(articles) < 1:
-            return yawtview.render_missing_resource()
-        else:
-            page_info = self._paging_info(articles)
-            title = self._title(*args, **kwargs)
-            return yawtview.render_collection(flavour, articles, title, page_info, category)
-
-    def _paging_info(self, articles):
-        page = 1
-        try:
-            page = int(request.args.get('page', '1'))
-        except ValueError:
-            page = 1
-
-        page_size = int(g.config['YAWT_PAGE_SIZE'])
-        return PagingInfo(page, page_size, len(articles), request.base_url)
-    
+        return fetcher.fetch(category,
+                             self._default_field(*args, **kwargs),
+                             self._query(*args, **kwargs))
+  
     def _default_field(self, *args, **kwargs):
         return ''
     
     def _query(self, *args, **kwargs):
-        return ''
-    
-    def _title(self, *args, **kwargs):
         return ''
 
