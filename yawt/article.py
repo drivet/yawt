@@ -3,24 +3,29 @@ import re
 import time
 import fnmatch
 import yaml
+import markdown
+import git
 import yawt
+
 from werkzeug.utils import cached_property
 from collections import namedtuple
-
-from flask import Markup
-import markdown
-
+from flask import Markup, g
 from mercurial import hg, ui, cmdutil
-import git
 
-class Article(object):       
-    def __init__(self, loader=None, fullname=None):
+      
+class MarkdownArticle(object):       
+    def __init__(self, loader=None, fullname=None, ext=None,
+                 external_meta={}, file_meta={}, vc_meta={}):
         """
         fullname is the catgeory + slug of the article.
         No root path infomation.
         Like this: cooking/indian/madras
         """ 
         self.fullname = fullname
+        self.ext = ext
+        self.file_meta = file_meta
+        self.vc_meta = vc_meta
+        self.external_meta = external_meta
         self._loader = loader
         
     @property
@@ -92,7 +97,16 @@ class Article(object):
         return time.localtime(self.mtime)
 
     def get_metadata(self, key, default=None):
-        return self._loaded_article.get_metadata(key, default)
+        if key in self._loaded_article.meta:
+            return "\n".join(self._loaded_article.meta[key])
+        elif key in self.external_meta:
+            return self.external_meta[key]
+        elif key in self.vc_meta:
+            return self.vc_meta[key]
+        elif key in self.file_meta:
+            return self.file_meta[key]
+        else:
+            return default
 
     @property
     def content(self):
@@ -102,98 +116,11 @@ class Article(object):
     def _loaded_article(self):
         return self._loader.load_article(self.fullname)
 
-    
-class LoadedArticle(object):
-    def __init__(self, local_metadata = {}, external_metadata = {}, 
-                 vc_metadata = {}, file_metadata = {}, content = None):
-        self.content = content
 
-        self._local_metadata = local_metadata
-        self._external_metadata = external_metadata
-        self._vc_metadata = vc_metadata
-        self._file_metadata = file_metadata
- 
-    def get_metadata(self, key, default=None):
-        if key in self._local_metadata:
-            return "\n".join(self._local_metadata[key])
-        elif key in self._external_metadata:
-            return self._external_metadata[key]
-        elif key in self._vc_metadata:
-            return self._vc_metadata[key]
-        elif key in self._file_metadata:
-            return self._file_metadata[key]
-        else:
-            return default
-
-class ArticleStore(object):
-    """
-    interface to stored articles
-    """
-    def __init__(self, plugins, vcstore, root_dir, ext, meta_ext):
-        self.plugins = plugins
+class MarkdownArticleLoader(object):
+    def __init__(self, root_dir, ext):
         self.root_dir = root_dir
         self.ext = ext
-        self.meta_ext = meta_ext
-        self.vcstore = vcstore
-       
-    # factory method to fetch an article store
-    @staticmethod
-    def get(config, plugins):
-        blogpath = config['YAWT_BLOGPATH']
-        article_root = yawt.util.get_abs_path(blogpath,
-                                              config['YAWT_PATH_TO_ARTICLES'])
-
-        repotype = config['YAWT_REPO_TYPE']
-        vcstore = None
-        if repotype is 'hg' or \
-                (repotype is 'auto' and os.path.isdir(os.path.join(blogpath,'.hg'))):
-            vcstore = HgStore(blogpath,
-                              config['YAWT_PATH_TO_ARTICLES'],
-                              config['YAWT_EXT'],
-                              config['YAWT_USE_UNCOMMITTED'])
-        elif repotype is 'git' or \
-                (repotype is 'auto' and os.path.isdir(os.path.join(blogpath,'.git'))):
-            vcstore = GitStore(blogpath,
-                               config['YAWT_PATH_TO_ARTICLES'],
-                               config['YAWT_EXT'],
-                               config['YAWT_USE_UNCOMMITTED'])
-        
-        return ArticleStore(plugins,
-                            vcstore,
-                            article_root,
-                            config['YAWT_EXT'],
-                            config['YAWT_META_EXT'])
-         
-    def fetch_articles_by_category(self, category):
-        """
-        Fetch collection of articles by category.
-        """
-        results = []
-        for af in self.walk_articles(category):
-            article = self.fetch_article_by_fullname(af)
-            results.append(article)
-        return sorted(results, key=lambda article: article.ctime, reverse=True)
-
-    def fetch_article_by_category_slug(self, category, slug):
-        """
-        Fetches a single article by category and slug, which together
-        constitues the article's fullname.  Returns None if the article
-        does not exist.
-        """
-        return self.fetch_article_by_fullname(os.path.join(category, slug))
-
-    def fetch_article_by_fullname(self, fullname):
-        """
-        Fetch single article info by fullname.
-        Returns None if no article exists
-        with that name.
-        """
-        filename = self._name2file(fullname)
-        if not os.path.exists(filename):
-            return None
-        
-        article = Article(self, fullname)
-        return self.plugins.on_article_fetch(article)
 
     def load_article(self, fullname):
         f = open(self._name2file(fullname), 'r')
@@ -205,53 +132,128 @@ class ArticleStore(object):
         local_meta = {}
         if hasattr(md, 'Meta') and md.Meta is not None:
             local_meta = md.Meta
-        return LoadedArticle(local_meta,
-                             self._fetch_external_metadata(fullname), 
-                             self._fetch_vc_metadata(fullname),
-                             self._fetch_file_metadata(fullname),
-                             markup)
+        LoadedArticle = namedtuple('LoadedArticle', 'meta, content')
+        return LoadedArticle(local_meta, markup) 
 
-    def article_exists(self, fullname):
-        return os.path.isfile(self._name2file(fullname))
+    def _name2file(self, fullname):
+        return os.path.join(self.root_dir, fullname + "." + self.ext)
 
-    def category_exists(self, fullname):
-        return os.path.isdir(self._name2dir(fullname))
-      
+
+class MarkdownArticleFactory(object):
+    def __init__(self, root_dir, ext):
+        self.root_dir = root_dir
+        self.ext = ext
+
+    def create_article(self, fullname, external_meta, file_meta, vc_meta):
+        return MarkdownArticle(MarkdownArticleLoader(self.root_dir, self.ext),
+                               fullname, self.ext, external_meta, file_meta, vc_meta)
+       
+        
+class ArticleStore(object):
+    """
+    interface to stored articles
+    """
+    def __init__(self, root_dir, exts, meta_ext,
+                       plugins=yawt.util.Plugins({}),
+                       vcstore=None):
+       
+        self.plugins = plugins
+        self.root_dir = root_dir
+        self.exts = exts
+        self.meta_ext = meta_ext
+        self.vcstore = vcstore
+
+        self.article_factories = {}
+
+        # the extensions passed in are specifically for Markdown Articles
+        for ext in self.exts:
+             self.article_factories[ext] = MarkdownArticleFactory(self.root_dir, ext)
+       
+    def add_article_factory(self, exts, factory):
+        for ext in exts:
+            self.article_factories[ext] = factory
+
+    def fetch_article_by_fullname(self, fullname):
+        """
+        Fetch single article info by fullname. Returns None if no article
+        exists with that name.
+        """
+        ext = self.article_exists(fullname)
+        if ext is None:
+            return None
+        
+        factory = self.article_factories[ext]
+        article = factory.create_article(fullname,
+                                         self._fetch_external_metadata(fullname),
+                                         self._fetch_file_metadata(fullname, ext),
+                                         self._fetch_vc_metadata(fullname,ext))
+        return self.plugins.on_article_fetch(article)
+
+    def fetch_article_by_category_slug(self, category, slug):
+        """
+        Fetches a single article by category and slug, which together
+        constitues the article's fullname.  Returns None if the article
+        does not exist.
+        """
+        return self.fetch_article_by_fullname(os.path.join(category, slug))
+    
+    def fetch_articles_by_category(self, category):
+        """
+        Fetch collection of articles by category.  Returns article objects,
+        not just fullnames.
+        """
+        articles = []
+        for af in self.walk_articles(category):
+            article = self.fetch_article_by_fullname(af)
+            articles.append(article)
+        return sorted(articles, key=lambda article: article.ctime, reverse=True)
+ 
+    def fetch_article_map_by_category(self, category):
+        """
+        Fetch collection of articles by category.  Returns article objects,
+        not just fullnames, keyed by extension
+        """
+        articles = self.fetch_articles_by_category(category)
+
+        results = {}
+        for article in articles:
+            if article.ext not in results:
+                results[article.ext] = []
+            results[article.ext].append(article)
+
+        return results
+
     def walk_articles(self, category=""):
         """
-        iterates over articles in category.  Yields fullnames.
+        Iterates over articles in category.  Yields fullnames. Note that if
+        you have the same file with different extensions, this will yield
+        the same fullname more than once.
         """
         start_path = os.path.join(self.root_dir, category)
         for dirpath, dirs, files in os.walk(start_path):
             for filename in self._articles_in_dirpath(dirpath, files):
                 yield self._file2name(filename)
 
+    def article_exists(self, fullname):
+        """
+        Return the extention of the article if it exists, otherwise return None
+        """
+        for ext in self.exts:
+            filename = self._name2file(fullname, ext)
+            if os.path.isfile(filename):
+                return ext
+        return None
+
+    def category_exists(self, fullname):
+        return os.path.isdir(self._name2dir(fullname))
+
     def _articles_in_dirpath(self, dirpath, files):
         return [os.path.abspath(os.path.join(dirpath, filename))
                 for filename in files if self._article_file(filename)]
 
-    def _fetch_vc_metadata(self, fullname):
-        if self.vcstore is None:
-            return {}
-        return self.vcstore.fetch_vc_info(fullname)
-       
-    def _fetch_file_metadata(self, fullname):
-        sr = os.stat(self._name2file(fullname))
-        mtime = ctime = sr.st_mtime
-        return {'ctime': ctime, 'mtime': mtime}
-
-    def _fetch_external_metadata(self, fullname):
-        md = {}
-        md_filename = self._name2metadata_file(fullname)
-        if os.path.isfile(md_filename):
-            f = open(md_filename, 'r')
-            md = yaml.load(f)
-            f.close()
-        return md
-    
-    def _name2file(self, fullname):
-        return os.path.join(self.root_dir, fullname + "." + self.ext)
-
+    def _name2file(self, fullname, ext):
+        return os.path.join(self.root_dir, fullname + "." + ext)
+ 
     def _name2metadata_file(self, fullname):
         return os.path.join(self.root_dir, fullname + "." + self.meta_ext)
 
@@ -267,15 +269,63 @@ class ArticleStore(object):
         return fullname
     
     def _article_file(self, slug):
-        indexfile = 'index.' + self.ext
-        return fnmatch.fnmatch(slug, "*." + self.ext) and slug != indexfile
+        for ext in self.exts:
+            indexfile = 'index.' + ext
+            if fnmatch.fnmatch(slug, "*." + ext) and slug != indexfile:
+                return True
+        return False
+
+    def _fetch_vc_metadata(self, fullname, ext):
+        if self.vcstore is None:
+            return {}
+        return self.vcstore.fetch_vc_info(fullname, ext)
+       
+    def _fetch_file_metadata(self, fullname, ext):
+        sr = os.stat(self._name2file(fullname, ext))
+        mtime = ctime = sr.st_mtime
+        return {'ctime': ctime, 'mtime': mtime}
+
+    def _fetch_external_metadata(self, fullname):
+        md = {}
+        md_filename = self._name2metadata_file(fullname)
+        if os.path.isfile(md_filename):
+            f = open(md_filename, 'r')
+            md = yaml.load(f)
+            f.close()
+        return md
+
+
+def create_store():
+    article_root = yawt.util.get_abs_path(g.config['YAWT_BLOGPATH'], 
+                                          g.config['YAWT_PATH_TO_ARTICLES'])
+    vcstore = _create_vc_store()
+    return ArticleStore(article_root,
+                        g.config['YAWT_EXT'],
+                        g.config['YAWT_META_EXT'],
+                        g.plugins,
+                        vcstore)
+    
+def _create_vc_store(): 
+    blogpath = g.config['YAWT_BLOGPATH']
+    repotype = g.config['YAWT_REPO_TYPE']
+    vcstore = None
+    if repotype is 'hg' or \
+            (repotype is 'auto' and os.path.isdir(os.path.join(blogpath,'.hg'))):
+        vcstore = HgStore(blogpath,
+                          g.config['YAWT_PATH_TO_ARTICLES'],
+                          g.config['YAWT_USE_UNCOMMITTED'])
+    elif repotype is 'git' or \
+            (repotype is 'auto' and os.path.isdir(os.path.join(blogpath,'.git'))):
+        vcstore = GitStore(blogpath,
+                           g.config['YAWT_PATH_TO_ARTICLES'],
+                           g.config['YAWT_USE_UNCOMMITTED'])
+    return vcstore
 
 
 class HgStore(object):
-    def __init__(self, repopath, contentpath, ext, use_uncommitted):
+    def __init__(self, repopath, contentpath, use_uncommitted):
         self.repopath = repopath
         self.contentpath = contentpath
-        self.ext = ext
         self.use_uncommitted = use_uncommitted
  
         self._revision_id = None
@@ -283,12 +333,12 @@ class HgStore(object):
         self._repo = None
         self._repo_initialized = False
 
-    def fetch_vc_info(self, fullname):
+    def fetch_vc_info(self, fullname, ext):
         self._init_repo()
         if self._repo is None:
             return {}
 
-        repofile = os.path.join(self.contentpath, fullname + '.' + self.ext)
+        repofile = os.path.join(self.contentpath, fullname + '.' + ext)
         fctx = self._revision[repofile]
         filelog = fctx.filelog()
         changesetcount = len(list(filelog))
@@ -324,22 +374,21 @@ class HgStore(object):
 
 
 class GitStore(object):
-    def __init__(self, repopath, contentpath, ext, use_uncommitted):
+    def __init__(self, repopath, contentpath, use_uncommitted):
         self.repopath = repopath
         self.contentpath = contentpath
-        self.ext = ext
         self.use_uncommitted = use_uncommitted
 
         self._git = None
         self._repo = None
         self._repo_initialized = False
 
-    def fetch_vc_info(self, fullname):
+    def fetch_vc_info(self, fullname, ext):
         self._init_repo()
         if self._repo is None or self._git is None:
             return {}
 
-        repofile = os.path.join(self.contentpath, fullname + '.' + self.ext)
+        repofile = os.path.join(self.contentpath, fullname + '.' + ext)
         hexshas = self._git.log('--pretty=%H','--follow','--', repofile).split('\n') 
         commits = [self._repo.rev_parse(c) for c in hexshas]
 

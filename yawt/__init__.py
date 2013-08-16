@@ -9,7 +9,7 @@ from flask import Flask, g, request, url_for
 from jinja2.loaders import ChoiceLoader
 from yawt.view import create_article_view, create_category_view, YawtLoader
 from yawt.util import get_abs_path, Plugins, load_yaml
-from yawt.article import ArticleStore
+from yawt.article import ArticleStore, create_store
 
 YAWT_LANG = 'YAWT_LANG'
 YAWT_BASE_URL = 'YAWT_BASE_URL'
@@ -25,6 +25,7 @@ YAWT_REPO_TYPE = 'YAWT_REPO_TYPE'
 YAWT_BLOGPATH = 'YAWT_BLOGPATH'
 YAWT_CONTENT_TYPES_RSS = 'application/rss+xml'
 YAWT_PLUGINS = 'YAWT_PLUGINS'
+YAWT_LOCATIONS = 'YAWT_LOCATIONS'
 
 default_config = {
     YAWT_LANG: 'en',
@@ -70,8 +71,8 @@ def _handle_path(path):
     else:
         return create_article_view().dispatch_request(flav, category, slug)
 
-def _load_config(blogpath):
-    config_file = os.path.join(blogpath, 'config.yaml')
+def _load_config(path):
+    config_file = os.path.join(path, 'config.yaml')
     try:
         return load_yaml(config_file)
     except IOError as e:
@@ -157,7 +158,15 @@ def create_app(blogpath=None):
 
     @app.before_request
     def before_request():
-        g.config = app.config
+        g.config = copy.deepcopy(app.config)
+
+        locations = app.config[YAWT_LOCATIONS]
+        for regex, config in locations.items():
+            p = re.compile(regex)
+            m = p.match(request.path)
+            if m:
+                g.config.update(config)
+
         g.plugins = app.plugins
-        g.store = ArticleStore.get(app.config, g.plugins)
+        g.store = create_store()
     return app

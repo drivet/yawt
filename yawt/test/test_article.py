@@ -2,51 +2,64 @@ import unittest
 from mock import patch, Mock
 import yawt
 import os.path
-from yawt.article import ArticleStore, LoadedArticle, Article
+from collections import namedtuple
+from yawt.article import ArticleStore, MarkdownArticle
 from yawt.test import fake_filesystem
 
 from flask import Markup
 
-class TestLoadedArticle(unittest.TestCase):
-    def test_local_metadata(self):
-        article = LoadedArticle(local_metadata = {'property1': ['bar']})
+class TestMarkdownArticleMetadata(unittest.TestCase):
+    def _create_loader(self, meta, content):
+        LoadedArticle = namedtuple('LoadedArticle', 'meta, content')
+        loader = Mock()
+        loader.load_article.return_value = LoadedArticle(meta, content)
+        return loader
+
+    def test_local_metadata_alone(self):
+        article = MarkdownArticle(self._create_loader({'property1': ['bar']}, ""))
         self.assertEquals(article.get_metadata('property1'), 'bar')
         
     def test_external_metadata(self):
-        article = LoadedArticle(external_metadata = {'property1': 'bar'})
+        article = MarkdownArticle(self._create_loader({}, ""), 
+                                  external_meta = {'property1': 'bar'})
         self.assertEquals(article.get_metadata('property1'), 'bar')
 
     def test_vc_metadata(self):
-        article = LoadedArticle(vc_metadata = {'property1': 'bar'})
+        article = MarkdownArticle(self._create_loader({}, ""), 
+                                  vc_meta = {'property1': 'bar'})
         self.assertEquals(article.get_metadata('property1'), 'bar')
+      
 
     def test_file_metadata(self):
-        article = LoadedArticle(file_metadata = {'property1': 'bar'})
+        article = MarkdownArticle(self._create_loader({}, ""), 
+                                  file_meta = {'property1': 'bar'})
         self.assertEquals(article.get_metadata('property1'), 'bar')
         
     def test_local_metadata_overrides_external_metadata(self):
-        article = LoadedArticle(local_metadata = {'property1': ['foo'],
-                                                  'property2':['hehe']},
-                                external_metadata = {'property1': 'bar',
-                                                     'property3': 'stuff'})
+        article = MarkdownArticle(self._create_loader({'property1': ['foo'],
+                                                       'property2':['hehe']}, ""),
+                                  external_meta = {'property1': 'bar',
+                                                   'property3': 'stuff'})
         self.assertEquals(article.get_metadata('property1'), 'foo')
         self.assertEquals(article.get_metadata('property2'), 'hehe')
         self.assertEquals(article.get_metadata('property3'), 'stuff')
         
     def test_external_metadata_overrides_vc_metadata(self):
-        article = LoadedArticle(external_metadata = {'property1': 'foo',
+        article = MarkdownArticle(self._create_loader({}, ""), 
+                                  external_meta = {'property1': 'foo',
                                                      'property2':'hehe'},                  
-                                vc_metadata = {'property1': 'bar',
-                                               'property3': 'stuff'})
+                                  vc_meta = {'property1': 'bar',
+                                             'property3': 'stuff'})
         self.assertEquals(article.get_metadata('property1'), 'foo')
         self.assertEquals(article.get_metadata('property2'), 'hehe')
         self.assertEquals(article.get_metadata('property3'), 'stuff')
         
     def test_vc_metadata_overrides_file_metadata(self):
-        article = LoadedArticle(vc_metadata = {'property1': 'foo',
-                                               'property2':'hehe'},                  
-                                file_metadata = {'property1': 'bar',
-                                                 'property3': 'stuff'})
+        article = MarkdownArticle(self._create_loader({}, ""), 
+                                  vc_meta = {'property1': 'foo',
+                                             'property2':'hehe'},                  
+                                  file_meta = {'property1': 'bar',
+                                               'property3': 'stuff'})
         self.assertEquals(article.get_metadata('property1'), 'foo')
         self.assertEquals(article.get_metadata('property2'), 'hehe')
         self.assertEquals(article.get_metadata('property3'), 'stuff')
@@ -55,33 +68,13 @@ class TestLoadedArticle(unittest.TestCase):
 class TestArticleStore(unittest.TestCase):     
     def setUp(self):
         self.root_dir = '/root_dir'
-        self.ext = 'txt'
+        self.exts = ['txt','jpg']
         self.meta_ext = 'meta'
-        self.plugins = yawt.util.Plugins({})
         self.vcstore = Mock()
         self.vcstore.fetch_vc_info.return_value = {'ctime': 0, 'mtime':0, 'author': 'dude'}
-        self.store = ArticleStore(self.plugins, self.vcstore, self.root_dir,
-                                  self.ext, self.meta_ext)
+        self.store = ArticleStore( self.root_dir, self.exts, self.meta_ext, vcstore=self.vcstore)
         self._patch_os()
         
-    def tearDown(self):
-        self._unpatch_os()
-        
-    def _patch_os(self):
-        self._fs = fake_filesystem.FakeFilesystem()
-        self._os = fake_filesystem.FakeOsModule(self._fs)
-        self._os_patcher = patch('yawt.article.os', self._os)
-        self._os_path_patcher = patch('yawt.article.os.path',self._os.path)
-        self._open_patcher = patch('__builtin__.open', fake_filesystem.FakeFileOpen(self._fs))
-        self._os_patcher.start() 
-        self._os_path_patcher.start()
-        self._open_patcher.start()
-
-    def _unpatch_os(self):
-        self._os_patcher.stop()
-        self._os_path_patcher.stop()
-        self._open_patcher.stop()
-
     def test_fetch_articles_by_category_no_results(self):
         articles = self.store.fetch_articles_by_category('category01')
         self.assertEquals(len(articles), 0)
@@ -127,7 +120,7 @@ class TestArticleStore(unittest.TestCase):
         self._assert_article(articles[9], 'cat03/entry11', 'cat03', 'entry11')
         self._assert_article(articles[10], 'entry01', '', 'entry01')
         
-        articles = self.store.fetch_articles_by_category('cat01')
+        articles = self.store.fetch_articles_by_category('cat01') 
         assert len(articles) == 6
         self._assert_article(articles[0], 'cat01/entry05', 'cat01', 'entry05')
         self._assert_article(articles[1], 'cat01/cat02/entry07', 'cat01/cat02', 'entry07')
@@ -136,18 +129,59 @@ class TestArticleStore(unittest.TestCase):
         self._assert_article(articles[4], 'cat01/entry03', 'cat01', 'entry03')
         self._assert_article(articles[5], 'cat01/cat02/entry06', 'cat01/cat02', 'entry06')
        
-        articles = self.store.fetch_articles_by_category('cat01/cat02')
+        articles = self.store.fetch_articles_by_category('cat01/cat02') 
         assert len(articles) == 3
         self._assert_article(articles[0], 'cat01/cat02/entry07', 'cat01/cat02', 'entry07')
         self._assert_article(articles[1], 'cat01/cat02/entry08', 'cat01/cat02', 'entry08')
         self._assert_article(articles[2], 'cat01/cat02/entry06', 'cat01/cat02', 'entry06')
 
-    def _setup_vc_store(self, vc_data):
-        def vc_fetcher(fullname):
-            return vc_data[fullname]
+    def test_fetch_articles_two_extensions(self):
+        self._create_entry_file('entry01', mtime=0, contents='', ext='txt')
+        self._create_entry_file('entry02', mtime=50, contents='', ext='txt')
+        self._create_entry_file('cat01/entry03', mtime=30, contents='', ext='jpg')
+        self._create_entry_file('cat01/entry04', mtime=20, contents='', ext='txt')
+        self._create_entry_file('cat01/entry05', mtime=90, contents='', ext='jpg')
+        self._create_entry_file('cat01/cat02/entry06', mtime=10, contents='', ext='jpg')
+        self._create_entry_file('cat01/cat02/entry07', mtime=100, contents='', ext='jpg')
+        self._create_entry_file('cat01/cat02/entry08', mtime=40, contents='', ext='txt')
+        self._create_entry_file('cat03/entry09', mtime=70, contents='', ext='jpg')
+        self._create_entry_file('cat03/entry10', mtime=80, contents='', ext='txt')
+        self._create_entry_file('cat03/entry11', mtime=60, contents='', ext='txt')
 
-        self.vcstore.fetch_vc_info.side_effect = vc_fetcher
-        
+        vc_data = {'entry01': {'ctime': 0, 'mtime': 0, 'author': 'dude'},
+                   'entry02': {'ctime':5, 'mtime':0, 'author': 'dude'},
+                   'cat01/entry03': {'ctime':4, 'mtime':0, 'author': 'dude'},
+                   'cat01/entry04': {'ctime':6, 'mtime': 0, 'author': 'dude'},
+                   'cat01/entry05': {'ctime':10, 'mtime': 00, 'author': 'dude'},
+                   'cat01/cat02/entry06': {'ctime':3, 'mtime': 00, 'author': 'dude'},
+                   'cat01/cat02/entry07': {'ctime':8, 'mtime': 00, 'author': 'dude'},
+                   'cat01/cat02/entry08': {'ctime':7, 'mtime': 00, 'author': 'dude'},
+                   'cat03/entry09': {'ctime':2, 'mtime': 00, 'author': 'dude'},
+                   'cat03/entry10': {'ctime':9, 'mtime': 00, 'author': 'dude'},
+                   'cat03/entry11': {'ctime':1, 'mtime': 00, 'author': 'dude'}}           
+        self._setup_vc_store(vc_data)
+        results = self.store.fetch_article_map_by_category('')
+        self.assertEquals(2, len(results.keys()))
+
+        articles = results['txt']
+        self.assertEquals(6, len(articles))
+        # entries are ordered by ctime, latest one first
+        self._assert_article(articles[0], 'cat03/entry10', 'cat03', 'entry10')
+        self._assert_article(articles[1], 'cat01/cat02/entry08', 'cat01/cat02', 'entry08')
+        self._assert_article(articles[2], 'cat01/entry04', 'cat01', 'entry04')
+        self._assert_article(articles[3], 'entry02', '', 'entry02')
+        self._assert_article(articles[4], 'cat03/entry11', 'cat03', 'entry11')
+        self._assert_article(articles[5], 'entry01', '', 'entry01')
+
+        articles = results['jpg']
+        self.assertEquals(5, len(articles))
+        # entries are ordered by ctime, latest one first
+        self._assert_article(articles[0], 'cat01/entry05', 'cat01', 'entry05')
+        self._assert_article(articles[1], 'cat01/cat02/entry07', 'cat01/cat02', 'entry07')
+        self._assert_article(articles[2], 'cat01/entry03', 'cat01', 'entry03')
+        self._assert_article(articles[3], 'cat01/cat02/entry06', 'cat01/cat02', 'entry06')
+        self._assert_article(articles[4], 'cat03/entry09', 'cat03', 'entry09')
+
     def test_fetch_article_by_category_and_slug(self):
         self._create_entry_file('cat01/entry03')
         article = self.store.fetch_article_by_category_slug('cat01', 'entry03')
@@ -278,9 +312,34 @@ class TestArticleStore(unittest.TestCase):
         article = self.store.fetch_article_by_fullname('entry01')
         self.assertEquals(article.ctime, 300)
         self.assertEquals(article.mtime, 500)
-               
-    def _create_entry_file(self, fullname, mtime=None, contents=None):
-        filename = self._make_filename(fullname)
+    
+    def tearDown(self):
+        self._unpatch_os()
+    
+    def _setup_vc_store(self, vc_data):
+        def vc_fetcher(fullname):
+            return vc_data[fullname]
+        self.vcstore.fetch_vc_info.side_effect = vc_fetcher
+         
+    def _patch_os(self):
+        self._fs = fake_filesystem.FakeFilesystem()
+        self._os = fake_filesystem.FakeOsModule(self._fs)
+        self._os_patcher = patch('yawt.article.os', self._os)
+        self._os_path_patcher = patch('yawt.article.os.path',self._os.path)
+        self._open_patcher = patch('__builtin__.open', fake_filesystem.FakeFileOpen(self._fs))
+        self._os_patcher.start() 
+        self._os_path_patcher.start()
+        self._open_patcher.start()
+
+    def _unpatch_os(self):
+        self._os_patcher.stop()
+        self._os_path_patcher.stop()
+        self._open_patcher.stop()
+ 
+    def _create_entry_file(self, fullname, mtime=None, contents=None, ext=None):
+        if ext is None:
+            ext = self.exts[0]
+        filename = self._make_filename(fullname, ext)
         self._fs.CreateFile(filename, contents=contents)
         if mtime is not None:
             self._os.utime(filename, (mtime, mtime))
@@ -290,8 +349,8 @@ class TestArticleStore(unittest.TestCase):
         self.assertEquals(article.category, category)
         self.assertEquals(article.slug, slug)
     
-    def _make_filename(self, fullname):
-        return os.path.join(self.root_dir, fullname + "." + self.ext)
+    def _make_filename(self, fullname, ext):
+        return os.path.join(self.root_dir, fullname + "." + ext)
 
     def _make_cat_folder(self, fullname):
         return os.path.join(self.root_dir, fullname)
