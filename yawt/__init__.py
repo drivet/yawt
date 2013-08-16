@@ -42,14 +42,6 @@ default_config = {
     YAWT_CONTENT_TYPES_RSS: 'application/rss+xml',
 }
 
-def _get_page_from_request():
-    page = 1
-    try:
-        page = int(request.args.get('page', '1'))
-    except ValueError:
-        page = 1
-    return page
-
 def _extract_article_info(path):
     p = re.compile(r'^(.*?)(/([^./]+)(\.([^/.]+))?)?$')
 
@@ -63,11 +55,8 @@ def _extract_article_info(path):
 
 def _handle_path(path):
     (category, slug, flav) = _extract_article_info(path)
-    if slug is None or slug == 'index':
-        page = _get_page_from_request()
-        return create_category_view().dispatch_request(flav, category, page,
-                                                       int(g.config[YAWT_PAGE_SIZE]),
-                                                       request.base_url)
+    if slug is None:
+        return create_category_view().dispatch_request(flav, category)
     else:
         return create_article_view().dispatch_request(flav, category, slug)
 

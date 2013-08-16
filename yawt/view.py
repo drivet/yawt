@@ -1,4 +1,5 @@
 from flask import render_template, g, make_response, request, redirect, url_for
+from flask.views import View
 from jinja2.loaders import BaseLoader, TemplateNotFound
 import os
 import re
@@ -183,6 +184,8 @@ class ArticleView(object):
     """
     Class for rendering YAWT article views, which are views meant
     to display just one entry on your blog or site.
+
+    Meant for paths that do not end in a slash or end in a *.flav 
     """
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
@@ -204,47 +207,54 @@ class ArticleView(object):
             return self._yawtview.render_article(flavour, article)
 
 
-def create_article_view():
-    return ArticleView(g.store, YawtView(g.plugins, yawt.util.get_content_types()))
+class ArticleListView(object):
+    def dispatch_request(self, flavour=None, category='', *args, **kwargs):        
+        articles = self._fetcher(category)
+        if len(articles) < 1:
+            return  self._yawtview.render_missing_resource()
+        else:
+            page_info = self._paging_info(articles)
+            title = self._title(*args, **kwargs)
+            return self._yawtview.render_collection(flavour, articles, title, page_info, category)
 
-class CategoryView(object):
+    def _paging_info(self, articles):
+        page = 1
+        try:
+            page = int(request.args.get('page', '1'))
+        except ValueError:
+            page = 1
+
+        page_size = int(g.config['YAWT_PAGE_SIZE'])
+        return PagingInfo(page, page_size, len(articles), request.base_url)
+    
+    def _title(self, *args, **kwargs):
+        return ''
+   
+class CategoryView(ArticleListView):
     """
     Class for rendering YAWT category view, which are views meant to display
     categories, which usually have a reverse time list of articles.
+
+    Meant for paths that end in a slash.  If there's an index file, we may
+    end up using that (note that if the user specified an index file
+    explicitly, we render the article view)
+    
     """
     def __init__(self, store, yawtview):
         self._yawtview = yawtview
+        self._fetcher = lambda c: store.fetch_articles_by_category(c) 
         self._store = store
-        
-    # Could render a category article, or if not then
-    # defaults to a list of posts
-    def dispatch_request(self, flavour, category,
-                         page=1, page_size=10, base_url='http://localhost'):
+
+    def dispatch_request(self, flavour, category):
         category_article = _join(category, 'index')
         if self._store.article_exists(category_article):
-            article = self._store.fetch_article_by_fullname(category_article)
-            # index file exists
             return self._yawtview.render_article(flavour, article)
         else:
-            # no index file.  Render an article list template with
-            # all the articles in the category sent to the template
-            articles = self._store.fetch_articles_by_category(category)
-            if len(articles) < 1:
-                return self._yawtview.render_missing_resource()
-            else:
-                page_info = PagingInfo(page, page_size, len(articles), base_url)
-                return self._render_collection(flavour, articles, category, page_info)
-                
-    def _render_collection(self, flavour, articles, category, page_info):
-        title = self._category_title(category)
-        return self._yawtview.render_collection(flavour, articles, '',
-                                                page_info, category)
-                                                      
-    def _category_title(self, category):
-        if category is None or len(category) == 0:
-            return ''
-        return ' :: '.join(category.split('/'))
+            return super(CategoryView, self).dispatch_request(flavour, category)
 
+
+def create_article_view():
+    return ArticleView(g.store, YawtView(g.plugins, yawt.util.get_content_types()))
 
 def create_category_view():
     return CategoryView(g.store, YawtView(g.plugins, yawt.util.get_content_types()))
