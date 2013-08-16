@@ -105,7 +105,6 @@ class IndexView(View):
 
 class ListIndexView(IndexView):
     def dispatch_request(self, flavour=None, category='', *args, **kwargs):
-        print str(flavour) + " " + str(category) + " " + str(args) + " " + str(kwargs)
         yawtview = YawtView(g.plugins, yawt.util.get_content_types())
         fetcher = ArticleFetcher(g.store, self._get_index_dir(), self._get_index_name())
         

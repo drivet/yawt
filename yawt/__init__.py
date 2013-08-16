@@ -11,19 +11,34 @@ from yawt.view import create_article_view, create_category_view, YawtLoader
 from yawt.util import get_abs_path, Plugins, load_yaml
 from yawt.article import ArticleStore
 
+YAWT_LANG = 'YAWT_LANG'
+YAWT_BASE_URL = 'YAWT_BASE_URL'
+YAWT_PAGE_SIZE = 'YAWT_PAGE_SIZE'
+YAWT_PATH_TO_TEMPLATES = 'YAWT_PATH_TO_TEMPLATE'
+YAWT_PATH_TO_ARTICLES = 'YAWT_PATH_TO_ARTICLES'
+YAWT_PATH_TO_STATIC = 'YAWT_PATH_TO_STATIC'
+YAWT_STATIC_URL = 'YAWT_STATIC_URL'
+YAWT_EXT = 'YAWT_EXT' 
+YAWT_META_EXT = 'YAWT_META_EXT'
+YAWT_USE_UNCOMMITTED = 'YAWT_USE_UNCOMMITTED'
+YAWT_REPO_TYPE = 'YAWT_REPO_TYPE'
+YAWT_BLOGPATH = 'YAWT_BLOGPATH'
+YAWT_CONTENT_TYPES_RSS = 'application/rss+xml'
+YAWT_PLUGINS = 'YAWT_PLUGINS'
+
 default_config = {
-    'YAWT_LANG': 'en',
-    'YAWT_BASE_URL': 'http://www.awesome.net/blog',
-    'YAWT_PAGE_SIZE': '10',
-    'YAWT_PATH_TO_TEMPLATES': 'templates',
-    'YAWT_PATH_TO_ARTICLES': 'entries',
-    'YAWT_PATH_TO_STATIC': 'static',
-    'YAWT_STATIC_URL': 'static',
-    'YAWT_EXT': 'txt',
-    'YAWT_META_EXT': 'meta',
-    'YAWT_USE_UNCOMMITTED': 'true',
-    'YAWT_REPO_TYPE': 'auto',
-    'YAWT_CONTENT_TYPES_RSS': 'application/rss+xml',
+    YAWT_LANG: 'en',
+    YAWT_BASE_URL: 'http://www.awesome.net/blog',
+    YAWT_PAGE_SIZE: '10',
+    YAWT_PATH_TO_TEMPLATES: 'templates',
+    YAWT_PATH_TO_ARTICLES: 'entries',
+    YAWT_PATH_TO_STATIC: 'static',
+    YAWT_STATIC_URL: 'static',
+    YAWT_EXT: 'txt',
+    YAWT_META_EXT: 'meta',
+    YAWT_USE_UNCOMMITTED: 'true',
+    YAWT_REPO_TYPE: 'auto',
+    YAWT_CONTENT_TYPES_RSS: 'application/rss+xml',
 }
 
 def _get_page_from_request():
@@ -45,6 +60,16 @@ def _extract_article_info(path):
     flavour = m.group(5)
     return (category, slug, flavour);
 
+def _handle_path(path):
+    (category, slug, flav) = _extract_article_info(path)
+    if slug is None or slug == 'index':
+        page = _get_page_from_request()
+        return create_category_view().dispatch_request(flav, category, page,
+                                                       int(g.config[YAWT_PAGE_SIZE]),
+                                                       request.base_url)
+    else:
+        return create_article_view().dispatch_request(flav, category, slug)
+
 def _load_config(blogpath):
     config_file = os.path.join(blogpath, 'config.yaml')
     try:
@@ -64,31 +89,23 @@ def _mod_config(app, mod, plugin_name):
 def create_app(blogpath=None):
     config = copy.deepcopy(default_config)
     config.update(_load_config(blogpath))
-    template_folder = get_abs_path(blogpath, config['YAWT_PATH_TO_TEMPLATES'])
-    static_folder = get_abs_path(blogpath, config['YAWT_PATH_TO_STATIC'])
-    static_url = config['YAWT_STATIC_URL']
+    template_folder = get_abs_path(blogpath, config[YAWT_PATH_TO_TEMPLATES])
+    static_folder = get_abs_path(blogpath, config[YAWT_PATH_TO_STATIC])
+    static_url = config[YAWT_STATIC_URL]
     app = Flask(__name__, template_folder=template_folder,
                 static_url_path=static_url,
                 static_folder=static_folder)
     app.debug = True
-    app.config['YAWT_BLOGPATH'] = blogpath
+    app.config[YAWT_BLOGPATH] = blogpath
     app.config.update(config)
  
     old_loader = app.jinja_loader
     app.jinja_loader = ChoiceLoader([YawtLoader(template_folder), old_loader])
-    
-    @app.route('/')
-    def home():
-        return _handle_path('')
-    
-    @app.route('/<path:path>')
-    def generic_path(path):
-        return _handle_path(path)
 
     plugins = {}
-    if 'YAWT_PLUGINS' in app.config:
-        for plugin_name in app.config['YAWT_PLUGINS']:
-            mod_name = app.config['YAWT_PLUGINS'][plugin_name]
+    if YAWT_PLUGINS in app.config:
+        for plugin_name in app.config[YAWT_PLUGINS]:
+            mod_name = app.config[YAWT_PLUGINS][plugin_name]
             __import__(mod_name)
             plugins[plugin_name] = sys.modules[mod_name]
            
@@ -102,17 +119,14 @@ def create_app(blogpath=None):
 #    for rule in app.url_map.iter_rules():
 #        print rule
 
-    def _handle_path(path):
-        (category, slug, flav) = _extract_article_info(path)
-        if slug is None or slug == 'index':
-            page = _get_page_from_request()
-            category_view = create_category_view()
-            return category_view.dispatch_request(flav, category, page,
-                                                  int(g.config['YAWT_PAGE_SIZE']),
-                                                  request.base_url)
-        else:
-            return create_article_view().dispatch_request(flav, category, slug)
-              
+    @app.route('/')
+    def home():
+        return _handle_path('')
+    
+    @app.route('/<path:path>')
+    def generic_path(path):
+        return _handle_path(path) 
+
     # filter for date and time formatting
     @app.template_filter('dateformat')
     def date_format(value, format='%H:%M / %d-%m-%Y'):
@@ -133,7 +147,7 @@ def create_app(blogpath=None):
     # make a usable url out of a site relative one
     @app.template_filter('url')
     def url(relative_url):
-        base_url = app.config['YAWT_BASE_URL'] or request.url_root
+        base_url = app.config[YAWT_BASE_URL] or request.url_root
         url = base_url.rstrip('/') + '/' + relative_url.lstrip('/')
         return url
 
