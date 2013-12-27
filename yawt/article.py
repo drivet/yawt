@@ -9,7 +9,7 @@ import yawt
 
 from werkzeug.utils import cached_property
 from collections import namedtuple
-from flask import Markup, g
+from flask import Markup
 from mercurial import hg, ui, cmdutil
 
       
@@ -296,8 +296,8 @@ class ArticleStore(object):
 
 
 def create_store(config, plugins):
-    article_root = yawt.util.get_abs_path(config['YAWT_BLOGPATH'], 
-                                          config['YAWT_PATH_TO_ARTICLES'])
+    article_root = yawt.fileutils.get_abs_path(config['YAWT_BLOGPATH'], 
+                                               config['YAWT_PATH_TO_ARTICLES'])
     vcstore = _create_vc_store(config)
     return ArticleStore(article_root,
                         config['YAWT_EXT'],

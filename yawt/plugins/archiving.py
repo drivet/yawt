@@ -1,17 +1,14 @@
-import yawt.util
 import os
-import yaml
+
 import datetime
+from flask import g, url_for, request
+from whoosh.fields import ID, DATETIME
 
-from whoosh.fields import Schema, STORED, ID, DATETIME, TEXT
-from whoosh.index import create_in, open_dir, exists_in
-from whoosh.qparser import QueryParser
-
-from yawt.view import YawtView, PagingInfo
+import yawt.util
 from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher, ListIndexView, IndexView
-from flask import g, url_for, request, current_app
-from werkzeug.routing import BaseConverter
-from flask.views import View
+from yawt.view import YawtView
+import yawt.fileutils
+
 
 def url_for_permalink(base, year, month, day, slug):
     if base:
@@ -89,6 +86,8 @@ class ArchivingPlugin(object):
             'INDEX_DIR': '_whoosh_index',
             'INDEX_NAME': 'archiving',
         }
+        self.app = None
+        self.name = ""
         
     def init(self, app, plugin_name):
         self.app = app
@@ -171,7 +170,7 @@ class ArchivingPlugin(object):
         return ArchiveIndexer(store, self._get_index_dir(), self._get_index_name())
 
     def _get_index_dir(self):
-        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['INDEX_DIR'])
+        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['INDEX_DIR'])
 
     def _get_index_name(self):
         return self._plugin_config()['INDEX_NAME']

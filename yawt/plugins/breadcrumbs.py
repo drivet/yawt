@@ -9,7 +9,9 @@ class BreadcrumbsPlugin(object):
     """
     def __init__(self):
         self.default_config = { 'MATCHPATHS_RE': [], 'NEGATE': 'false'}
-       
+        self.app = None
+        self.name = ""
+        
     def init(self, app, plugin_name):
         self.app = app
         self.name = plugin_name

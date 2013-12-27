@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 # pylint: disable-msg=W0612,W0613,C6409
+# pylint: disable-all
 
 """A fake filesystem implementation for unit testing.
 

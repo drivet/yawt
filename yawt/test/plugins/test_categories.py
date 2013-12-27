@@ -1,8 +1,10 @@
+# pylint: disable-all
 import unittest
 import yawt.util
 from mock import patch, Mock
 from yawt.plugins.categories import CategoryTree, CategoryNode, CategoryCounter, dict2tree, tree2dict
-from yawt.test import fake_filesystem
+from yawt.test.utils import FakeOs
+import yawt.fileutils
 
 class TestCategoryTree(unittest.TestCase): 
     def test_initial(self):
@@ -213,13 +215,14 @@ class TestCategoryTree(unittest.TestCase):
 
 class TestCategoryCounter(unittest.TestCase):
     def setUp(self):
-        self._patch_os()
+        self.fake_os = FakeOs('yawt.fileutils')
+        self.fake_os.start()
         
     def test_counter_starts_at_zero(self):
         category_counter = CategoryCounter('', '/category_dir/category_file')
         category_counter.pre_walk()
         category_counter.post_walk()
-        counts = yawt.util.load_yaml('/category_dir/category_file')
+        counts = yawt.fileutils.load_yaml('/category_dir/category_file')
         self.assertEquals(counts['category'], '')
         self.assertEquals(counts['count'], 0)
         self.assertEquals(counts['subcategories'], {})
@@ -230,7 +233,7 @@ class TestCategoryCounter(unittest.TestCase):
         category_counter.pre_walk()
         category_counter.visit_article('cooking/indian/madras')
         category_counter.post_walk()
-        counts = yawt.util.load_yaml('/category_dir/category_file')
+        counts = yawt.fileutils.load_yaml('/category_dir/category_file')
         self.assertEquals(counts['category'], '')
         self.assertEquals(counts['count'], 0)
         self.assertEquals(counts['subcategories'], {})
@@ -244,7 +247,7 @@ class TestCategoryCounter(unittest.TestCase):
         counter.visit_article('cooking/indian/vindaloo')
         counter.visit_article('cooking/asian/wonton')
         counter.post_walk()
-        counts = yawt.util.load_yaml('/category_dir/category_file')
+        counts = yawt.fileutils.load_yaml('/category_dir/category_file')
         
         self.assertEquals(counts['category'], '')
         self.assertEquals(counts['count'], 4)
@@ -262,22 +265,7 @@ class TestCategoryCounter(unittest.TestCase):
         self.assertEquals(asian['category'], 'asian')
         self.assertEquals(asian['count'], 1)
         self.assertEquals(asian['url'], 'asian/')
-        
-    def _patch_os(self):
-        self._fs = fake_filesystem.FakeFilesystem()
-        self._os = fake_filesystem.FakeOsModule(self._fs)
-        self._os_patcher = patch('yawt.util.os', self._os)
-        self._os_path_patcher = patch('yawt.util.os.path',self._os.path)
-        self._open_patcher = patch('__builtin__.open', fake_filesystem.FakeFileOpen(self._fs))
-        self._os_patcher.start() 
-        self._os_path_patcher.start()
-        self._open_patcher.start()
-
-    def _unpatch_os(self):
-        self._os_patcher.stop()
-        self._os_path_patcher.stop()
-        self._open_patcher.stop()
-
+   
     def tearDown(self):
-        self._unpatch_os()
+        self.fake_os.stop()
         

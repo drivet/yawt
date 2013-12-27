@@ -1,12 +1,13 @@
-import yawt.util
-
 import os
-import yaml
 import re
- 
-def dict2tree(dict):
+
+import yawt.util
+import yawt.fileutils
+
+
+def dict2tree(d):
     tree = CategoryTree()
-    tree.root = _dict2tree_r(dict)
+    tree.root = _dict2tree_r(d)
     return tree
 
 def _dict2tree_r(d):
@@ -84,7 +85,7 @@ class CategoryCounter(object):
         self._category_tree.add_item(category)
         
     def update(self, statuses):
-        category_counts = yawt.util.load_yaml(self._category_file)
+        category_counts = yawt.fileutils.load_yaml(self._category_file)
         self._category_tree = dict2tree(category_counts)
         
         for fullname in statuses.keys():
@@ -101,7 +102,7 @@ class CategoryCounter(object):
         self.post_walk()
         
     def post_walk(self):
-        yawt.util.save_yaml(self._category_file, tree2dict(self._category_tree.root))
+        yawt.fileutils.save_yaml(self._category_file, tree2dict(self._category_tree.root))
           
     def _get_category(self, fullname):
         relname = re.sub('^%s/' % (self._base), '', fullname)
@@ -114,18 +115,20 @@ class CategoriesPlugin(object):
             'CATEGORY_FILE': '_categories/categories.yaml',
             'BASE': ''
         }
-        
+        self.app = None
+        self.name = ""
+         
     def init(self, app, plugin_name):
         self.app = app
         self.name = plugin_name
 
     def template_vars(self):
-        def _prepend_base(dict, base):
-            dict['url'] = base + "/" + dict['url']
-            for subcat in dict['subcategories']:
-                 _prepend_base(dict['subcategories'][subcat], base)
+        def _prepend_base(d, base):
+            d['url'] = base + "/" + d['url']
+            for subcat in d['subcategories']:
+                _prepend_base(d['subcategories'][subcat], base)
             
-        categories = yawt.util.load_yaml(self._get_category_file())
+        categories = yawt.fileutils.load_yaml(self._get_category_file())
         _prepend_base(categories, self._get_category_base())
         return {'categories': categories}
 
@@ -139,10 +142,10 @@ class CategoriesPlugin(object):
         return self.app.config[self.name]
 
     def _get_category_dir(self):
-        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_DIR'])
+        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_DIR'])
 
     def _get_category_file(self):
-        return yawt.util.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_FILE'])
+        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_FILE'])
 
     def _get_category_base(self):
         base = self._plugin_config()['BASE'].strip()

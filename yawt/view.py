@@ -1,8 +1,6 @@
-from flask import render_template, g, make_response, request, redirect, url_for
-from flask.views import View
+from flask import render_template, g, make_response, request, redirect
 from jinja2.loaders import BaseLoader, TemplateNotFound
 import os
-import re
 import yawt
 
 default_article_template = """<html>
@@ -85,7 +83,8 @@ class YawtLoader(BaseLoader):
         return os.path.exists(self._file(template_name))
 
 
-def _render(template_base, flavour=None, template_vars={}, content_type=None, category=""):
+def _render(template_base, flavour=None, template_vars=None, content_type=None, category=""):
+    template_vars = template_vars or {}
     template_file = _join(category, template_base)
     if flavour is None:
         flavour = 'html'
@@ -123,6 +122,7 @@ class PagingInfo(object):
     page is 1 based.  start and end are 0 based.
     """
     def __init__(self, page, page_size, total_count, base_url):
+        self.base_url = base_url
         self.page_size = page_size
         self.page = page
         self.start = (self.page - 1) * self.page_size

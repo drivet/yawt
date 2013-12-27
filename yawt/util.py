@@ -1,6 +1,4 @@
-from flask import g
-import yaml
-import os
+from flask import g, request
 import re
 
 class Plugins(object):
@@ -47,36 +45,9 @@ class Date(object):
 def has_method(obj, method):
     return hasattr(obj, method) and callable(getattr(obj, method))
     
-def load_yaml(filename):
-    with open(filename, 'r') as f:
-        return yaml.load(f)
-
-def save_yaml(filename, obj):
-    _ensure_path(os.path.dirname(filename))
-    with open(filename, 'w') as f:
-        yaml.dump(obj, f)
-
-def save_string(filename, str):
-    _ensure_path(os.path.dirname(filename))
-    with open(filename, 'w') as f:
-        f.write(str)
-
-def get_abs_path(blogpath, path):
-    if os.path.isabs(path):
-        return path
-    else:
-        return os.path.join(blogpath, path)
-
-def get_abs_path_app(app, path):
-    return get_abs_path(app.config['YAWT_BLOGPATH'], path)
-
 def get_base_url(app):
     return app.config['YAWT_BASE_URL'] or request.url_root
         
-def _ensure_path(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
 def get_content_types():
     def _extract_type(key):
         m = re.compile('YAWT_CONTENT_TYPES_(.*)').match(key)

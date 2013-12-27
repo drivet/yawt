@@ -1,13 +1,15 @@
 import os
-import yawt.util
 
-from whoosh.fields import Schema, STORED, ID, DATETIME, TEXT
+from flask import g, current_app
+from flask.views import View
+from whoosh.fields import Schema, STORED, ID
 from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
-from flask.views import View
-from flask import g, request, url_for, current_app
 
-from yawt.view import YawtView, PagingInfo, ArticleListView
+import yawt.util
+from yawt.view import YawtView, ArticleListView
+import yawt.fileutils
+
 
 class ArticleIndexer(object):
     def __init__(self, store, index_dir, index_name, doc_root=None):
@@ -15,6 +17,7 @@ class ArticleIndexer(object):
         self._index_dir = index_dir
         self._index_name = index_name
         self._doc_root = doc_root
+        self._writer = None
 
     def pre_walk(self):
         self._writer = self._get_writer(clean = True)
@@ -98,7 +101,7 @@ class IndexView(View):
         self._plugin_config = plugin_config
 
     def _get_index_dir(self):
-        return yawt.util.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
+        return yawt.fileutils.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
 
     def _get_index_name(self):
         return self._plugin_config['INDEX_NAME']
@@ -119,4 +122,3 @@ class ListIndexView(ArticleListView, IndexView):
     
     def _query(self, *args, **kwargs):
         return ''
-

@@ -2,20 +2,23 @@ import os
 import re
 import sys
 import time
-import yaml
 import copy
+import yawt
 
 from flask import Flask, g, request, url_for
 from jinja2.loaders import ChoiceLoader
 from yawt.view import create_article_view, create_category_view, YawtLoader
-from yawt.util import get_abs_path, Plugins, load_yaml
-from yawt.article import ArticleStore, create_store
+from yawt.util import Plugins
+from yawt.article import create_store
+import yawt.fileutils
+
 
 YAWT_LANG = 'YAWT_LANG'
 YAWT_BASE_URL = 'YAWT_BASE_URL'
 YAWT_PAGE_SIZE = 'YAWT_PAGE_SIZE'
 YAWT_PATH_TO_TEMPLATES = 'YAWT_PATH_TO_TEMPLATE'
 YAWT_PATH_TO_ARTICLES = 'YAWT_PATH_TO_ARTICLES'
+YAWT_PATH_TO_DRAFTS = 'YAWT_PATH_TO_DRAFTS'
 YAWT_PATH_TO_STATIC = 'YAWT_PATH_TO_STATIC'
 YAWT_STATIC_URL = 'YAWT_STATIC_URL'
 YAWT_EXT = 'YAWT_EXT' 
@@ -33,8 +36,9 @@ default_config = {
     YAWT_PAGE_SIZE: '10',
     YAWT_PATH_TO_TEMPLATES: 'templates',
     YAWT_PATH_TO_ARTICLES: 'entries',
+    YAWT_PATH_TO_DRAFTS: 'drafts',
     YAWT_PATH_TO_STATIC: 'static',
-    YAWT_STATIC_URL: 'static',
+    YAWT_STATIC_URL: '/static',
     YAWT_EXT: ['txt'],
     YAWT_META_EXT: 'meta',
     YAWT_USE_UNCOMMITTED: 'true',
@@ -63,8 +67,8 @@ def _handle_path(path):
 def _load_config(path):
     config_file = os.path.join(path, 'config.yaml')
     try:
-        return load_yaml(config_file)
-    except IOError as e:
+        return yawt.fileutils.load_yaml(config_file)
+    except IOError:
         print 'Warning: could not load configuration at ' + config_file
         return {}
 
@@ -79,8 +83,8 @@ def _mod_config(app, mod, plugin_name):
 def create_app(blogpath=None):
     config = copy.deepcopy(default_config)
     config.update(_load_config(blogpath))
-    template_folder = get_abs_path(blogpath, config[YAWT_PATH_TO_TEMPLATES])
-    static_folder = get_abs_path(blogpath, config[YAWT_PATH_TO_STATIC])
+    template_folder = yawt.fileutils.get_abs_path(blogpath, config[YAWT_PATH_TO_TEMPLATES])
+    static_folder = yawt.fileutils.get_abs_path(blogpath, config[YAWT_PATH_TO_STATIC])
     static_url = config[YAWT_STATIC_URL]
     app = Flask(__name__, template_folder=template_folder,
                 static_url_path=static_url,
