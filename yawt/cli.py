@@ -20,31 +20,20 @@ class YawtCommand(Command):
         super(YawtCommand, self).handle(app, *args, **kwargs)
 
         
-class NewBlog(YawtCommand):
-    """
-    The newblog command will create take a directory and create a new
-    repository there.  In addition to the repository, you'll get a
-    couple of directories and files:
+class NewSite(YawtCommand):
+    """The newsite command will create take a directory and create a new site
+    there
 
-    newblog
+    newsite
     --> config.yaml
     --> content
     --> templates
 
-    The content directory is where you put your blog entries.  Alongside
-    the blog entries, you can put yaml metadata.  The yaml metadata file
-    extensions are defined in the config.yaml file.  The template directory
-    contains your templates.
+    The content directory is where you put your blog entries
 
-    All this will be checked into the repository.
     """
-    option_list = (
-        Option('--repotype', '-r', dest='repotype', default='hg'),
-    )
-    
-    def run(self, repotype="hg"):
+    def run(self):
         blogroot = self.app.config[yawt.YAWT_BLOGPATH]
-        repo = Repository(blogroot)
         repo.initialize(repotype, {
             'config.yaml': yaml.dump(yawt.default_config),
             'templates/404.html': yawt.view.default_404_template,
@@ -64,7 +53,7 @@ class NewPost(YawtCommand):
         Option('postname'),
         Option('--commit', '-c', dest='commit'),
         Option('--message', '-m', dest='message'),
-    )als
+    )
 
     
     def run(self, postname, commit = False, message = None):
@@ -182,7 +171,7 @@ def create_manager():
     manager.add_command('runserver', server)
     manager.add_command('walk', Walk())
     manager.add_command('update', Update())
-    manager.add_command('newblog', NewBlog())
+    manager.add_command('newsite', NewSite())
     manager.add_command('newpost', NewPost())
     manager.add_command('publish', Publish())
     manager.add_command('save', Save())

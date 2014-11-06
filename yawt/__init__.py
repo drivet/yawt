@@ -1,165 +1,95 @@
-import os
+from flask import Flask
 import re
+import os
 import sys
-import time
-import copy
-import yawt
+import jinja2
 
-from flask import Flask, g, request, url_for
-from jinja2.loaders import ChoiceLoader
-from yawt.view import create_article_view, create_category_view, YawtLoader
-from yawt.util import Plugins
-from yawt.article import create_store
-import yawt.fileutils
+# default configuration
+YAWT_LANG = 'en'
+YAWT_BASE_URL = 'http://www.awesome.net/blog'
+YAWT_CONTENT_FOLDER = 'content'
+YAWT_DEFAULT_FLAVOUR = 'html'
+YAWT_INDEX_FILE = 'index'
+YAWT_ARTICLE_TEMPLATE = 'article'
+YAWT_ARTICLE_EXTENSIONS = ['txt']
+YAWT_CONTENT_TYPE_RSS = 'application/rss+xml'
+YAWT_PLUGINS = []
 
+def get_content_types(config):
+    def extract_type(key):
+        m = re.compile('YAWT_CONTENT_TYPE_(.*)').match(key)
+        if m:
+            return (m.group(1).lower(), config[m.group(0)])
+        return None
+    return dict(filter(None, map(extract_type, config.keys())))
 
-YAWT_LANG = 'YAWT_LANG'
-YAWT_BASE_URL = 'YAWT_BASE_URL'
-YAWT_PAGE_SIZE = 'YAWT_PAGE_SIZE'
-YAWT_PATH_TO_TEMPLATES = 'YAWT_PATH_TO_TEMPLATE'
-YAWT_PATH_TO_ARTICLES = 'YAWT_PATH_TO_ARTICLES'
-YAWT_PATH_TO_DRAFTS = 'YAWT_PATH_TO_DRAFTS'
-YAWT_PATH_TO_STATIC = 'YAWT_PATH_TO_STATIC'
-YAWT_STATIC_URL = 'YAWT_STATIC_URL'
-YAWT_EXT = 'YAWT_EXT' 
-YAWT_META_EXT = 'YAWT_META_EXT'
-YAWT_USE_UNCOMMITTED = 'YAWT_USE_UNCOMMITTED'
-YAWT_REPO_TYPE = 'YAWT_REPO_TYPE'
-YAWT_BLOGPATH = 'YAWT_BLOGPATH'
-YAWT_CONTENT_TYPES_RSS = 'application/rss+xml'
-YAWT_PLUGINS = 'YAWT_PLUGINS'
-YAWT_LOCATIONS = 'YAWT_LOCATIONS'
-
-default_config = {
-    YAWT_LANG: 'en',
-    YAWT_BASE_URL: 'http://www.awesome.net/blog',
-    YAWT_PAGE_SIZE: '10',
-    YAWT_PATH_TO_TEMPLATES: 'templates',
-    YAWT_PATH_TO_ARTICLES: 'entries',
-    YAWT_PATH_TO_DRAFTS: 'drafts',
-    YAWT_PATH_TO_STATIC: 'static',
-    YAWT_STATIC_URL: '/static',
-    YAWT_EXT: ['txt'],
-    YAWT_META_EXT: 'meta',
-    YAWT_USE_UNCOMMITTED: 'true',
-    YAWT_REPO_TYPE: 'auto',
-    YAWT_CONTENT_TYPES_RSS: 'application/rss+xml',
-}
-
-def _extract_article_info(path):
-    p = re.compile(r'^(.*?)(/([^./]+)(\.([^/.]+))?)?$')
-
-    # path never starts with a slash, but the regex 
-    # is easier to use if it does
-    m = p.match('/' + path)
-    category = re.sub('^/', '', m.group(1)) # strip leading slash
-    slug = m.group(3)
-    flavour = m.group(5)
-    return (category, slug, flavour);
-
-def _handle_path(path):
-    (category, slug, flav) = _extract_article_info(path)
-    if slug is None:
-        return create_category_view().dispatch_request(flav, category)
+def configure_app(app, config):
+    app.config.from_object(__name__)
+    if config is None:
+        app.config.from_pyfile('config.py', silent=True)
     else:
-        return create_article_view().dispatch_request(flav, category, slug)
+        app.config.from_object(config)
+    app.content_types = get_content_types(app.config)
+     
+def create_app(root_dir, template_folder = 'templates', static_folder = 'static', 
+               static_url_path = '/static', config = None):
+    app = Flask(__name__, 
+                static_folder = os.path.join(root_dir, static_folder),
+                static_url_path = static_url_path, 
+                instance_path = root_dir,
+                instance_relative_config = True) 
+    app.yawt_root_dir = root_dir
+    app.yawt_template_folder = template_folder
+    app.yawt_static_folder = static_folder
+    app.yawt_static_url_path = static_url_path
 
-def _load_config(path):
-    config_file = os.path.join(path, 'config.yaml')
-    try:
-        return yawt.fileutils.load_yaml(config_file)
-    except IOError:
-        print 'Warning: could not load configuration at ' + config_file
-        return {}
+    path_to_templates = os.path.join(root_dir, template_folder)
+    app.jinja_loader = jinja2.FileSystemLoader(path_to_templates)
 
-def _mod_config(app, mod, plugin_name):
-    mod_config = {}
-    if hasattr(mod, 'default_config'):
-        mod_config = copy.deepcopy(mod.default_config)
-        if plugin_name in app.config:
-            mod_config.update(app.config[plugin_name])
-    return mod_config
-    
-def create_app(blogpath=None):
-    config = copy.deepcopy(default_config)
-    config.update(_load_config(blogpath))
-    template_folder = yawt.fileutils.get_abs_path(blogpath, config[YAWT_PATH_TO_TEMPLATES])
-    static_folder = yawt.fileutils.get_abs_path(blogpath, config[YAWT_PATH_TO_STATIC])
-    static_url = config[YAWT_STATIC_URL]
-    app = Flask(__name__, template_folder=template_folder,
-                static_url_path=static_url,
-                static_folder=static_folder)
-    app.debug = True
-    app.config[YAWT_BLOGPATH] = blogpath
-    app.config.update(config)
- 
-    old_loader = app.jinja_loader
-    app.jinja_loader = ChoiceLoader([YawtLoader(template_folder), old_loader])
+    with app.app_context():
+        configure_app(app, config)
+        PluginManager().load_plugins(app)
 
-    plugins = {}
-    if YAWT_PLUGINS in app.config:
-        for plugin_name in app.config[YAWT_PLUGINS]:
-            mod_name = app.config[YAWT_PLUGINS][plugin_name]
-            __import__(mod_name)
-            plugins[plugin_name] = sys.modules[mod_name]
-           
-            p = plugins[plugin_name].create_plugin()
-            app.config[plugin_name] = _mod_config(app, p, plugin_name)
-            p.init(app, plugin_name)
-            plugins[plugin_name] = p
-                
-    app.plugins = Plugins(plugins)
-
-#    for rule in app.url_map.iter_rules():
-#        print rule
-
-    @app.route('/')
-    def home():
-        return _handle_path('')
-    
-    @app.route('/<path:path>')
-    def generic_path(path):
-        return _handle_path(path) 
-
-    # filter for date and time formatting
-    @app.template_filter('dateformat')
-    def date_format(value, format='%H:%M / %d-%m-%Y'):
-        return time.strftime(format, value)
-
-    # filter to extract a part of an article
-    @app.template_filter('excerpt')
-    def excerpt(article, word_count=50):
-        words = article.content.split()[0:word_count]
-        words.append("[...]")
-        return " ".join(words)
- 
-    # filter to test for multi page 
-    @app.template_filter('is_multi_page')
-    def is_multi_page(total_pages):
-        return total_pages != 1
-  
-    # make a usable url out of a site relative one
-    @app.template_filter('url')
-    def url(relative_url):
-        base_url = app.config[YAWT_BASE_URL] or request.url_root
-        url = base_url.rstrip('/') + '/' + relative_url.lstrip('/')
-        return url
-
-    @app.template_filter('static')
-    def static(filename):
-        return url_for('static', filename=filename)
-
-    @app.before_request
-    def before_request():
-        g.config = copy.deepcopy(app.config)
-
-        locations = app.config[YAWT_LOCATIONS]
-        for regex, config in locations.items():
-            p = re.compile(regex)
-            m = p.match(request.path)
-            if m:
-                g.config.update(config)
-
-        g.plugins = app.plugins
-        g.store = create_store(g.config, g.plugins)
+        from yawt.main import yawtbp
+        app.register_blueprint(yawtbp)
     return app
+
+        
+class PluginManager(object):
+    def __init__(self):
+        self.plugins = None
+
+    def load_plugins(self, app):
+        """
+        Plugins are configured like this:
+        YAWT_PLUGINS = [('plugin_name1', 'module1.class'), 
+                        ('plugin_name2', 'module2.class')]
+        """
+        plugins = []
+        if 'YAWT_PLUGINS' in app.config:
+            for plugin_pair in app.config['YAWT_PLUGINS']:
+                plugin_name = plugin_pair[0]
+                full_class_string = plugin_pair[1]
+                class_obj = self.load_class(full_class_string)
+                plugin_instance = class_obj()
+                plugin_instance.init_app(app)
+                plugins.append((plugin_name, plugin_instance))
+        self.plugins = plugins
+        app.plugin_manager = self
+
+    def load_class(self, full_class_string):
+        """dynamically load a class from a string"""
+        mod_name, class_str = full_class_string.rsplit(".", 1)
+        __import__(mod_name)
+        module = sys.modules[mod_name]
+        return getattr(module, class_str)
+
+    def on_article_fetch(self, article):
+        for plugin_pair in self.plugins:
+            p = plugin_pair[1]
+            if has_method(p, 'on_article_fetch'):
+                article = p.on_article_fetch(article)
+        return article
+
+def has_method(obj, method):
+    return hasattr(obj, method) and callable(getattr(obj, method))
