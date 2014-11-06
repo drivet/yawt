@@ -5,16 +5,16 @@ from flask import current_app
 def _config(key):
     return current_app.config[key]
 
-class HgMetaPlugin(object):
+class HgPlugin(object):
     def init_app(self, app):
-        app.config.setdefault('YAWT_HG_META_REPOPATH', '')
-        app.config.setdefault('YAWT_HG_META_CONTENTPATH', '')
-        app.config.setdefault('YAWT_HG_META_USE_UNCOMMITTED', False)
+        app.config.setdefault('YAWT_HG_REPOPATH', '')
+        app.config.setdefault('YAWT_HG_CONTENTPATH', '')
+        app.config.setdefault('YAWT_HG_USE_UNCOMMITTED', False)
 
     def on_article_fetch(self, article):
-        store = HgStore(_config('YAWT_HG_META_REPOPATH'),
-                        _config('YAWT_HG_META_CONTENT_PATH'), 
-                        _config('YAWT_HG_META_USE_UNCOMMITTED') )
+        store = HgStore(_config('YAWT_HG_REPOPATH'),
+                        _config('YAWT_HG_CONTENT_PATH'), 
+                        _config('YAWT_HG_USE_UNCOMMITTED') )
         vc_info = store.fetch_vc_info(article.fullname, article.content_type)
         article.info.create_time = vc_info['create_time']
         article.info.modified_time = vc_info['modified_time']

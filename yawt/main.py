@@ -5,6 +5,8 @@ import time
 import re
 import os
 from yawt.article import FileBasedSiteManager
+from yawt.site_manager import YawtSiteManager
+
 
 def _config(key):
     return current_app.config[key]
@@ -46,11 +48,16 @@ def static(filename):
 @yawtbp.before_request
 def before_request():
     config = current_app.config
-    path_to_articles = os.path.join(current_app.yawt_root_dir, config['YAWT_CONTENT_FOLDER'])
 #    current_app.logger.debug('creating article store with path ' +  
 #                             path_to_articles + ' and extensions '+ 
 #                             str(config['YAWT_ARTICLE_EXTENSIONS']))
-    g.store = FileBasedSiteManager(path_to_articles, config['YAWT_ARTICLE_EXTENSIONS'])
+    g.store = FileBasedSiteManager(current_app.yawt_root_dir,
+                                   config['YAWT_DRAFT_FOLDER'],
+                                   config['YAWT_CONTENT_FOLDER'], 
+                                   config['YAWT_TEMPLATE_FOLDER'],
+                                   config['YAWT_ARTICLE_EXTENSIONS'])
+
+    g.site = YawtSiteManager(g.store, current_app.plugin_manager)
 
 def handle_path(path):
     """Returns template source corresponding to path
@@ -83,7 +90,7 @@ def handle_path(path):
 #    current_app.logger.debug('fullname: ' + fullname)
 #    current_app.logger.debug('flavour: ' + flavour)
     
-    article = fetch_article(fullname)
+    article = g.site.fetch_article(fullname)
     if article is None:
 #        current_app.logger.debug('no article found at ' + fullname + ', aborting with 404')
         abort(404)
@@ -123,10 +130,3 @@ def get_possible_templates(fullname, flavour):
         current_category = os.path.dirname(current_category)
     templates.append(article_template_base)
     return templates
-
-def fetch_article(fullname):
-#    current_app.logger.debug('fetching article ' +  fullname)
-    article = g.store.fetch_article_by_fullname(fullname)
-    if article is None:
-        return None
-    return current_app.plugin_manager.on_article_fetch(article)

@@ -5,13 +5,15 @@ import sys
 import jinja2
 
 # default configuration
-YAWT_LANG = 'en'
 YAWT_BASE_URL = 'http://www.awesome.net/blog'
 YAWT_CONTENT_FOLDER = 'content'
+YAWT_DRAFT_FOLDER = 'drafts'
+YAWT_TEMPLATE_FOLDER = 'templates'
 YAWT_DEFAULT_FLAVOUR = 'html'
 YAWT_INDEX_FILE = 'index'
 YAWT_ARTICLE_TEMPLATE = 'article'
 YAWT_ARTICLE_EXTENSIONS = ['txt']
+YAWT_DEFAULT_EXTENSION = 'txt'
 YAWT_CONTENT_TYPE_RSS = 'application/rss+xml'
 YAWT_PLUGINS = []
 
@@ -30,7 +32,7 @@ def configure_app(app, config):
     else:
         app.config.from_object(config)
     app.content_types = get_content_types(app.config)
-     
+
 def create_app(root_dir, template_folder = 'templates', static_folder = 'static', 
                static_url_path = '/static', config = None):
     app = Flask(__name__, 
@@ -83,13 +85,3 @@ class PluginManager(object):
         __import__(mod_name)
         module = sys.modules[mod_name]
         return getattr(module, class_str)
-
-    def on_article_fetch(self, article):
-        for plugin_pair in self.plugins:
-            p = plugin_pair[1]
-            if has_method(p, 'on_article_fetch'):
-                article = p.on_article_fetch(article)
-        return article
-
-def has_method(obj, method):
-    return hasattr(obj, method) and callable(getattr(obj, method))

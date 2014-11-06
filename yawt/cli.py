@@ -171,7 +171,7 @@ def create_manager():
     manager.add_command('runserver', server)
     manager.add_command('walk', Walk())
     manager.add_command('update', Update())
-    manager.add_command('newsite', NewSite())
+    manager.add_command('newblog', NewBlog())
     manager.add_command('newpost', NewPost())
     manager.add_command('publish', Publish())
     manager.add_command('save', Save())
