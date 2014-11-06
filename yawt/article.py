@@ -167,7 +167,7 @@ class ArticleStore(object):
 
         # the extensions passed in are specifically for Markdown Articles
         for ext in self.exts:
-             self.article_factories[ext] = MarkdownArticleFactory(self.root_dir, ext)
+            self.article_factories[ext] = MarkdownArticleFactory(self.root_dir, ext)
        
     def add_article_factory(self, exts, factory):
         for ext in exts:

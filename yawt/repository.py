@@ -20,11 +20,20 @@ class Repository:
 
         repoimpl = get_repo_impl(repotype)
         repoimpl.init(self.root)
-        self._add_and_commit_files("initial commit", files, repoimpl)
+        if files is not None:
+            self._add_files(files, repoimpl)
+            repoimpl.commit(self.root, "initial commit")
 
+    def add_contents(self, files):
+        repoimpl = detect_repo_impl(self.root)
+        if files is not None:
+            self._add_files(files, repoimpl)
+            
     def commit_contents(self, files):
         repoimpl = detect_repo_impl(self.root)
-        self._add_and_commit_files("initial commit", files, repoimpl)
+        if files is not None:
+            self._add_files(files, repoimpl)
+            repoimpl.commit(self.root, "initial commit")
 
     def save(self, message):
         repoimpl = detect_repo_impl(self.root)
@@ -35,18 +44,15 @@ class Repository:
         repoimpl.move(self.root, draftfile, postfile)
         repoimpl.commit(self.root, move_msg)
 
-    def _add_and_commit_files(self, message, files, repoimpl):
-        if files is not None:
-            for f in files:
-                path_to_file = join(self.root, f)
-                if path_to_file.endswith('/'):
-                    ensure_path(path_to_file)
-                else:
-                    save_string(path_to_file, files[f])
-
-            repoimpl.add(self.root, files.keys())
-            repoimpl.commit(self.root, message)
-
+    def _add_files(self, files, repoimpl):
+        for f in files:
+            path_to_file = join(self.root, f)
+            if path_to_file.endswith('/'):
+                ensure_path(path_to_file)
+            else:
+                save_string(path_to_file, files[f])
+        repoimpl.add(self.root, files.keys())
+                    
 
 def get_repo_impl(repotype):
     if repotype is "hg":

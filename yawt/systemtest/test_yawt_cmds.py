@@ -41,7 +41,14 @@ def _run_command_line_option_test(method_to_patch, argv, **expected_run_args):
 class TestCommands(unittest.TestCase):
     def get_path_to_blog(self):
         return "/tmp/testblog"
-
+        
+    def assert_file_added_to_hg_repo(self, blogroot, filename):
+        try:
+            data = subprocess.check_output(["hg", "--cwd", blogroot, "status", "-q"]) 
+        except subprocess.CalledProcessError:
+            self.fail("checking for hg status failed")
+        self.assertRegexpMatches(data, r"A " + filename)
+        
     def assert_file_in_last_hg_commit(self, message, blogroot, filename):
         try:
             (node, desc, files) = self.get_hg_commit_data(blogroot)           
@@ -50,7 +57,14 @@ class TestCommands(unittest.TestCase):
         self.assertTrue(node)
         self.assertEquals(message, desc)
         self.assertIn(filename, files.split())
-            
+        
+    def assert_no_commit_in_hg_repo(self, blogroot):
+        try:
+            data = subprocess.check_output(["hg", "--cwd", blogroot, "parent"]) 
+        except subprocess.CalledProcessError:
+            self.fail("checking for hg commit failed")
+        self.assertEquals(data, "")
+        
     def get_hg_commit_data(self, blogroot):
         template = "{node}|{desc}|{files}"
         data = subprocess.check_output(["hg", "--cwd", blogroot, "parent", 
@@ -58,6 +72,17 @@ class TestCommands(unittest.TestCase):
         tokens = data.split("|")
         return (tokens[0], tokens[1], tokens[2])
 
+    def assert_file_added_to_git_repo(self, blogroot, filename):
+        cwd = os.getcwd()
+        os.chdir(blogroot)
+        try:
+            data = subprocess.check_output(["git", "status", "--short"])
+        except subprocess.CalledProcessError:
+            self.fail("checking for git status failed")
+        finally:
+            os.chdir(cwd)
+        self.assertRegexpMatches(data, r"A  " + filename)
+            
     def assert_file_in_last_git_commit(self, message, blogroot, filename):
         cwd = os.getcwd()
         os.chdir(blogroot)
@@ -71,12 +96,24 @@ class TestCommands(unittest.TestCase):
         self.assertRegexpMatches(data, "^commit (.*)") 
         self.assertRegexpMatches(data, message)
         self.assertRegexpMatches(data, r"A|M\t" + filename)
+        
+    def assert_no_commit_in_git_repo(self, blogroot):
+        cwd = os.getcwd()
+        os.chdir(blogroot)
+        try:
+            data = subprocess.check_output(["git", "show", "--name-status"])
+        except subprocess.CalledProcessError:
+            self.fail("checking for git commit failed")
+        finally:
+            os.chdir(cwd)
+        self.assertEquals(data, "") 
 
     def tearDown(self):
         shutil.rmtree(self.get_path_to_blog(), ignore_errors=True)
-        #pass
 
+        
 class TestNewblogCommand(TestCommands):
+    """NewBlog command """
     def test_creates_blog_directory(self):
         blogroot = self.get_path_to_blog()
         self.assertFalse(exists(blogroot))
@@ -178,24 +215,65 @@ class TestNewblogCommand(TestCommands):
         self.assert_file_in_last_git_commit("initial commit", blogroot, 'templates/article_list.html')
 
 
-class TestNewpostCommand(TestCommands):
-    def test_new_post_committed_to_hg_repo_in_drafts(self):
+class TestNewpostCommand(TestCommands): 
+    """NewPost command """
+    def test_new_post_added_to_hg_repo_in_drafts(self):
         initialize(HgRepo(), self.get_path_to_blog())
         newpost = NewPost()
         newpost.app = FakeApp({yawt.YAWT_BLOGPATH: self.get_path_to_blog(),
                                yawt.YAWT_EXT: 'blog', 
                                yawt.YAWT_PATH_TO_DRAFTS: 'drafts'})
         newpost.run("a_new_post")
+        self.assert_no_commit_in_hg_repo(self.get_path_to_blog())
+        self.assert_file_added_to_hg_repo(self.get_path_to_blog(), 'drafts/a_new_post.blog')
+    
+    def test_new_post_committed_to_hg_repo_in_drafts(self):
+        initialize(HgRepo(), self.get_path_to_blog())
+        newpost = NewPost()
+        newpost.app = FakeApp({yawt.YAWT_BLOGPATH: self.get_path_to_blog(),
+                               yawt.YAWT_EXT: 'blog', 
+                               yawt.YAWT_PATH_TO_DRAFTS: 'drafts'})
+        newpost.run("a_new_post", commit=True)
         self.assert_file_in_last_hg_commit("initial commit", self.get_path_to_blog(), 'drafts/a_new_post.blog')
- 
-    def test_new_post_committed_to_git_repo_in_drafts(self):
+
+    def test_new_post_added_to_git_repo_in_drafts(self):
         initialize(GitRepo(), self.get_path_to_blog())
         newpost = NewPost()
         newpost.app = FakeApp({yawt.YAWT_BLOGPATH: self.get_path_to_blog(),
                                yawt.YAWT_EXT: 'blog', 
                                yawt.YAWT_PATH_TO_DRAFTS: 'drafts'})
         newpost.run("a_new_post")
+#        self.assert_no_commit_in_git_repo(self.get_path_to_blog())
+        self.assert_file_added_to_git_repo(self.get_path_to_blog(), 'drafts/a_new_post.blog')
+
+    def test_new_post_committed_to_git_repo_in_drafts(self):
+        initialize(GitRepo(), self.get_path_to_blog())
+        newpost = NewPost()
+        newpost.app = FakeApp({yawt.YAWT_BLOGPATH: self.get_path_to_blog(),
+                               yawt.YAWT_EXT: 'blog', 
+                               yawt.YAWT_PATH_TO_DRAFTS: 'drafts'})
+        newpost.run("a_new_post", commit=True)
         self.assert_file_in_last_git_commit("initial commit", self.get_path_to_blog(), 'drafts/a_new_post.blog')
+
+
+class TestNewPostCommandLineArguments(TestCommands):
+    """NewPost command line arguments"""
+    def setUp(self):  
+        initialize(HgRepo(), self.get_path_to_blog(), 
+                   files={"config.yaml": yaml.dump(yawt.default_config),
+                          "contents/": None})
+        self.saved_argv = sys.argv
+
+    def test_postname_command_line_arg_is_passed_to_newpost_cmd(self):
+        retval = _run_command_line_option_test("yawt.cli.NewPost.run",
+                                               ['yawt', 'newpost', '-b', self.get_path_to_blog(), "a_new_post"],
+                                               commit=None, message=None,postname="a_new_post")
+        self.assertEquals(0, retval)
+
+    def tearDown(self):
+        super(TestNewPostCommandLineArguments, self).tearDown()
+        sys.argv = self.saved_argv
+
         
 class TestSaveCommand(TestCommands):
     def test_save_committed_to_hg_repo(self):
@@ -228,6 +306,30 @@ class TestSaveCommand(TestCommands):
             contents = f.read()
         self.assertEquals("contents1\nmore stuff", contents)
 
+
+class TestSaveCommandLineArguments(TestCommands):
+    def setUp(self):  
+        initialize(HgRepo(), self.get_path_to_blog(), 
+                   files={"config.yaml": yaml.dump(yawt.default_config)})
+        self.saved_argv = sys.argv
+  
+    def test_message_command_line_arg_is_passed_to_save_cmd(self):
+        retval = _run_command_line_option_test("yawt.cli.Save.run",
+                                               ['yawt', 'save', '-b', self.get_path_to_blog(), "-m", "awesome message"],
+                                               message="awesome message")
+        self.assertEquals(0, retval)
+
+    def test_message_command_line_arg_is_optional(self):
+        retval = _run_command_line_option_test("yawt.cli.Save.run",
+                                               ['yawt', 'save', '-b', self.get_path_to_blog()],
+                                               message=None)
+        self.assertEquals(0, retval)
+
+    def tearDown(self):
+        super(TestSaveCommandLineArguments, self).tearDown()
+        sys.argv = self.saved_argv
+
+        
 class TestPublishCommand(TestCommands):
     def test_publish_creates_new_move_commit_with_draft_to_post_in_hg_repo(self):
         initialize(HgRepo(), self.get_path_to_blog(), files={"drafts/draftpost.blog": "contents1\n",
@@ -255,7 +357,7 @@ class TestPublishCommand(TestCommands):
                                            self.get_path_to_blog(), 
                                            "contents/blah/newpost.blog")
 
-class TestYawtInfoCommandLineArguments(TestCommands):
+class TestInfoCommandLineArguments(TestCommands):
     def setUp(self):
         initialize(HgRepo(), self.get_path_to_blog(), 
                         files={"config.yaml": yaml.dump(yawt.default_config),
@@ -270,10 +372,11 @@ class TestYawtInfoCommandLineArguments(TestCommands):
         self.assertEquals(0, retval)
 
     def tearDown(self):
-        super(TestYawtInfoCommandLineArguments, self).tearDown()
+        super(TestInfoCommandLineArguments, self).tearDown()
         sys.argv = self.saved_argv
 
 class TestNewBlogCommandLineArguments(TestCommands):
+    """NewBlog command line arguments"""
     def setUp(self):
         self.saved_argv = sys.argv
 
@@ -314,45 +417,7 @@ class TestNewBlogCommandLineArguments(TestCommands):
         super(TestNewBlogCommandLineArguments, self).tearDown()
         sys.argv = self.saved_argv
 
-class TestNewPostCommandLineArguments(TestCommands):
-    def setUp(self):  
-        initialize(HgRepo(), self.get_path_to_blog(), 
-                   files={"config.yaml": yaml.dump(yawt.default_config),
-                          "contents/": None})
-        self.saved_argv = sys.argv
-
-    def test_postname_command_line_arg_is_passed_to_newpost_cmd(self):
-        retval = _run_command_line_option_test("yawt.cli.NewPost.run",
-                                      ['yawt', 'newpost', '-b', self.get_path_to_blog(), "a_new_post"],
-                                      postname="a_new_post")
-        self.assertEquals(0, retval)
-
-    def tearDown(self):
-        super(TestNewPostCommandLineArguments, self).tearDown()
-        sys.argv = self.saved_argv
-
-class TestSaveCommandLineArguments(TestCommands):
-    def setUp(self):  
-        initialize(HgRepo(), self.get_path_to_blog(), 
-                   files={"config.yaml": yaml.dump(yawt.default_config)})
-        self.saved_argv = sys.argv
-  
-    def test_message_command_line_arg_is_passed_to_save_cmd(self):
-        retval = _run_command_line_option_test("yawt.cli.Save.run",
-                                               ['yawt', 'save', '-b', self.get_path_to_blog(), "-m", "awesome message"],
-                                               message="awesome message")
-        self.assertEquals(0, retval)
-
-    def test_message_command_line_arg_is_optional(self):
-        retval = _run_command_line_option_test("yawt.cli.Save.run",
-                                               ['yawt', 'save', '-b', self.get_path_to_blog()],
-                                               message=None)
-        self.assertEquals(0, retval)
-
-    def tearDown(self):
-        super(TestSaveCommandLineArguments, self).tearDown()
-        sys.argv = self.saved_argv
-
+        
 class TestPublishCommandLineArguments(TestCommands):
     def setUp(self):  
         initialize(HgRepo(), self.get_path_to_blog(), 

@@ -57,19 +57,27 @@ class NewBlog(YawtCommand):
 
 class NewPost(YawtCommand):
     """
-    Creates empty new post in the draft folder and commits it.
+    Creates empty new post in the draft folder and 
+    optionally commits it.
     """
     option_list = (
         Option('postname'),
-    )
+        Option('--commit', '-c', dest='commit'),
+        Option('--message', '-m', dest='message'),
+    )als
+
     
-    def run(self, postname): 
+    def run(self, postname, commit = False, message = None):
         blogroot = self.app.config[yawt.YAWT_BLOGPATH]
         repo = Repository(blogroot)
         ext = self.app.config[yawt.YAWT_EXT]
         drafts = self.app.config[yawt.YAWT_PATH_TO_DRAFTS]
         fullpostname = drafts + "/" + postname + "." + ext
-        repo.commit_contents({fullpostname: ""})
+        message = message or "saved on " + time.strftime("%d/%m/%Y %H:%M:%S")
+        if commit:
+            repo.commit_contents({fullpostname: ""})
+        else:
+            repo.add_contents({fullpostname: ""})
 
 class Save(YawtCommand):
     """
@@ -181,6 +189,3 @@ def create_manager():
     manager.add_command('info', Info())
      
     return manager
-
-if __name__ == '__main__':
-    create_manager().run()
