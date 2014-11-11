@@ -41,6 +41,14 @@ class FileBasedSiteManager(object):
         self.save_template('404', 'html', yawt.default_templates.default_404_template)
 
         return ['config.py', 'article.html', '404.html']
+ 
+    def fetch_article_by_repofile(self, repofile):
+        """Fetch single article info by repofile (path starting from root of
+        repository). Returns None if no article exists with that name.
+        """
+        if not self.is_article(repofile):
+            return None
+        return self.fetch_article_by_fullname(self._file2name(repofile))
 
     def fetch_article_by_fullname(self, fullname):
         """Fetch single article info by fullname. Returns None if no article
@@ -133,8 +141,15 @@ class FileBasedSiteManager(object):
         """Return True if fullname refers to category on disk"""
         return os.path.isdir(os.path.join(self._content_root(), fullname))
 
+    def is_article(self, repofile):
+        """Return True if repo refers to an article file"""
+        prefix = self._content_root()
+        if not prefix.endswith('/'):
+            prefix += '/'
+        return repofile.startswith(prefix)
+ 
     def walk(self, category=""):
-        """Yields fullnames. """
+        """Yields fullnames"""
         start_path = os.path.join(self._content_root(), category)
         for directory, basedirs, basefiles in os.walk(start_path):
             for filename in self._articles_in_directory(directory, basefiles):

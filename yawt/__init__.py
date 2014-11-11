@@ -47,17 +47,21 @@ def create_app(root_dir, template_folder = 'templates', static_folder = 'static'
 
     path_to_templates = os.path.join(root_dir, template_folder)
     app.jinja_loader = jinja2.FileSystemLoader(path_to_templates)
+    
+    configure_app(app, config)
+    PluginManager().load_plugins(app)
 
-    with app.app_context():
-        configure_app(app, config)
-        PluginManager().load_plugins(app)
+    from yawt.main import yawtbp
+    app.register_blueprint(yawtbp)
 
-        from yawt.main import yawtbp
-        app.register_blueprint(yawtbp)
     return app
 
         
 class PluginManager(object):
+    """Plugins in YAWT are kinda like application "drawers".  They are still
+    considered aprt of the app, but they tuck away various things out of
+    sight.
+    """
     def __init__(self):
         self.plugins = None
 

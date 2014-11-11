@@ -15,35 +15,35 @@ class YawtSiteManager(object):
         if article is None:
             return None
         return self._on_article_fetch(article)
+
+    def walk(self):
+        self._call_plugins('pre_walk')
+        for fullname in self.site_manager.walk():
+            article = self.fetch_article(fullname)
+            self._call_plugins('visit_article', article)
+        self._call_plugins('post_walk')
+
+    def files_added(self, files):
+        for f in files:
+            self._call_plugins('on_file_add', f)
+            if self.site_manager.is_article(f):
+                article = self.site_manager.fetch_article_by_repofile(f)
+                self._call_plugins('on_article_add', article)
+
+    def files_modified(self, files):
+        for f in files:
+            self._call_plugins('on_file_modify', f)
+            if self.site_manager.is_article(f):
+                article = self.site_manager.fetch_article_by_repofile(f)
+                self._call_plugins('on_article_modify', article)
  
-    def save_draft(self, name, extension, content):
-        self.site_manager.save_draft(name, extension, content)
-        self._call_plugins('on_save_draft', name, extension, content)
+    def files_deleted(self, files):
+        for f in files:
+            self._call_plugins('on_file_delete', f)
+            if self.site_manager.is_article(f):
+                article = self.site_manager.fetch_article_by_repofile(f)
+                self._call_plugins('on_article_delete', article)
  
-    def save_article(self, fullname, extension, content):
-        self.site_manager.save_article(fullname, extension, content)
-        self._call_plugins('on_save_article', fullname, extension, content)
- 
-    def publish(self, draftname, fullname):
-        self.site_manager.publish(draftname, fullname)
-        self._call_plugins('on_publish', draftname, fullname)
-
-    def move_draft(self, oldname, newname):
-        self.site_manager.move_draft(oldname, newname)
-        self._call_plugins('on_move_draft', oldname, newname)
-
-    def move_article(self, oldname, newname):
-        self.site_manager.move_article(oldname, newname)
-        self._call_plugins('on_move_article', oldname, newname)
-
-    def delete_draft(self, name):
-        self.site_manager.delete_draft(name)
-        self._call_plugins('on_delete_draft', name)
-
-    def delete_article(self, name):
-        self.site_manager.delete_article(name)
-        self._call_plugins('on_delete_article', name)
-
     def _on_article_fetch(self, article):
         for plugin_pair in self._plugins():
             p = plugin_pair[1]

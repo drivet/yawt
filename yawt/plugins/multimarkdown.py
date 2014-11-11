@@ -25,4 +25,4 @@ def load_markdown(file_contents):
     if hasattr(md, 'Meta') and md.Meta is not None:
         meta = md.Meta
     return (meta, markup)
- 
+
