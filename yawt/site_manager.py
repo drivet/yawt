@@ -1,10 +1,10 @@
+from flask import current_app
 
 class YawtSiteManager(object):
     """Wrapper around the file based site manager that knows about the plugins
     """
-    def __init__(self, site_manager, plugin_manager):
+    def __init__(self, site_manager):
         self.site_manager = site_manager
-        self.plugin_manager = plugin_manager
 
     def new_site(self):
         files = self.site_manager.initialize()
@@ -45,27 +45,27 @@ class YawtSiteManager(object):
                 self._call_plugins('on_article_delete', article)
  
     def _on_article_fetch(self, article):
-        for plugin_pair in self._plugins():
-            p = plugin_pair[1]
-            if has_method(p, 'on_article_fetch'):
-                article = p.on_article_fetch(article)
+        for ext in self._extensions():
+            if has_method(ext, 'on_article_fetch'):
+                article = ext.on_article_fetch(article)
         return article
 
     def _on_new_site(self, files):
-        for plugin_pair in self._plugins():
-            p = plugin_pair[1]
-            if has_method(p, 'on_new_site'):
-                files = p.on_new_site(files)
+        for ext in self._extensions():
+            if has_method(ext, 'on_new_site'):
+                files = ext.on_new_site(files)
         return files
         
     def _call_plugins(self, method, *args, **kw):
-        for plugin_pair in self._plugins():
-            p = plugin_pair[1]
-            if has_method(p, method):
-                getattr(p, method)(*args, **kw)
+        for ext in self._extensions():
+            if has_method(ext, method):
+                getattr(ext, method)(*args, **kw)
 
-    def _plugins(self):
-        return self.plugin_manager.plugins
+    def _extensions(self):
+        if current_app.extension_info:
+            return current_app.extension_info[1]
+        else:
+            return []
 
 
 def has_method(obj, method):

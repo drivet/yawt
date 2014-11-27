@@ -57,7 +57,7 @@ def before_request():
                                    config['YAWT_TEMPLATE_FOLDER'],
                                    config['YAWT_ARTICLE_EXTENSIONS'])
 
-    g.site = YawtSiteManager(g.store, current_app.plugin_manager)
+    g.site = YawtSiteManager(g.store)
 
 def handle_path(path):
     """Returns template source corresponding to path

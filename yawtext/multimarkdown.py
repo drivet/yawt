@@ -1,7 +1,12 @@
 import markdown
 from flask import Markup, current_app
 
-class MarkdownPlugin(object):
+class YawtMarkdown(object):
+    def __init__(self,app=None):
+        self.app = app
+        if app is not None:
+            self.init_app(app)
+
     def init_app(self, app):
         app.config.setdefault('YAWT_MULTIMARKDOWN_FILE_EXTENSIONS', ['md'])
         app.config.setdefault('YAWT_MULTIMARKDOWN_EXTENSIONS', ['meta'])
