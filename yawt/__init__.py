@@ -32,8 +32,8 @@ def configure_app(app, config):
 
 def load_extension_info():
     try:
-        import yawtext
-        return yawtext.extension_info
+        import ext
+        return ext.extension_info
     except ImportError:
         return None
 
@@ -42,8 +42,10 @@ def load_extensions(app, extension_info):
         app.extension_info = load_extension_info()
     else:
         app.extension_info = extension_info
-    init_app_fn = app.extension_info[2]
-    init_app_fn(app)
+
+    if app.extension_info:
+        init_app_fn = app.extension_info[2]
+        init_app_fn(app)
 
 def create_app(root_dir,
                template_folder = 'templates', 

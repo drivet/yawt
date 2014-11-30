@@ -70,15 +70,10 @@ class SomeConfig(object):
     YAWT_ARTICLE_TEMPLATE = 'entry'
     YAWT_ARTICLE_EXTENSIONS = ['rst']
 
+
 class ConfigFlav1(object):
     YAWT_CONTENT_TYPE_FLAV1 = 'text/x-markdown'
 
-class Plugin1Config(object):
-    YAWT_PLUGINS = [('plugin1','yawt.systemtest.yawt_tests.Plugin1')]
-
-class CombinedPluginConfig(object):
-    YAWT_PLUGINS = [('plugin1','yawt.systemtest.yawt_tests.Plugin1'),
-                    ('plugin2','yawt.systemtest.yawt_tests.Plugin2')]
 
 class Plugin1(object):
     def init_app(self, app):
@@ -95,6 +90,23 @@ class Plugin2(object):
     def on_article_fetch(self, article):
         article.info.foo = 2
         return article
+
+plugin1 = Plugin1()
+plugin2 = Plugin2()
+
+extension_info_plugin1 = ({'plugin1': plugin1}, 
+                          [plugin1],
+                          lambda app: plugin1.init_app(app))
+
+def plugin1_2_init_app():
+    def init(app):
+        plugin1.init_app(app)
+        plugin2.init_app(app)
+    return init
+
+extension_info_plugin1_2 = ({'plugin1': plugin1, 'plugin2': plugin2}, 
+                            [plugin1, plugin2],
+                            plugin1_2_init_app())
 
 class YawtSystemLevelTests(unittest.TestCase):
     """
@@ -277,7 +289,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         self.assertRegexpMatches(rv.data, 'modified_time: .+')
 
     def test_plugin_run_when_article_fetched(self):
-        self.app = yawt.create_app(self.root_dir, config = Plugin1Config())
+        self.app = yawt.create_app(self.root_dir, extension_info=extension_info_plugin1)
         self.app.config['DEBUG'] = True
         self.client = self.app.test_client()
         self._save_template('article.html', foo_article_tmpl)
@@ -286,7 +298,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         assert 'foo: 1' in rv.data
  
     def test_last_plugin_wins_when_article_fetched(self):
-        self.app = yawt.create_app(self.root_dir, config = CombinedPluginConfig())
+        self.app = yawt.create_app(self.root_dir, extension_info=extension_info_plugin1_2)
         self.app.config['DEBUG'] = True
         self.client = self.app.test_client()
         self._save_template('article.html', foo_article_tmpl)

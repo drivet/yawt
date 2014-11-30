@@ -1,6 +1,5 @@
 import os
 
-        
 def load_file(filename):
     with open(filename, 'r') as f:
         file_contents = f.read()

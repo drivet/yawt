@@ -62,7 +62,7 @@ class ArticleIndexer(object):
             ix = create_in(self._index_dir, schema = schema,
                            indexname = self._index_name)
         else:
-            ix = open_dir(self._index_dir, indexname = self._index_name)        
+            ix = open_dir(self._index_dir, indexname = self._index_name)
         return ix.writer()
 
     def _get_article_fields(self):

@@ -24,7 +24,9 @@ setup(
     platforms='any',
     install_requires=[
         'Flask',
+        'Flask-Script',
         'Markdown',
+        'Whoosh',
         'Flask-Git'
     ],
     classifiers=[
