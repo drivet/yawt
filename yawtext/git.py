@@ -26,11 +26,11 @@ class YawtGit(object):
     def fetch_vc_info(self, fullname, ext):
         repofile = os.path.join(_config('YAWT_CONTENT_FOLDER'), fullname + '.' + ext)
         git_manager = current_app.extension_info[0]['git']
-        rev_commit_gen = git_manager.commits_for_path(repofile, reverse=True)
+        rev_commit_gen = git_manager.commits_for_path_recent_last(repofile)
         first_commit = next(rev_commit_gen, None)
         if first_commit is None:
             return {}      
-        sorted_commit_gen = git_manager.commits_for_path(repofile, reverse=False)
+        sorted_commit_gen = git_manager.commits_for_path_recent_first(repofile)
         last_commit = next(sorted_commit_gen)
 
         return { 'create_time': first_commit.commit_time, 

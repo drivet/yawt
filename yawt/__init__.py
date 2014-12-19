@@ -13,6 +13,7 @@ YAWT_INDEX_FILE = 'index'
 YAWT_ARTICLE_TEMPLATE = 'article'
 YAWT_ARTICLE_EXTENSIONS = ['txt']
 YAWT_DEFAULT_EXTENSION = 'txt'
+YAWT_STATE_FOLDER = '_state'
 
 def get_content_types(config):
     def extract_type(key):

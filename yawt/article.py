@@ -1,6 +1,7 @@
 import os
 import re
 import yawt.default_templates
+from datetime import datetime
 
 class ArticleInfo(object):
     def __init__(self):
@@ -31,7 +32,7 @@ class FileBasedSiteManager(object):
 
     def initialize(self):
         if os.path.exists(self.root_dir):
-            raise SiteExistsError()
+            raise SiteExistsError(self.root_dir)
 
         ensure_path(os.path.join(self.root_dir, self.content_folder))
         ensure_path(os.path.join(self.root_dir, self.draft_folder))
@@ -165,10 +166,10 @@ class FileBasedSiteManager(object):
 
     def _make_article(self, fullname, filename):
         info = ArticleInfo()
-        info.fullname = fullname
-        info.category = os.path.dirname(fullname)
-        info.slug = os.path.basename(fullname)
-        info.extension =  base_and_ext(filename)[1]
+        info.fullname = unicode(fullname)
+        info.category = unicode(os.path.dirname(fullname))
+        info.slug = unicode(os.path.basename(fullname))
+        info.extension =  unicode(base_and_ext(filename)[1])
 
         file_metadata = fetch_file_metadata(filename)
         info.create_time = file_metadata['create_time']
@@ -205,8 +206,8 @@ class FileBasedSiteManager(object):
         return None
 
     def _file2name(self, filename):
-        """
-        Take a full absolute filename and extract the fullname of the article
+        """Take a full absolute filename (including repository root folder) and
+        extract the fullname of the article
         """
         rel_filename = re.sub('^%s/' % (self._content_root()), '', filename)
         fullname = os.path.splitext(rel_filename)[0]
@@ -227,17 +228,21 @@ class ArticleExistsError(Exception):
 
 
 class SiteExistsError(Exception):
-    pass
+    def __init__(self, folder): 
+        super(SiteExistsError, self).__init__()
+        self.folder = folder
+    def __str__(self):
+        return repr(self.folder)
 
 
 def load_file(filename):
     with open(filename, 'r') as f:
         file_contents = f.read()
-    return file_contents
+    return unicode(file_contents)
 
 def save_file(filename, contents):
     with open(filename, 'w') as f:
-        f.write(contents)
+        f.write(unicode(contents))
 
 def copy_file(oldfile, newfile):
     with open(oldfile, 'r') as f:
@@ -255,7 +260,8 @@ def ensure_path(path):
 def fetch_file_metadata(filename):
     sr = os.stat(filename)
     mtime = ctime = sr.st_mtime
-    return {'create_time': ctime, 'modified_time': mtime}
+    return {'create_time': datetime.fromtimestamp(ctime), 
+            'modified_time': datetime.fromtimestamp(mtime)}
 
 def base_and_ext(basefile):
     base, extension = os.path.splitext(basefile)

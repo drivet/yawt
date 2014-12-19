@@ -1,5 +1,6 @@
 # a testing only requirements file for use with travis
 -e git+https://github.com/drivet/flask-git.git#egg=flask-git
+-e git+https://github.com/drivet/flask-whoosh.git#egg=flask-whoosh
 -e .
 nose==1.3.4
 mock==1.0.1

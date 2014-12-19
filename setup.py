@@ -27,6 +27,7 @@ setup(
         'Flask-Script',
         'Markdown',
         'Whoosh',
+        'jsonpickle',
         'Flask-Git'
     ],
     classifiers=[

@@ -17,32 +17,17 @@ class YawtSiteManager(object):
         return self._on_article_fetch(article)
 
     def walk(self):
-        self._call_plugins('pre_walk')
+        self._call_plugins('on_pre_walk')
         for fullname in self.site_manager.walk():
             article = self.fetch_article(fullname)
-            self._call_plugins('visit_article', article)
-        self._call_plugins('post_walk')
+            self._call_plugins('on_visit_article', article)
+        self._call_plugins('on_post_walk')
 
-    def files_added(self, files):
-        for f in files:
-            self._call_plugins('on_file_add', f)
-            if self.site_manager.is_article(f):
-                article = self.site_manager.fetch_article_by_repofile(f)
-                self._call_plugins('on_article_add', article)
-
-    def files_modified(self, files):
-        for f in files:
-            self._call_plugins('on_file_modify', f)
-            if self.site_manager.is_article(f):
-                article = self.site_manager.fetch_article_by_repofile(f)
-                self._call_plugins('on_article_modify', article)
- 
-    def files_deleted(self, files):
-        for f in files:
-            self._call_plugins('on_file_delete', f)
-            if self.site_manager.is_article(f):
-                article = self.site_manager.fetch_article_by_repofile(f)
-                self._call_plugins('on_article_delete', article)
+    def files_changed(self, files_modified, files_added, files_removed):
+        self._call_plugins('on_files_changed', 
+                           files_modified, 
+                           files_added, 
+                           files_removed)
  
     def _on_article_fetch(self, article):
         for ext in self._extensions():
