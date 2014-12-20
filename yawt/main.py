@@ -23,10 +23,10 @@ def generic_path(path):
 
 @yawtbp.errorhandler(404)
 def page_not_found(error):
-#    current_app.logger.debug('running error handler for 404')
+    # current_app.logger.debug('running error handler for 404')
     # TODO: figure out what the flavour in the request was
     template_name = '404.'+current_app.config['YAWT_DEFAULT_FLAVOUR']
-#    current_app.logger.debug('rendering template ' + template_name)
+    # current_app.logger.debug('rendering template ' + template_name)
     return render_template(template_name), 404
 
 # filter for date and time formatting
@@ -87,12 +87,12 @@ def handle_path(path):
         else:
             fullname = path
 
-#    current_app.logger.debug('fullname: ' + fullname)
-#    current_app.logger.debug('flavour: ' + flavour)
+    # current_app.logger.debug('fullname: ' + fullname)
+    # current_app.logger.debug('flavour: ' + flavour)
     
     article = g.site.fetch_article(fullname)
     if article is None:
-#        current_app.logger.debug('no article found at ' + fullname + ', aborting with 404')
+        # current_app.logger.debug('no article found at ' + fullname + ', aborting with 404')
         abort(404)
     else:
         content_type = None

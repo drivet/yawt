@@ -2,6 +2,14 @@ import os
 import re
 import yawt.default_templates
 from datetime import datetime
+from yawt.utils import ensure_path, save_file, move_file, base_and_ext, load_file
+
+def fetch_file_metadata(filename):
+    sr = os.stat(filename)
+    mtime = ctime = sr.st_mtime
+    return {'create_time': datetime.fromtimestamp(ctime), 
+            'modified_time': datetime.fromtimestamp(mtime)}
+
 
 class ArticleInfo(object):
     def __init__(self):
@@ -233,37 +241,3 @@ class SiteExistsError(Exception):
         self.folder = folder
     def __str__(self):
         return repr(self.folder)
-
-
-def load_file(filename):
-    with open(filename, 'r') as f:
-        file_contents = f.read()
-    return unicode(file_contents)
-
-def save_file(filename, contents):
-    with open(filename, 'w') as f:
-        f.write(unicode(contents))
-
-def copy_file(oldfile, newfile):
-    with open(oldfile, 'r') as f:
-        contents = f.read()
-    with open(newfile, 'w') as f:
-        f.write(contents)
-
-def move_file(oldfile, newfile):
-    os.rename(oldfile, newfile)
-
-def ensure_path(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-def fetch_file_metadata(filename):
-    sr = os.stat(filename)
-    mtime = ctime = sr.st_mtime
-    return {'create_time': datetime.fromtimestamp(ctime), 
-            'modified_time': datetime.fromtimestamp(mtime)}
-
-def base_and_ext(basefile):
-    base, extension = os.path.splitext(basefile)
-    extension = extension.split('.')[-1]
-    return (base, extension)

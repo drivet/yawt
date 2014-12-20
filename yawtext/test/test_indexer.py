@@ -9,7 +9,7 @@ import shutil
 import glob
 import os
 from datetime import datetime
-from yawt.fileutils import save_file
+from yawt.utils import save_file
 
 class TestYawtWhoosh(unittest.TestCase):
     def setUp(self):

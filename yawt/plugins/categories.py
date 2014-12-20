@@ -2,7 +2,7 @@ import os
 import re
 
 import yawt.util
-import yawt.fileutils
+import yawt.utils
 
 
 def dict2tree(d):
@@ -85,7 +85,7 @@ class CategoryCounter(object):
         self._category_tree.add_item(category)
         
     def update(self, statuses):
-        category_counts = yawt.fileutils.load_yaml(self._category_file)
+        category_counts = yawt.utils.load_yaml(self._category_file)
         self._category_tree = dict2tree(category_counts)
         
         for fullname in statuses.keys():
@@ -102,7 +102,7 @@ class CategoryCounter(object):
         self.post_walk()
         
     def post_walk(self):
-        yawt.fileutils.save_yaml(self._category_file, tree2dict(self._category_tree.root))
+        yawt.utils.save_yaml(self._category_file, tree2dict(self._category_tree.root))
           
     def _get_category(self, fullname):
         relname = re.sub('^%s/' % (self._base), '', fullname)
@@ -128,7 +128,7 @@ class CategoriesPlugin(object):
             for subcat in d['subcategories']:
                 _prepend_base(d['subcategories'][subcat], base)
             
-        categories = yawt.fileutils.load_yaml(self._get_category_file())
+        categories = yawt.utils.load_yaml(self._get_category_file())
         _prepend_base(categories, self._get_category_base())
         return {'categories': categories}
 
@@ -142,10 +142,10 @@ class CategoriesPlugin(object):
         return self.app.config[self.name]
 
     def _get_category_dir(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_DIR'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_DIR'])
 
     def _get_category_file(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_FILE'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['CATEGORY_FILE'])
 
     def _get_category_base(self):
         base = self._plugin_config()['BASE'].strip()

@@ -8,7 +8,7 @@ from whoosh.qparser import QueryParser
 
 import yawt.util
 from yawt.view import YawtView, ArticleListView
-import yawt.fileutils
+import yawt.utils
 
 
 class ArticleIndexer(object):
@@ -101,7 +101,7 @@ class IndexView(View):
         self._plugin_config = plugin_config
 
     def _get_index_dir(self):
-        return yawt.fileutils.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
+        return yawt.utils.get_abs_path_app(current_app, self._plugin_config['INDEX_DIR'])
 
     def _get_index_name(self):
         return self._plugin_config['INDEX_NAME']

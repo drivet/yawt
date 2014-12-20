@@ -1,5 +1,5 @@
 import os
-import yawt.fileutils
+import yawt.utils
 
 from yawt.view import YawtView, PagingInfo
 from yawt.plugins.indexer import ArticleIndexer, ArticleFetcher, ListIndexView
@@ -64,7 +64,7 @@ class SearchPlugin(object):
         return TextIndexer(store, self._get_index_dir(), self._get_index_name())
 
     def _get_index_dir(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['INDEX_DIR'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['INDEX_DIR'])
 
     def _get_index_name(self):
         return self._plugin_config()['INDEX_NAME']

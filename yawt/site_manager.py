@@ -1,4 +1,5 @@
 from flask import current_app
+from yawt.utils import has_method
 
 class YawtSiteManager(object):
     """Wrapper around the file based site manager that knows about the plugins
@@ -51,7 +52,3 @@ class YawtSiteManager(object):
             return current_app.extension_info[1]
         else:
             return []
-
-
-def has_method(obj, method):
-    return hasattr(obj, method) and callable(getattr(obj, method))

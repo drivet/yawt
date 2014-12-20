@@ -21,3 +21,11 @@ def move_file(oldfile, newfile):
 def ensure_path(path):
     if not os.path.exists(path):
         os.makedirs(path)
+
+def base_and_ext(basefile):
+    base, extension = os.path.splitext(basefile)
+    extension = extension.split('.')[-1]
+    return (base, extension)
+
+def has_method(obj, method):
+    return hasattr(obj, method) and callable(getattr(obj, method))

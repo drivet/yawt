@@ -1,5 +1,5 @@
 import yawt.util
-import yawt.fileutils
+import yawt.utils
 
 class ArchiveCounter(object):
     def __init__(self, store, base, archive_count_file, article_date_file):
@@ -29,8 +29,8 @@ class ArchiveCounter(object):
         self._archive_counts[ym]['count'] += 1
         
     def update(self, statuses):
-        self._article_dates = yawt.fileutils.load_yaml(self._article_date_file)
-        archive_counts_dump = yawt.fileutils.load_yaml(self._archive_count_file)
+        self._article_dates = yawt.utils.load_yaml(self._article_date_file)
+        archive_counts_dump = yawt.utils.load_yaml(self._archive_count_file)
         self._archive_counts = {}
         for ac in archive_counts_dump:
             ym = (ac['year'],ac['month'])
@@ -65,8 +65,8 @@ class ArchiveCounter(object):
         archive_counts_dump.sort(key = lambda item: (item['year'], item['month']),
                                  reverse = True)
 
-        yawt.fileutils.save_yaml(self._archive_count_file, archive_counts_dump)
-        yawt.fileutils.save_yaml(self._article_date_file, self._article_dates)
+        yawt.utils.save_yaml(self._archive_count_file, archive_counts_dump)
+        yawt.utils.save_yaml(self._article_date_file, self._article_dates)
         
 class ArchiveCounterPlugin(object):
     def __init__(self):
@@ -95,19 +95,19 @@ class ArchiveCounterPlugin(object):
                               self._get_archive_date_file())
 
     def _load_archive_counts(self):
-        return yawt.fileutils.load_yaml(self._get_archive_count_file())
+        return yawt.utils.load_yaml(self._get_archive_count_file())
 
     def _plugin_config(self):
         return self.app.config[self.name]
     
     def _get_archive_dir(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_DIR'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_DIR'])
 
     def _get_archive_count_file(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_COUNT_FILE'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_COUNT_FILE'])
 
     def _get_archive_date_file(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_DATE_FILE'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['ARCHIVE_DATE_FILE'])
         
     def _get_base(self):
         base = self._plugin_config()['BASE'].strip()

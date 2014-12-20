@@ -2,7 +2,7 @@ import yawt.util
 import os
 
 from yawt.plugins.tagging import article_tags, tag_url
-import yawt.fileutils
+import yawt.utils
 
 class TagCounter(object):
     def __init__(self, store, base, tag_count_file, article_tag_file):
@@ -32,8 +32,8 @@ class TagCounter(object):
             self._tag_counts[tag]['count'] += 1
       
     def update(self, statuses):
-        self._tag_counts = yawt.fileutils.load_yaml(self._tag_count_file)
-        self._article_tags = yawt.fileutils.load_yaml(self._article_tag_file)
+        self._tag_counts = yawt.utils.load_yaml(self._tag_count_file)
+        self._article_tags = yawt.utils.load_yaml(self._article_tag_file)
         
         for fullname in statuses.keys():
             status = statuses[fullname]
@@ -58,8 +58,8 @@ class TagCounter(object):
         self.post_walk()
 
     def post_walk(self):
-        yawt.fileutils.save_yaml(self._tag_count_file, self._tag_counts)
-        yawt.fileutils.save_yaml(self._article_tag_file, self._article_tags)
+        yawt.utils.save_yaml(self._tag_count_file, self._tag_counts)
+        yawt.utils.save_yaml(self._article_tag_file, self._article_tags)
     
 class TagCounterPlugin(object):
     def __init__(self):
@@ -86,19 +86,19 @@ class TagCounterPlugin(object):
                           self._get_article_tag_file())
     
     def _load_tag_counts(self):
-        return yawt.fileutils.load_yaml(self._get_tag_count_file())
+        return yawt.utils.load_yaml(self._get_tag_count_file())
     
     def _load_article_tags(self):
-        return yawt.fileutils.load_yaml(self._get_article_tag_file())
+        return yawt.utils.load_yaml(self._get_article_tag_file())
     
     def _get_article_tag_file(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['ARTICLE_TAG_FILE'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['ARTICLE_TAG_FILE'])
     
     def _plugin_config(self):
         return self.app.config[self.name]
 
     def _get_tag_count_file(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['TAG_COUNT_FILE'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['TAG_COUNT_FILE'])
     
     def _get_base(self):
         base = self._plugin_config()['BASE'].strip()

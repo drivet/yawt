@@ -4,7 +4,7 @@ import yawt.util
 from mock import patch, Mock
 from yawt.plugins.categories import CategoryTree, CategoryNode, CategoryCounter, dict2tree, tree2dict
 from yawt.test.utils import FakeOs
-import yawt.fileutils
+import yawt.utils
 
 class TestCategoryTree(unittest.TestCase): 
     def test_initial(self):
@@ -215,14 +215,14 @@ class TestCategoryTree(unittest.TestCase):
 
 class TestCategoryCounter(unittest.TestCase):
     def setUp(self):
-        self.fake_os = FakeOs('yawt.fileutils')
+        self.fake_os = FakeOs('yawt.utils')
         self.fake_os.start()
         
     def test_counter_starts_at_zero(self):
         category_counter = CategoryCounter('', '/category_dir/category_file')
         category_counter.pre_walk()
         category_counter.post_walk()
-        counts = yawt.fileutils.load_yaml('/category_dir/category_file')
+        counts = yawt.utils.load_yaml('/category_dir/category_file')
         self.assertEquals(counts['category'], '')
         self.assertEquals(counts['count'], 0)
         self.assertEquals(counts['subcategories'], {})
@@ -233,7 +233,7 @@ class TestCategoryCounter(unittest.TestCase):
         category_counter.pre_walk()
         category_counter.visit_article('cooking/indian/madras')
         category_counter.post_walk()
-        counts = yawt.fileutils.load_yaml('/category_dir/category_file')
+        counts = yawt.utils.load_yaml('/category_dir/category_file')
         self.assertEquals(counts['category'], '')
         self.assertEquals(counts['count'], 0)
         self.assertEquals(counts['subcategories'], {})
@@ -247,7 +247,7 @@ class TestCategoryCounter(unittest.TestCase):
         counter.visit_article('cooking/indian/vindaloo')
         counter.visit_article('cooking/asian/wonton')
         counter.post_walk()
-        counts = yawt.fileutils.load_yaml('/category_dir/category_file')
+        counts = yawt.utils.load_yaml('/category_dir/category_file')
         
         self.assertEquals(counts['category'], '')
         self.assertEquals(counts['count'], 4)

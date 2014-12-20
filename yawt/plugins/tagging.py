@@ -9,7 +9,7 @@ from flask import g, request, url_for, current_app
 from whoosh.fields import Schema, STORED, ID, KEYWORD, TEXT
 from whoosh.index import create_in, open_dir, exists_in
 from whoosh.qparser import QueryParser
-import yawt.fileutils
+import yawt.utils
 
 def tag_url(category, tag):
     if category:
@@ -85,7 +85,7 @@ class TaggingPlugin(object):
         return TagIndexer(store, self._get_index_dir(), self._get_index_name())
     
     def _get_index_dir(self):
-        return yawt.fileutils.get_abs_path_app(self.app, self._plugin_config()['INDEX_DIR'])
+        return yawt.utils.get_abs_path_app(self.app, self._plugin_config()['INDEX_DIR'])
 
     def _get_index_name(self):
         return self._plugin_config()['INDEX_NAME']
