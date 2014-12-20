@@ -1,0 +1,46 @@
+#!/usr/bin/python
+
+import sys
+from yawt import create_app
+from flask import Flask, g
+
+master_ref = "refs/heads/master"
+root_dir = '/home/dcr/blogging/git'
+
+def call_git(command, args):
+    return Popen([GIT_PATH, command] + args, stdout=PIPE).communicate()[0]
+
+
+def get_commits(old, new):
+    # Get the list of hashs for commits in the changeset.
+    args = (old == '0' * 40) and [new] or [new, '^' + old]
+    args += '--reverse'
+    return call_git('rev-list', args).splitlines()
+
+
+def handle_commit(commit):
+    modified, added, deleted = ([], [], [])
+    args = ['--no-commit-id', '--name-status', '-r', commit]
+    for line in call_git('diff-tree', args).splitlines():
+        status, path = line.split()
+        if status == 'M':
+            modified += path
+        elif status == 'A':
+            added += path
+        elif status == 'D':
+            deleted += path
+    g.site.files_changed(modified, added, deleted)
+        
+
+if __name__ == '__main__':
+    for line in sys.stdin.xreadlines():
+        old, new, ref = line.strip().split(' ')
+        if ref != master_ref:
+            continue
+        
+        pending_commits = get_commits(old, new)
+
+        app = create_app(root_dir)
+        with app.app_context():
+            for commit in pending_commits:
+                handle_commit(commit)
