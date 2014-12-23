@@ -12,14 +12,28 @@ def fetch_file_metadata(filename):
 
 
 class ArticleInfo(object):
-    def __init__(self):
-        self.fullname = "" 
-        self.category = "" 
-        self.slug = ""
-        self.extension = ""
-        self.create_time = None
-        self.modified_time = None
+    def __init__(self, fullname = '', category = '', slug = '', extension = '', 
+                 create_time = None, modified_time = None):
+        self.fullname = fullname
+        self.category = category
+        self.slug = slug
+        self.extension = extension
+        self.create_time = create_time
+        self.modified_time = modified_time
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
+
+    def __str__(self):
+        return "<" + self.fullname + ", " + self.category + ", " + self.slug + ", " + \
+               self.extension + ">"
+
+    def __repr__(self):
+        return "<" + self.fullname + ", " + self.category + ", " + self.slug + ", " + \
+               self.extension + ">"
 
 class Article(object):
     def __init__(self):

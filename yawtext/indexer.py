@@ -4,7 +4,6 @@ import jsonpickle
 import re
 import os
 
-
 def _config(key):
     return current_app.config[key]
 
@@ -62,6 +61,14 @@ class YawtWhoosh(object):
 
         self.whoosh().writer.commit()
 
+    def search(self, query, sortedby, page, pagelen, reverse=False):
+        searcher = self.whoosh().searcher
+        results = searcher.search_page(query, page, pagelen, sortedby=sortedby, reverse=reverse)
+        article_infos = []
+        for result in results:
+            article_infos.append(jsonpickle.decode(result['article_info_json']))
+        return article_infos
+
     def schema(self):
         fields = {}
         fields.update(_config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'))
@@ -97,4 +104,3 @@ class YawtWhoosh(object):
         
     def whoosh(self):
         return current_app.extension_info[0]['whoosh']
-        
