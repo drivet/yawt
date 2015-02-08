@@ -62,7 +62,7 @@ def before_request():
 def handle_path(path):
     """Returns template source corresponding to path
     """
-#    current_app.logger.debug('handling path ' + path)
+    # current_app.logger.debug('handling path ' + path)
     config = current_app.config
 
     fullname = None

@@ -1,8 +1,20 @@
-from flask import current_app, g, abort
-from yawt.view import render
-from jinja2 import TemplatesNotFound
+from flask import current_app
 from whoosh.qparser import QueryParser
 from whoosh.query.qcore import Every
+from yawtext.collections import CollectionView, yawtwhoosh
+
+
+class CategoryView(CollectionView):
+    def query(self, category):
+        if category:
+            qp = QueryParser('categories', schema=yawtwhoosh().schema())
+            return qp.parse(unicode(category))
+        else:
+            return Every()
+
+    def get_template_name(self):
+        return current_app.config['YAWT_CATEGORY_TEMPLATE']
+
 
 class YawtCategories(object):
     def __init__(self, app=None):
@@ -25,44 +37,13 @@ class YawtCategories(object):
     def on_404(self, fullname, flavour):
         """auto generate the index page if one was requested""" 
         index_file = current_app.config['YAWT_INDEX_FILE']
-        if fullname != index_file and not fullname.endswith('/'+index_file):
+        if fullname != index_file and not fullname.endswith('/' + index_file):
+            # this doesn't look like an index file fullname
             return False
 
-        (page, pagelen) = self.paging_info()
-        article_infos = self.yawtwhoosh().search(self.query(fullname), 
-                                                 'create_time', 
-                                                 page, pagelen, 
-                                                 True)
-
-        content_type = None
-        if flavour in current_app.content_types:
-            content_type = current_app.content_types[flavour]
-
-        try:
-            return render(fullname, flavour, {'article_infos' : article_infos}, content_type)
-        except TemplatesNotFound:
-            abort(404)
-
-    def paging_info(self):
-        page = 1
-        if hasattr(g, 'page'):
-            page = g.page 
-
-        pagelen = 10
-        if hasattr(g, 'pagelen'):
-            pagelen = g.pagelen
-
-        return (page, pagelen)
-
-    def query(self, fullname):
         category = ''
-        if '/' in fullname: 
-            category = fullname.rsplit('/', 1)[0] # strip off article (index) name
-        qp = QueryParser('categories', schema=self.yawtwhoosh().schema())
-        if category:
-            return qp.parse(unicode(category))
-        else:
-            return Every()
-        
-    def yawtwhoosh(self):
-        return current_app.extension_info[0]['yawtwhoosh']
+        if fullname.endswith('/' + index_file):
+            category = fullname.rsplit('/', 1)[0]
+
+        view_func = CategoryView.as_view('category_path')
+        return view_func(category, flavour)

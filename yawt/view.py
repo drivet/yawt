@@ -1,30 +1,36 @@
-import os
-from flask import current_app, make_response, render_template
+from flask import current_app, make_response, render_template, abort
+from jinja2 import TemplatesNotFound
 
-def render(fullname, flavour, template_variables, content_type):
+def render(template, category, flavour, template_variables):
     if flavour is None:
         flavour = current_app.config['YAWT_DEFAULT_FLAVOUR']
-    template_names = get_possible_templates(fullname, flavour)
+
+    content_type = None
+    if flavour in current_app.content_types:
+        content_type = current_app.content_types[flavour]
+
+    template_names = get_possible_templates(template, category, flavour)
     # current_app.logger.debug('will look for these templates '+str(template_names))
-    
-    if (content_type is not None):
-        response = make_response(render_template(template_names, **template_variables))
-        response.headers['Content-Type'] = content_type
-        return response
-    else:
-        return render_template(template_names, **template_variables)
 
-def get_possible_templates(fullname, flavour):
-    """return a lits of the fullname as a template, followed by the templates
-    up the folder tree.
+    try:
+        if content_type:
+            response = make_response(render_template(template_names, **template_variables))
+            response.headers['Content-Type'] = content_type
+            return response
+        else:
+            return render_template(template_names, **template_variables)           
+    except TemplatesNotFound:
+        abort(404)
+
+def get_possible_templates(template, category, flavour):
+    """start at category and return all templates up the chain.
     """
-    templates = [fullname + '.' + flavour]
-
-    article_template_base = current_app.config['YAWT_ARTICLE_TEMPLATE'] + '.' + flavour
-    current_category = os.path.dirname(fullname)
+    template_base = template + '.' + flavour
+    templates = [category + '/' + template_base]
+    current_category = category.rsplit('/', 1)[0]
     while current_category:
-        article_template = os.path.join(current_category, article_template_base)
+        article_template = current_category + '/' + template_base
         templates.append(article_template)
-        current_category = os.path.dirname(current_category)
-    templates.append(article_template_base)
+        current_category = current_category.rsplit('/', 1)[0]
+    templates.append(template_base)
     return templates
