@@ -35,6 +35,7 @@ class ArticleInfo(object):
         return "<" + self.fullname + ", " + self.category + ", " + self.slug + ", " + \
                self.extension + ">"
 
+
 class Article(object):
     def __init__(self):
         self.info = ArticleInfo()
@@ -42,7 +43,7 @@ class Article(object):
 
 
 class FileBasedSiteManager(object):
-    """The default article store.  Stores articles on disk. """
+    """The default article store. Stores articles on disk. No plugins."""
 
     def __init__(self, root_dir, draft_folder, content_folder, 
                  template_folder, file_extensions):

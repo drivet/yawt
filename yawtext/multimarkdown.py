@@ -15,15 +15,27 @@ class YawtMarkdown(object):
         if article.info.extension in current_app.config['YAWT_MULTIMARKDOWN_FILE_EXTENSIONS']:
             meta, markup = load_markdown(article.content)
             article.content = markup
-            info = article.info
-            for key in meta.keys():
-                setattr(info, key, '\n'.join( meta[key]) )
+            if not hasattr(article.info, 'indexed') or not article.info.indexed:
+                self._set_attributes(article.info, meta)
         return article
+ 
+    def on_article_index(self, article):
+        """
+        We can handle the indexing plugin if it's there
+        """
+        if article.info.extension in current_app.config['YAWT_MULTIMARKDOWN_FILE_EXTENSIONS']:
+            meta, markup = load_markdown(article.content)
+            self._set_attributes(article.info, meta)
+        return article
+
+    def _set_attributes(self, article_info, meta):
+        for key in meta.keys():
+            setattr(article_info, key, '\n'.join(meta[key]))
 
 def load_markdown(file_contents):
     """Returns a tuple, where the first part is a dictionary of the metadata,
-    and the second part is the contents of the markdown file.  """
-
+    and the second part is the contents of the markdown file in HTML.
+    """
     md = markdown.Markdown(extensions = current_app.config['YAWT_MULTIMARKDOWN_EXTENSIONS'])
     markup = Markup(md.convert(file_contents))
     meta = {}

@@ -48,6 +48,14 @@ def load_extensions(app, extension_info):
         init_app_fn = app.extension_info[2]
         init_app_fn(app)
 
+def configure(root_dir, app, config, extension_info):
+    import sys
+    old_path = sys.path
+    sys.path.append(root_dir)
+    configure_app(app, config)
+    load_extensions(app, extension_info)
+    sys.path = old_path
+
 def create_app(root_dir,
                template_folder = 'templates', 
                static_folder = 'static', 
@@ -58,7 +66,7 @@ def create_app(root_dir,
                 static_folder = os.path.join(root_dir, static_folder),
                 static_url_path = static_url_path,
                 instance_path = root_dir,
-                instance_relative_config = True) 
+                instance_relative_config = True)
     app.yawt_root_dir = root_dir
     app.yawt_template_folder = template_folder
     app.yawt_static_folder = static_folder
@@ -67,8 +75,7 @@ def create_app(root_dir,
     path_to_templates = os.path.join(root_dir, template_folder)
     app.jinja_loader = jinja2.FileSystemLoader(path_to_templates)
     
-    configure_app(app, config)
-    load_extensions(app, extension_info)
+    configure(root_dir, app, config, extension_info)
 
     from yawt.main import yawtbp
     app.register_blueprint(yawtbp)

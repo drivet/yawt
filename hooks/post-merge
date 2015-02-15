@@ -1,0 +1,37 @@
+#!/usr/bin/python
+
+repo_path = '/path/to/repo'
+git = '/usr/bin/git'
+    
+try:
+    cmd = ['sudo', '-u', 'www-data', '-H',
+           git, '--git-dir=' + repo_path + '/.git',
+           '--work-tree=' + repo_path,
+           'diff-tree', '-r', '--name-status', '--no-commit-id', 'ORIG_HEAD', 'HEAD']
+    diff_tree_out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+except subprocess.CalledProcessError as e:
+    print str(cmd) + ' failed: ' + str(e.returncode) + '\n' + e.output
+    return e.returncode
+
+added_files = []
+modified_files = []
+deleted_files = []
+for line in diff_tree_out.split('\n'):
+    (status, f) = line.split()
+    if status == 'A':
+        added_files.append(f)
+    elif status == 'M':
+        modified_files.append(f)
+    elif status == 'D':
+        deleted_files.append(f)
+    else:
+        print "unknown git status: " + status
+        return 1
+
+
+from flask import g
+import yawt
+app = yawt.create_app(repo_path)
+with app.app_context():
+    g.store.files_changed(modified_files, added_files, removed_removed)
+    

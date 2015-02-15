@@ -1,7 +1,6 @@
 from flask import current_app, g, Blueprint, url_for, request, \
       redirect, abort, render_template
 from jinja2 import TemplatesNotFound
-import time
 import re
 from yawt.article import FileBasedSiteManager
 from yawt.site_manager import YawtSiteManager
@@ -19,7 +18,7 @@ def home():
     
 @yawtbp.route('/<path:path>')
 def generic_path(path):
-    return handle_path(path) 
+    return handle_path(path)
 
 @yawtbp.errorhandler(404)
 def page_not_found(error):
@@ -32,7 +31,7 @@ def page_not_found(error):
 # filter for date and time formatting
 @yawtbp.app_template_filter('dateformat')
 def date_format(value, ft='%H:%M / %d-%m-%Y'):
-    return time.strftime(ft, value)
+    return value.strftime(ft)
 
 # make a usable url out of a site relative one
 @yawtbp.app_template_filter('url')
@@ -60,7 +59,8 @@ def before_request():
     g.site = YawtSiteManager(g.store)
 
 def handle_path(path):
-    """Returns template source corresponding to path
+    """
+    Returns template source corresponding to path
     """
     # current_app.logger.debug('handling path ' + path)
     config = current_app.config
@@ -89,18 +89,20 @@ def handle_path(path):
 
     # current_app.logger.debug('fullname: ' + fullname)
     # current_app.logger.debug('flavour: ' + flavour)
-    
-    article = g.site.fetch_article(fullname)
+    print ('fullname: ' + fullname)
+    print ('flavour: ' + flavour)
+    article = g.site.fetch_article(fullname) 
+    print ('article: ' + str(article))
     if article is None:
         # current_app.logger.debug('no article found at ' + fullname + ', aborting with 404')
         if not handle_404(fullname, flavour):
             abort(404)
     else:
-        content_type = None
-        if flavour in current_app.content_types:
-            content_type = current_app.content_types[flavour]
         try:
-            return render(fullname, flavour, {'article' : article}, content_type)
+            return render('article', 
+                          article.info.category, 
+                          article.info.slug,
+                          flavour, {'article' : article})
         except TemplatesNotFound:
             abort(404)
 

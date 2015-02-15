@@ -3,6 +3,7 @@ from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT, DATETIME
 import jsonpickle
 import re
 import os
+from yawt.utils import has_method
 
 def _config(key):
     return current_app.config[key]
@@ -47,19 +48,31 @@ class YawtWhoosh(object):
         self.whoosh().writer.commit()
 
     def on_files_changed(self, files_modified, files_added, files_removed):
-        for f in  files_removed + files_modified: 
+        for f in files_removed + files_modified: 
             name = fullname(f)
             if name:
                 self.whoosh().writer.delete_by_term('fullname', name)
 
         for f in files_modified + files_added:
-            name = fullname(f)
-            if name: 
-                article = g.site.fetch_article(name)
+            article = g.store.fetch_article_by_repofile(f)
+            if article: 
+                article = self._on_article_index(article)
                 doc = self.field_values(article)
                 self.whoosh().writer.add_document(**doc)
 
         self.whoosh().writer.commit()
+ 
+    def _on_article_index(self, article):
+        for ext in self._extensions():
+            if has_method(ext, 'on_article_index'):
+                article = ext.on_article_index(article)
+        return article
+
+    def _extensions(self):
+        if current_app.extension_info:
+            return current_app.extension_info[1]
+        else:
+            return []
 
     def search(self, query, sortedby, page, pagelen, reverse=False):
         searcher = self.whoosh().searcher
@@ -88,7 +101,8 @@ class YawtWhoosh(object):
         for field in _config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'):
             if hasattr(info, field):
                 values[field] = self.value(getattr(info, field), schema[field])
-    
+
+        article.info.indexed = True
         values['fullname'] = article.info.fullname
         values['article_info_json'] = jsonpickle.encode(article.info)
         return values
@@ -104,3 +118,4 @@ class YawtWhoosh(object):
         
     def whoosh(self):
         return current_app.extension_info[0]['whoosh']
+

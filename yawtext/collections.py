@@ -1,6 +1,7 @@
-from flask import current_app, g, request, Blueprint
+from flask import current_app, g, request, Blueprint, abort
 from flask.views import View
 from yawt.view import render
+from jinja2 import TemplatesNotFound
 
 collectionsbp = Blueprint('collections', __name__)
 
@@ -32,8 +33,11 @@ class CollectionView(View):
                                             'create_time', 
                                             g.page, g.pagelen, 
                                             True)
-        return render(self.get_template_name(), category, 
-                      flav, {'article_infos': article_infos})
+        try:
+            return render(self.get_template_name(), category, 
+                          flav, {'article_infos': article_infos})
+        except TemplatesNotFound:
+            abort(404)
 
     def query(self, category, *args, **kwargs):
         """Always passed a category, and the rest varies by collection type"""
