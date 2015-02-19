@@ -21,9 +21,6 @@ class TestYawtWhoosh(unittest.TestCase):
         self.app = create_app(self.site_root, extension_info = extension_info(self.plugin))
         self.index_root = os.path.join(self.site_root, self.app.config['YAWT_STATE_FOLDER'], 'whoosh')
         self.app.config['WHOOSH_INDEX_ROOT'] = self.index_root
-
-    def test_default_article_info_fields(self):
-        self.assertEqual({'create_time': DATETIME}, self.app.config['YAWT_WHOOSH_ARTICLE_INFO_FIELDS'])
  
     def test_default_article_fields(self):
         self.assertEqual({'content': TEXT}, self.app.config['YAWT_WHOOSH_ARTICLE_FIELDS'])
@@ -185,7 +182,7 @@ class TestYawtWhoosh(unittest.TestCase):
         qp = QueryParser('fullname', schema=schema)
         with self.app.test_request_context():
             self.app.preprocess_request()
-            infos = self.plugin.search(qp.parse(u"article1"), 'create_time', 1, 10)
+            infos, total = self.plugin.search(qp.parse(u"article1"), 'create_time', 1, 10)
         self.assertEquals(1, len(infos))
         self.assertEquals('article1', infos[0].fullname)
         
@@ -193,7 +190,7 @@ class TestYawtWhoosh(unittest.TestCase):
         qp.add_plugin(DateParserPlugin())
         with self.app.test_request_context():
             self.app.preprocess_request()
-            infos = self.plugin.search(qp.parse('20041102'), 'fullname', 1, 10)
+            infos, total = self.plugin.search(qp.parse('20041102'), 'fullname', 1, 10)
         self.assertEquals(4, len(infos))
         self.assertEquals('article1', infos[0].fullname)
         self.assertEquals('article2', infos[1].fullname)
@@ -206,6 +203,7 @@ class TestYawtWhoosh(unittest.TestCase):
         fields.update(self.app.config['YAWT_WHOOSH_ARTICLE_FIELDS'])
         fields['article_info_json'] = STORED
         fields['fullname'] = ID
+        fields['create_time'] = DATETIME
         return fields
 
     def tearDown(self):

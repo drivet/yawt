@@ -89,14 +89,14 @@ def handle_path(path):
 
     # current_app.logger.debug('fullname: ' + fullname)
     # current_app.logger.debug('flavour: ' + flavour)
-    print ('fullname: ' + fullname)
-    print ('flavour: ' + flavour)
     article = g.site.fetch_article(fullname) 
-    print ('article: ' + str(article))
     if article is None:
         # current_app.logger.debug('no article found at ' + fullname + ', aborting with 404')
-        if not handle_404(fullname, flavour):
+        result = handle_404(fullname, flavour)
+        if not result:
             abort(404)
+        else:
+            return result
     else:
         try:
             return render('article', 
@@ -111,6 +111,8 @@ def handle_404(fullname, flavour):
     if current_app.extension_info:
         extensions = current_app.extension_info[1]
     for ext in extensions:
-        if has_method(ext, 'on_404') and ext.on_404(fullname, flavour):
-            return True
-    return False
+        if has_method(ext, 'on_404'):
+            result = ext.on_404(fullname, flavour)
+            if result:
+                return result
+    return None

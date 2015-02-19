@@ -1,12 +1,13 @@
-from flask import current_app, request
+from flask import current_app, request, g, Blueprint
 from whoosh.qparser import QueryParser
 from yawtext.collections import CollectionView, yawtwhoosh
 
+searchbp = Blueprint('search', __name__)
 
 class SearchView(CollectionView): 
     methods = ['GET', 'POST']
 
-    def query(self, category):
+    def query(self, category, *args, **kwargs):
         searchtext = unicode(request.args.get('searchtext', ''))
         query_str = 'content:' + searchtext
         if category:
@@ -25,16 +26,24 @@ class YawtSearch(object):
             self.init_app(app)
 
     def init_app(self, app):
-        app.config.setdefault('YAWT_SEARCH_TEMPLATE', 'article_collection')
-        app.add_url_rule('/search/', 
-                         view_func = SearchView.as_view('full_text_search'))
-        app.add_url_rule('/<path:category>/search/',
-                         view_func = SearchView.as_view('full_text_search_cat'))
-        app.add_url_rule('/search/index', 
-                         view_func = SearchView.as_view('full_text_search_index'))
-        app.add_url_rule('/<path:category>/search/index',
-                         view_func = SearchView.as_view('full_text_search_index_cat'))
-        app.add_url_rule('/search/index.<flav>', 
-                         view_func = SearchView.as_view('full_text_search_index_flav'))
-        app.add_url_rule('/<path:category>/search/index.<flav>',
-                         view_func = SearchView.as_view('full_text_search_index_flav_cat'))
+        app.config.setdefault('YAWT_SEARCH_TEMPLATE', 'article_list')
+        app.register_blueprint(searchbp)
+
+
+@searchbp.context_processor
+def collection_title():
+    searchtext = unicode(request.args.get('searchtext', ''))
+    return {'collection_title': 'Found %s search results for "%s"' % (g.total_results, searchtext)}
+
+searchbp.add_url_rule('/search/', 
+                      view_func=SearchView.as_view('full_text_search'))
+searchbp.add_url_rule('/<path:category>/search/',
+                     view_func=SearchView.as_view('full_text_search_cat'))
+searchbp.add_url_rule('/search/index', 
+                      view_func=SearchView.as_view('full_text_search_index'))
+searchbp.add_url_rule('/<path:category>/search/index',
+                      view_func=SearchView.as_view('full_text_search_index_cat'))
+searchbp.add_url_rule('/search/index.<flav>', 
+                      view_func=SearchView.as_view('full_text_search_index_flav'))
+searchbp.add_url_rule('/<path:category>/search/index.<flav>',
+                      view_func=SearchView.as_view('full_text_search_index_flav_cat'))

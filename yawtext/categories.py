@@ -5,7 +5,7 @@ from yawtext.collections import CollectionView, yawtwhoosh
 
 
 class CategoryView(CollectionView):
-    def query(self, category):
+    def query(self, category, *args, **kwargs):
         if category:
             qp = QueryParser('categories', schema=yawtwhoosh().schema())
             return qp.parse(unicode(category))
@@ -23,7 +23,7 @@ class YawtCategories(object):
             self.init_app(app)
 
     def init_app(self, app):
-        app.config.setdefault('YAWT_CATEGORY_TEMPLATE', 'article_collection')
+        app.config.setdefault('YAWT_CATEGORY_TEMPLATE', 'article_list')
  
     def on_article_fetch(self, article):
         category = article.info.category
@@ -35,7 +35,7 @@ class YawtCategories(object):
         return article
 
     def on_404(self, fullname, flavour):
-        """auto generate the index page if one was requested""" 
+        """auto generate the index page if one was requested"""
         index_file = current_app.config['YAWT_INDEX_FILE']
         if fullname != index_file and not fullname.endswith('/' + index_file):
             # this doesn't look like an index file fullname

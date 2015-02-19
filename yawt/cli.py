@@ -1,6 +1,6 @@
 import os
 
-from flask import g
+from flask import g, current_app
 from flask_script import Command, Option, Manager, Server
 
 import yawt
@@ -28,6 +28,7 @@ class Walk(Command):
     plugin do something with it.
     """
     def run(self):
+        current_app.preprocess_request()
         g.site.walk()
 
 class FilesAdded(Command):

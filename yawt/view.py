@@ -25,11 +25,9 @@ def get_possible_templates(template, category, base, flavour):
     if category:
         base_file = category + '/' + base_file
     templates = [base_file]
-    print str(templates)
     template_base = template + '.' + flavour
     current_category = category
     while current_category: 
-        print "current_category: " + current_category
         article_template = current_category + '/' + template_base
         templates.append(article_template)
         current_category = parent_category(current_category)

@@ -2,19 +2,24 @@ from flask import current_app, g, request, Blueprint, abort
 from flask.views import View
 from yawt.view import render
 from jinja2 import TemplatesNotFound
+from math import ceil
 
-collectionsbp = Blueprint('collections', __name__)
+pagingbp = Blueprint('paging', __name__)
 
-@collectionsbp.before_request
+@pagingbp.before_app_request
 def before_request():
     try:
         g.page = int(request.args.get('page', '1'))
     except ValueError:
         g.page = 1
+    except KeyError:
+        g.page = 1
 
     try:
         g.pagelen = int(request.args.get('pagelen', '10'))
     except ValueError:
+        g.pagelen = 10
+    except KeyError:
         g.pagelen = 10
 
 class YawtPaging(object):
@@ -23,19 +28,24 @@ class YawtPaging(object):
         if app is not None:
             self.init_app(app)
 
-    def init_app(self, app):
-        app.register_blueprint(collectionsbp)
+    def init_app(self, app): 
+        app.register_blueprint(pagingbp)
 
 
 class CollectionView(View):
-    def dispatch_request(self, category, flav, *args, **kwargs):
-        article_infos = yawtwhoosh().search(self.query(category, args, kwargs),
-                                            'create_time', 
-                                            g.page, g.pagelen, 
-                                            True)
+    def dispatch_request(self, category='', flav=None, *args, **kwargs):
+        query = self.query(category, args, kwargs)
+        ainfos, total = yawtwhoosh().search(query, 'create_time', g.page, g.pagelen, True)
+        g.total_results = total
+        g.total_pages = int(ceil(float(g.total_results)/g.pagelen))
+        g.has_prev_page = g.page > 1
+        g.has_next_page = g.page < g.total_pages
+        g.prev_page = g.page - 1
+        g.next_page = g.page + 1
+        
         try:
-            return render(self.get_template_name(), category, 
-                          flav, {'article_infos': article_infos})
+            return render(self.get_template_name(), category, 'index',
+                          flav, {'article_infos': ainfos})
         except TemplatesNotFound:
             abort(404)
 

@@ -21,7 +21,12 @@ def fullname(repofile):
 
 
 class BadFieldType(Exception):
-    pass
+    def __init__(self, field_type):
+        super(BadFieldType, self).__init__()
+        self.field_type = field_type
+
+    def __str__(self):
+        return repr(self.field_type)
 
 
 class YawtWhoosh(object):
@@ -31,7 +36,7 @@ class YawtWhoosh(object):
             self.init_app(app)
 
     def init_app(self, app):
-        app.config.setdefault('YAWT_WHOOSH_ARTICLE_INFO_FIELDS', {'create_time': DATETIME})
+        app.config.setdefault('YAWT_WHOOSH_ARTICLE_INFO_FIELDS', {})
         app.config.setdefault('YAWT_WHOOSH_ARTICLE_FIELDS', {'content': TEXT})
     
     def on_new_site(self, files):
@@ -39,12 +44,12 @@ class YawtWhoosh(object):
 
     def on_pre_walk(self):
         self.whoosh().init_index(self.schema(), clear=True)
-
+        
     def on_visit_article(self, article):
         doc = self.field_values(article)
         self.whoosh().writer.add_document(**doc)
 
-    def on_post_walk(self):
+    def on_post_walk(self): 
         self.whoosh().writer.commit()
 
     def on_files_changed(self, files_modified, files_added, files_removed):
@@ -55,7 +60,7 @@ class YawtWhoosh(object):
 
         for f in files_modified + files_added:
             article = g.store.fetch_article_by_repofile(f)
-            if article: 
+            if article:
                 article = self._on_article_index(article)
                 doc = self.field_values(article)
                 self.whoosh().writer.add_document(**doc)
@@ -80,27 +85,27 @@ class YawtWhoosh(object):
         article_infos = []
         for result in results:
             article_infos.append(jsonpickle.decode(result['article_info_json']))
-        return article_infos
+        return article_infos, len(results)
 
     def schema(self):
         fields = {}
         fields.update(_config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'))
         fields.update(_config('YAWT_WHOOSH_ARTICLE_FIELDS'))
-        fields['article_info_json'] = STORED
-        fields['fullname'] = ID # add (or override) whatever is in config
+        fields['article_info_json'] = STORED()
+        fields['fullname'] = ID() # add (or override) whatever is in config
         return fields
 
     def field_values(self, article):
         schema = self.schema()
         values = {}
-        for field in _config('YAWT_WHOOSH_ARTICLE_FIELDS'):
-            if hasattr(article, field):
-                values[field] = self.value(getattr(article, field), schema[field])
+        for field_name in _config('YAWT_WHOOSH_ARTICLE_FIELDS'):
+            if hasattr(article, field_name):
+                values[field_name] = self.value(getattr(article, field_name), schema[field_name])
 
         info = article.info
-        for field in _config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'):
-            if hasattr(info, field):
-                values[field] = self.value(getattr(info, field), schema[field])
+        for field_name in _config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'):
+            if hasattr(info, field_name):
+                values[field_name] = self.value(getattr(info, field_name), schema[field_name])
 
         article.info.indexed = True
         values['fullname'] = article.info.fullname
@@ -109,10 +114,12 @@ class YawtWhoosh(object):
 
     def value(self, field_value, field_type):
         if type(field_value) is list:
-            if field_type == KEYWORD or field_type == IDLIST:
-                return ','.join(field_value)
+            ft = type(field_type)
+            if field_type == KEYWORD or ft is KEYWORD or \
+               field_type == IDLIST or ft is IDLIST:
+                return ' '.join(field_value)
             else:
-                raise BadFieldType()
+                raise BadFieldType(field_type)
         else:
             return field_value
         

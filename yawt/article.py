@@ -57,9 +57,9 @@ class FileBasedSiteManager(object):
         if os.path.exists(self.root_dir):
             raise SiteExistsError(self.root_dir)
 
-        ensure_path(os.path.join(self.root_dir, self.content_folder))
-        ensure_path(os.path.join(self.root_dir, self.draft_folder))
-        ensure_path(os.path.join(self.root_dir, self.template_folder))
+        ensure_path(self._content_root())
+        ensure_path(self._draft_root())
+        ensure_path(self._template_root())
         save_file(os.path.join(self.root_dir,'config.py'),'# put configuration here')
         self.save_template('article', 'html', yawt.default_templates.default_article_template)
         self.save_template('404', 'html', yawt.default_templates.default_404_template)
@@ -72,7 +72,8 @@ class FileBasedSiteManager(object):
         """
         if not self.is_article(repofile):
             return None
-        return self.fetch_article_by_fullname(self._file2name(repofile))
+        filename = os.path.join(self.root_dir, repofile)
+        return self.fetch_article_by_fullname(self._file2name(filename))
 
     def fetch_article_by_fullname(self, fullname):
         """Fetch single article info by fullname. Returns None if no article
@@ -166,8 +167,8 @@ class FileBasedSiteManager(object):
         return os.path.isdir(os.path.join(self._content_root(), fullname))
 
     def is_article(self, repofile):
-        """Return True if repo refers to an article file"""
-        prefix = self._content_root()
+        """Return True if repofile refers to an article file"""
+        prefix = self.content_folder
         if not prefix.endswith('/'):
             prefix += '/'
         return repofile.startswith(prefix)
