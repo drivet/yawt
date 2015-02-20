@@ -33,8 +33,8 @@ class YawtPaging(object):
 
 
 class CollectionView(View):
-    def dispatch_request(self, category='', flav=None, *args, **kwargs):
-        query = self.query(category, args, kwargs)
+    def dispatch_request(self, category='', flav=None, *args, **kwargs): 
+        query = self.query(category, *args, **kwargs)
         ainfos, total = yawtwhoosh().search(query, 'create_time', g.page, g.pagelen, True)
         g.total_results = total
         g.total_pages = int(ceil(float(g.total_results)/g.pagelen))
@@ -42,7 +42,7 @@ class CollectionView(View):
         g.has_next_page = g.page < g.total_pages
         g.prev_page = g.page - 1
         g.next_page = g.page + 1
-        
+
         try:
             return render(self.get_template_name(), category, 'index',
                           flav, {'article_infos': ainfos})

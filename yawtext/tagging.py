@@ -1,10 +1,15 @@
-from flask import current_app
+from flask import current_app, Blueprint, g
 from whoosh.qparser import QueryParser
 from yawtext.collections import CollectionView, yawtwhoosh
 
+taggingbp = Blueprint('tagging', __name__)
 
-class TaggingView(CollectionView):
-    def query(self, category, tag):
+class TaggingView(CollectionView): 
+    def dispatch_request(self, *args, **kwargs):
+        g.tag = kwargs['tag']
+        return super(TaggingView, self).dispatch_request(*args, **kwargs)
+        
+    def query(self, category='', tag=None, *args, **kwargs):
         query_str = 'tags:' + tag
         if category:
             query_str += ' AND ' + category
@@ -21,13 +26,20 @@ class YawtTagging(object):
             self.init_app(app)
 
     def init_app(self, app):
-        app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_collection')
-        app.add_url_rule('/tags/<tag>/', view_func=TaggingView.as_view('tag_canonical'))
-        app.add_url_rule('/tags/<tag>/index', view_func=TaggingView.as_view('tag_index'))
-        app.add_url_rule('/<path:category>/tags/<tag>/', 
-                         view_func=TaggingView.as_view('tag_category_canonical'))
-        app.add_url_rule('/<path:category>/tags/<tag>/index', 
-                         view_func=TaggingView.as_view('tag_category_index'))
-        app.add_url_rule('/<tag>/index.<flav>', view_func=TaggingView.as_view('tag_index_flav'))
-        app.add_url_rule('/<path:category>/tags/<tag>/index.<flav>', 
-                         view_func=TaggingView.as_view('tag_category_index_flav'))
+        app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
+        app.register_blueprint(taggingbp)
+
+
+@taggingbp.context_processor
+def collection_title():
+    return {'collection_title': 'Found %s tag results for "%s"' % (g.total_results, g.tag)}
+
+taggingbp.add_url_rule('/tags/<tag>/', view_func=TaggingView.as_view('tag_canonical'))
+taggingbp.add_url_rule('/tags/<tag>/index', view_func=TaggingView.as_view('tag_index'))
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/', 
+                       view_func=TaggingView.as_view('tag_category_canonical'))
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/index', 
+                       view_func=TaggingView.as_view('tag_category_index'))
+taggingbp.add_url_rule('/<tag>/index.<flav>', view_func=TaggingView.as_view('tag_index_flav'))
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/index.<flav>', 
+                       view_func=TaggingView.as_view('tag_category_index_flav'))
