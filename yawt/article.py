@@ -41,6 +41,12 @@ class Article(object):
         self.info = ArticleInfo()
         self.content = ""
 
+    def __str__(self):
+        return "Article: " + str(self.info)
+ 
+    def __repr__(self):
+        return "Article: " + repr(self.info)
+
 
 class FileBasedSiteManager(object):
     """The default article store. Stores articles on disk. No plugins."""

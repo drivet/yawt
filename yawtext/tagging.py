@@ -29,6 +29,20 @@ class YawtTagging(object):
         app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
         app.register_blueprint(taggingbp)
 
+    def on_article_fetch(self, article):
+        if (not hasattr(article.info, 'indexed') or not article.info.indexed) and \
+           hasattr(article.info, 'tags'):
+            tags_meta = article.info.tags
+            article.info.taglist = [x.strip() for x in tags_meta.split(',')] 
+        return article
+
+    def on_article_index(self, article):
+        """
+        We can handle the indexing plugin if it's there
+        """
+        tags_meta = article.info.tags
+        article.info.taglist = [x.strip() for x in tags_meta.split(',')] 
+        return article
 
 @taggingbp.context_processor
 def collection_title():

@@ -125,4 +125,3 @@ class YawtWhoosh(object):
         
     def whoosh(self):
         return current_app.extension_info[0]['whoosh']
-
