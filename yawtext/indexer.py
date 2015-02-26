@@ -1,9 +1,8 @@
 from flask import current_app, g
-from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT, DATETIME
+from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT
 import jsonpickle
 import re
 import os
-from yawt.utils import has_method
 
 def _config(key):
     return current_app.config[key]
@@ -41,7 +40,7 @@ class YawtWhoosh(object):
     
     def on_new_site(self, files):
         self.whoosh().init_index(self.schema())
-
+ 
     def on_pre_walk(self):
         self.whoosh().init_index(self.schema(), clear=True)
         
@@ -59,20 +58,13 @@ class YawtWhoosh(object):
                 self.whoosh().writer.delete_by_term('fullname', name)
 
         for f in files_modified + files_added:
-            article = g.store.fetch_article_by_repofile(f)
-            if article:
-                article = self._on_article_index(article)
+            article = g.site.fetch_article_by_repofile(f)
+            if article: 
                 doc = self.field_values(article)
                 self.whoosh().writer.add_document(**doc)
 
         self.whoosh().writer.commit()
  
-    def _on_article_index(self, article):
-        for ext in self._extensions():
-            if has_method(ext, 'on_article_index'):
-                article = ext.on_article_index(article)
-        return article
-
     def _extensions(self):
         if current_app.extension_info:
             return current_app.extension_info[1]

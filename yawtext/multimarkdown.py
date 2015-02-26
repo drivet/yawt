@@ -19,15 +19,6 @@ class YawtMarkdown(object):
                 self._set_attributes(article.info, meta)
         return article
  
-    def on_article_index(self, article):
-        """
-        We can handle the indexing plugin if it's there
-        """
-        if article.info.extension in current_app.config['YAWT_MULTIMARKDOWN_FILE_EXTENSIONS']:
-            meta, markup = load_markdown(article.content)
-            self._set_attributes(article.info, meta)
-        return article
-
     def _set_attributes(self, article_info, meta):
         for key in meta.keys():
             setattr(article_info, key, '\n'.join(meta[key]))

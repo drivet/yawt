@@ -24,6 +24,12 @@ class YawtSiteManager(object):
         article.info = article_info
         return self._on_article_fetch(article)
 
+    def fetch_article_by_repofile(self, repofile):
+        article = self.site_manager.fetch_article_by_repofile(repofile)
+        if article is None:
+            return None
+        return self._on_article_fetch(article)
+
     def walk(self):
         self._call_plugins('on_pre_walk')
         for fullname in self.site_manager.walk():

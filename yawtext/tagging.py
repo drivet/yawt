@@ -36,13 +36,6 @@ class YawtTagging(object):
             article.info.taglist = [x.strip() for x in tags_meta.split(',')] 
         return article
 
-    def on_article_index(self, article):
-        """
-        We can handle the indexing plugin if it's there
-        """
-        tags_meta = article.info.tags
-        article.info.taglist = [x.strip() for x in tags_meta.split(',')] 
-        return article
 
 @taggingbp.context_processor
 def collection_title():

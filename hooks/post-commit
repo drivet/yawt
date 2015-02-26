@@ -8,13 +8,12 @@ import subprocess
 
 repo_path = '/path/to/blog'
 git = '/usr/bin/git'
-
+    
 try:
-    cmd = ['sudo', '-u', 'www-data', '-H',
-           git, '--git-dir=' + repo_path + '/.git',
+    cmd = [git, '--git-dir=' + repo_path + '/.git',
            '--work-tree=' + repo_path,
-           'diff-tree', '-r', '--name-status', '--no-commit-id', 'ORIG_HEAD', 'HEAD']
-
+           'diff-tree', '-r', '--name-status', '--no-commit-id', 'HEAD']
+    
     diff_tree_out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 except subprocess.CalledProcessError as e:
     print str(cmd) + ' failed: ' + str(e.returncode) + '\n' + e.output
