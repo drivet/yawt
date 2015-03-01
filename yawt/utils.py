@@ -9,6 +9,9 @@ def save_file(filename, contents):
     with open(filename, 'w') as f:
         f.write(unicode(contents))
 
+def remove_file(filename):
+    os.remove(filename)
+
 def copy_file(oldfile, newfile):
     with open(oldfile, 'r') as f:
         contents = f.read()

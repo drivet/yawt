@@ -12,7 +12,7 @@ from yawt.article import ArticleInfo, Article
 import jsonpickle
 from mock import patch
 
-class TestYawtWhoosh(unittest.TestCase):
+class TestYawtCategories(unittest.TestCase):
     def setUp(self):
         self.site_root = '/tmp/blah'
         self.plugin = YawtCategories()
@@ -138,16 +138,20 @@ class TestYawtWhoosh(unittest.TestCase):
         writer = idx.writer()
 
         info1 = ArticleInfo('foo/har/article1', 'foo/har', 'article1', 'txt',datetime(2004, 11, 03) )
-        writer.add_document(fullname=u'foo/har/article1', create_time=datetime(2004, 11, 04), content=u'stuff1', 
+        writer.add_document(fullname=u'foo/har/article1', create_time=datetime(2004, 11, 04),
+                            content=u'stuff1', 
                             article_info_json=jsonpickle.encode(info1), categories=u"foo,foo/har")
         info2 = ArticleInfo('bar/article2', 'bar', 'article2', 'txt', datetime(2004, 11, 05))
-        writer.add_document(fullname=u'bar/article2', create_time=datetime(2004, 11, 05), content=u'stuff2', 
+        writer.add_document(fullname=u'bar/article2', create_time=datetime(2004, 11, 05),
+                            content=u'stuff2', 
                             article_info_json=jsonpickle.encode(info2), categories=u"bar" )
         info3 = ArticleInfo('foo/gad/article3', 'foo/gad', 'article3', 'txt', datetime(2004, 11, 04))
-        writer.add_document(fullname=u'foo/gad/article3', create_time=datetime(2004, 11, 04), content=u'stuff3',
+        writer.add_document(fullname=u'foo/gad/article3', create_time=datetime(2004, 11, 04),
+                            content=u'stuff3',
                             article_info_json=jsonpickle.encode(info3), categories=u"foo,foo/gad")
         info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', datetime(2004, 11, 02))
-        writer.add_document(fullname=u'bar/article4', create_time=datetime(2004, 11, 02), content=u'stuff4',
+        writer.add_document(fullname=u'bar/article4', create_time=datetime(2004, 11, 02),
+                            content=u'stuff4',
                             article_info_json=jsonpickle.encode(info4), categories=u"bar")
         writer.commit()
 
