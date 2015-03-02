@@ -1,29 +1,36 @@
 import unittest
-from yawtext.categories import YawtCategories
+from yawtext.categories import YawtCategories, CategoryCount
 from whoosh.fields import DATETIME, STORED, ID, KEYWORD, Schema
 from whoosh.index import create_in
 from yawt import create_app
 from flask import g
-import shutil
 import os
 from datetime import datetime
-from yawt.utils import save_file
+from yawt.utils import save_file, load_file
 from yawt.article import ArticleInfo, Article
 import jsonpickle
-from mock import patch
+from yawt.test.siteutils import TempSite
+from yawtext.test.utils import generate_collection_template
+
+class TestConfig(object):
+    def __init__(self, site):
+        self.WHOOSH_INDEX_ROOT = os.path.join(site.abs_state_root(), 'whoosh')
+        self.YAWT_WHOOSH_ARTICLE_INFO_FIELDS = \
+            {'create_time': DATETIME, 'categories': KEYWORD(commas=True)}
 
 class TestYawtCategories(unittest.TestCase):
     def setUp(self):
-        self.site_root = '/tmp/blah'
+        self.site = TempSite()
+        self.site.initialize()
         self.plugin = YawtCategories()
-        self.app = create_app(self.site_root, extension_info = extension_info(self.plugin))
-        self.index_root = os.path.join(self.site_root, self.app.config['YAWT_STATE_FOLDER'], 'whoosh')
-        self.app.config['WHOOSH_INDEX_ROOT'] = self.index_root
-        self.app.config['YAWT_WHOOSH_ARTICLE_INFO_FIELDS'] = \
-            {'create_time': DATETIME, 'categories': KEYWORD(commas=True)}
+        self.app = create_app(self.site.site_root, 
+                              config = TestConfig(self.site),
+                              extension_info = extension_info(self.plugin))
+        self.app.testing = True
+        os.makedirs(self.app.config['WHOOSH_INDEX_ROOT'])
 
     def test_default_category_template(self):
-        self.assertEqual('article_collection', self.app.config['YAWT_CATEGORY_TEMPLATE'])
+        self.assertEqual('article_list', self.app.config['YAWT_CATEGORY_TEMPLATE'])
 
     def test_on_article_fetch_sets_categories(self):
         with self.app.test_request_context():
@@ -42,16 +49,16 @@ class TestYawtCategories(unittest.TestCase):
             self.assertFalse(self.plugin.on_404('blah', 'html'))
 
     def test_on_404_renders_if_fullname_is_root_index_file(self):
-        content_root = os.path.join(self.site_root, self.app.config['YAWT_CONTENT_FOLDER'])
-        os.makedirs(content_root)
-        save_file(os.path.join(content_root, 'article1.txt'), u'stuff1')
-        save_file(os.path.join(content_root, 'article2.txt'), u'stuff2')
-        save_file(os.path.join(content_root, 'article3.txt'), u'stuff3')
-        save_file(os.path.join(content_root, 'article4.txt'), u'stuff4')
-        os.makedirs(self.index_root)
+        template = generate_collection_template('info', 'article_infos', ['fullname'])
+        self.site.save_template('article_list.html', template)
+        self.site.save_content('article1.txt', u'stuff1')
+        self.site.save_content('article2.txt', u'stuff2')
+        self.site.save_content('article3.txt', u'stuff3')
+        self.site.save_content('article4.txt', u'stuff4')
+
         fields = self._schema()
         schema = Schema(**fields)
-        idx = create_in(self.index_root, schema = schema)
+        idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
         info1 = ArticleInfo('article1', '', 'article1', 'txt',datetime(2004, 11, 03) )
@@ -68,29 +75,26 @@ class TestYawtCategories(unittest.TestCase):
                             article_info_json=jsonpickle.encode(info4))
         writer.commit()
 
-        with self.app.test_request_context():
-            self.app.preprocess_request()
-            with patch('yawtext.categories.render') as mock:
-                mock.return_value = ''
-                page = self.plugin.on_404('index', 'html')
-                mock.assert_called_with('index', 'html', 
-                                        {'article_infos': [info2, info3, info1, info4]},
-                                        None)
+        with self.app.test_client() as c:
+            rv = c.get('/index.html')
+            assert 'article1' in rv.data
+            assert 'article2' in rv.data
+            assert 'article3' in rv.data
+            assert 'article4' in rv.data
 
     def test_on_404_renders_if_fullname_is_categorized_index_file(self):
-        content_root = os.path.join(self.site_root, self.app.config['YAWT_CONTENT_FOLDER'])
-        os.makedirs(content_root)
-        os.makedirs(os.path.join(content_root, 'foo'))
-        os.makedirs(os.path.join(content_root, 'bar'))
+        template = generate_collection_template('info', 'article_infos', ['fullname'])
+        self.site.save_template('article_list.html', template)
+        self.site.mk_content_category('foo')
+        self.site.mk_content_category('bar')
+        self.site.save_content('foo/article1.txt', u'stuff1')
+        self.site.save_content('bar/article2.txt', u'stuff2')
+        self.site.save_content('foo/article3.txt', u'stuff3')
+        self.site.save_content('bar/article4.txt', u'stuff4')
         
-        save_file(os.path.join(content_root, 'foo/article1.txt'), u'stuff1')
-        save_file(os.path.join(content_root, 'bar/article2.txt'), u'stuff2')
-        save_file(os.path.join(content_root, 'foo/article3.txt'), u'stuff3')
-        save_file(os.path.join(content_root, 'bar/article4.txt'), u'stuff4')
-        os.makedirs(self.index_root)
         fields = self._schema()
         schema = Schema(**fields)
-        idx = create_in(self.index_root, schema = schema)
+        idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
         info1 = ArticleInfo('foo/article1', 'foo', 'article1', 'txt',datetime(2004, 11, 03) )
@@ -111,30 +115,30 @@ class TestYawtCategories(unittest.TestCase):
                             article_info_json=jsonpickle.encode(info4), categories=u"bar")
         writer.commit()
 
-        with self.app.test_request_context():
-            self.app.preprocess_request()
-            with patch('yawtext.categories.render') as mock:
-                mock.return_value = ''
-                page = self.plugin.on_404('foo/index', 'html')
-                mock.assert_called_with('foo/index', 'html', 
-                                        {'article_infos': [info3, info1]},
-                                        None)
+        with self.app.test_client() as c:
+            rv = c.get('/foo/index.html')
+            assert 'article1' in rv.data
+            assert 'article3' in rv.data
+            assert 'article2' not in rv.data
+            assert 'article4' not in rv.data
+            
 
     def test_on_404_renders_if_fullname_is_nested_categorized_index_file(self):
-        content_root = os.path.join(self.site_root, self.app.config['YAWT_CONTENT_FOLDER'])
-        os.makedirs(content_root)
-        os.makedirs(os.path.join(content_root, 'foo/har'))
-        os.makedirs(os.path.join(content_root, 'foo/gad'))
-        os.makedirs(os.path.join(content_root, 'bar'))
-        
-        save_file(os.path.join(content_root, 'foo/har/article1.txt'), u'stuff1')
-        save_file(os.path.join(content_root, 'bar/article2.txt'), u'stuff2')
-        save_file(os.path.join(content_root, 'foo/gad/article3.txt'), u'stuff3')
-        save_file(os.path.join(content_root, 'bar/article4.txt'), u'stuff4')
-        os.makedirs(self.index_root)
+        template = generate_collection_template('info', 'article_infos', ['fullname'])
+        self.site.save_template('article_list.html', template)
+        self.site.mk_content_category('foo')
+        self.site.mk_content_category('foo/har')
+        self.site.mk_content_category('foo/gad')
+        self.site.mk_content_category('bar')
+
+        self.site.save_content('foo/har/article1.txt', u'stuff1')
+        self.site.save_content('bar/article2.txt', u'stuff2')
+        self.site.save_content('foo/gad/article3.txt', u'stuff3')
+        self.site.save_content('bar/article4.txt', u'stuff4')
+
         fields = self._schema()
         schema = Schema(**fields)
-        idx = create_in(self.index_root, schema = schema)
+        idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
         info1 = ArticleInfo('foo/har/article1', 'foo/har', 'article1', 'txt',datetime(2004, 11, 03) )
@@ -155,23 +159,146 @@ class TestYawtCategories(unittest.TestCase):
                             article_info_json=jsonpickle.encode(info4), categories=u"bar")
         writer.commit()
 
+        with self.app.test_client() as c:
+            rv = c.get('/foo/index.html')
+            assert 'article3' in rv.data
+            assert 'article1' in rv.data
+            assert 'article2' not in rv.data
+            assert 'article4' not in rv.data
+            
+            rv = c.get('/foo/har/index.html')
+            assert 'article1' in rv.data
+            assert 'article2' not in rv.data 
+            assert 'article3' not in rv.data
+            assert 'article4' not in rv.data
+ 
+    def test_walking_produces_readable_categorycount_file(self):
+        self.site.mk_content_category('foo')
+        self.site.mk_content_category('bar')
+        
+        self.site.save_content('foo/article1.txt', u'stuff1')
+        self.site.save_content('foo/article2.txt', u'stuff2')
+        self.site.save_content('foo/article3.txt', u'stuff3')
+        self.site.save_content('bar/article4.txt', u'stuff4')
+
         with self.app.test_request_context():
             self.app.preprocess_request()
-            with patch('yawtext.categories.render') as mock:
-                mock.return_value = ''
-                page = self.plugin.on_404('foo/index', 'html')
-                mock.assert_called_with('foo/index', 'html', 
-                                        {'article_infos': [info3, info1]},
-                                        None)
+            g.site.walk()
 
-            with patch('yawtext.categories.render') as mock:
-                mock.return_value = ''
-                page = self.plugin.on_404('foo/har/index', 'html')
-                mock.assert_called_with('foo/har/index', 'html', 
-                                        {'article_infos': [info1]},
-                                        None)
+        countfile = self.abs_category_count_file()
+        self.assertTrue(os.path.exists(countfile))
+        categorycounts = jsonpickle.decode(load_file(countfile))
+        self.assertEquals(4, categorycounts.count)
+        assert 'foo' in [c.category for c in categorycounts.children]
+        assert 'bar' in [c.category for c in categorycounts.children]
+        if categorycounts.children[0].category == 'foo':
+            foocat = categorycounts.children[0]
+            barcat = categorycounts.children[1]
+        else:
+            foocat = categorycounts.children[1]
+            barcat = categorycounts.children[0]
 
-   
+        self.assertEquals(3, foocat.count)
+        self.assertEquals(1, barcat.count)
+
+    def test_changed_files_adjust_categories(self):
+        self.site.mk_content_category('foo')
+        self.site.mk_content_category('bar')
+        
+        self.site.save_content('foo/article1.txt', u'stuff1')
+        self.site.save_content('foo/article2.txt', u'stuff2')
+        self.site.save_content('foo/article3.txt', u'stuff3')
+        self.site.save_content('bar/article4.txt', u'stuff4')
+
+        fields = self._schema()
+        schema = Schema(**fields)
+        idx = create_in(self.index_root(), schema = schema)
+        writer = idx.writer()
+
+        info1 = ArticleInfo('foo/article1', 'foo', 'article1', 'txt', datetime(2004, 11, 03) )
+        info1.categories = ['foo']
+        writer.add_document(fullname=u'foo/article1', create_time=datetime(2004, 11, 04),
+                            content=u'stuff1',
+                            article_info_json=jsonpickle.encode(info1))
+
+        info2 = ArticleInfo('foo/article2', 'foo', 'article2', 'txt', datetime(2004, 11, 05))
+        info2.categories = ['foo']
+        writer.add_document(fullname=u'foo/article2', create_time=datetime(2004, 11, 05), 
+                            content=u'stuff2',
+                            article_info_json=jsonpickle.encode(info2))
+
+        info3 = ArticleInfo('foo/article3', 'foo', 'article3', 'txt', datetime(2004, 11, 04))
+        info3.categories = ['foo']
+        writer.add_document(fullname=u'foo/article3', create_time=datetime(2004, 11, 04), 
+                            content=u'stuff3', 
+                            article_info_json=jsonpickle.encode(info3))
+
+        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', datetime(2004, 11, 02))
+        info4.categories = ['bar']
+        writer.add_document(fullname=u'bar/article4', create_time=datetime(2004, 11, 02), 
+                            content=u'stuff4',
+                            article_info_json=jsonpickle.encode(info4))
+        writer.commit()
+
+        # set up category file
+        catcount = CategoryCount()
+        catcount.count = 4
+        catcount.category = ''
+        
+        foocat = CategoryCount()
+        foocat.category = 'foo'
+        foocat.count = 3
+
+        barcat = CategoryCount()
+        barcat.category = 'bar'
+        barcat.count = 1
+
+        catcount.children.append(foocat)
+        catcount.children.append(barcat)
+
+        self.site.save_state_file(self.abs_category_count_file(), jsonpickle.encode(catcount))
+
+        self.site.save_content('foo/article1.txt', u'stuff_blah')
+        modified = [os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'foo/article1.txt')]
+        
+        self.site.save_content('bar/article5.txt', u'stuff5')
+        self.site.save_content('bar/article2.txt', u'stuff5')
+        added = [os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'bar/article5.txt')]
+        added.append(os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'bar/article2.txt'))
+
+        self.site.remove_content('foo/article2.txt')
+        removed = [os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'foo/article2.txt')]
+
+        with self.app.test_request_context():
+            self.app.preprocess_request()
+            g.site.files_changed(modified, added, removed)
+
+        countfile = self.abs_category_count_file()
+        self.assertTrue(os.path.exists(countfile))
+        categorycounts = jsonpickle.decode(load_file(countfile))
+        
+        self.assertEquals(5, categorycounts.count)
+        assert 'foo' in [c.category for c in categorycounts.children]
+        assert 'bar' in [c.category for c in categorycounts.children]
+        if categorycounts.children[0].category == 'foo':
+            foocat = categorycounts.children[0]
+            barcat = categorycounts.children[1]
+        else:
+            foocat = categorycounts.children[1]
+            barcat = categorycounts.children[0]
+
+        self.assertEquals(2, foocat.count)
+        self.assertEquals(3, barcat.count)
+
+    def abs_category_count_file(self):
+        root = self.app.yawt_root_dir
+        tagcountfile = self.app.config['YAWT_CATEGORY_COUNT_FILE']
+        state_folder = self.app.config['YAWT_STATE_FOLDER']
+        return os.path.join(root, state_folder, tagcountfile)
+
+    def index_root(self):
+        return self.app.config['WHOOSH_INDEX_ROOT']
+
     def _schema(self):
         fields = {}
         fields.update(self.app.config['YAWT_WHOOSH_ARTICLE_INFO_FIELDS'])
@@ -180,9 +307,8 @@ class TestYawtCategories(unittest.TestCase):
         fields['fullname'] = ID
         return fields
 
-    def tearDown(self):
-        if os.path.exists(self.site_root):
-            shutil.rmtree(self.site_root)
+    def tearDown(self):   
+        self.site.remove()
 
 
 def extension_info(plugin):
@@ -190,12 +316,20 @@ def extension_info(plugin):
     whoosh = Whoosh()
     from yawtext.indexer import YawtWhoosh
     yawtwhoosh = YawtWhoosh()
-    return ({'whoosh': whoosh, 'yawtwhoosh': yawtwhoosh, 'categories':plugin},
-            [plugin], mk_init_app(whoosh, yawtwhoosh, plugin))
+    from yawtext.collections import YawtPaging
+    yawtpaging = YawtPaging()
 
-def mk_init_app(whoosh, yawtwhoosh, yawtcategories):
+    return ({'whoosh': whoosh, 
+             'yawtwhoosh': yawtwhoosh,
+             'yawtpaging': yawtpaging,
+             'categories':plugin},
+            [whoosh, yawtwhoosh, yawtpaging, plugin], 
+            mk_init_app(whoosh, yawtwhoosh, yawtpaging, plugin))
+
+def mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtcategories):
     def init_app(app):
         whoosh.init_app(app)
         yawtwhoosh.init_app(app)
+        yawtpaging.init_app(app)
         yawtcategories.init_app(app)
     return init_app

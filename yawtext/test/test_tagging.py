@@ -129,8 +129,6 @@ class TestYawtTagging(unittest.TestCase):
             assert 'article4' not in rv.data
 
     def test_changed_files_adjust_tags(self):
-        template = generate_collection_template('info', 'article_infos', ['fullname'])
-        self.site.save_template('article_list.html', template)
         self.site.save_content('article1.md', u'tags: tag1,tag2\n\nstuff1')
         self.site.save_content('article2.md', u'tags: tag3,tag4\n\nstuff2')
         self.site.save_content('article3.md', u'tags: tag3,tag1\n\nstuff3')
@@ -242,7 +240,7 @@ def extension_info(plugin):
              'yawtpaging': yawtpaging,
              'yawttagging':plugin,
              'yawtmarkdown': yawtmarkdown},
-            [whoosh, yawtwhoosh, yawtmarkdown, plugin],
+            [whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, plugin],
             mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, plugin))
 
 def mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, plugin):
