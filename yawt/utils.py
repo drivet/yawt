@@ -1,4 +1,6 @@
 import os
+import re
+from flask import current_app
 
 def load_file(filename):
     with open(filename, 'r') as f:
@@ -32,3 +34,16 @@ def base_and_ext(basefile):
 
 def has_method(obj, method):
     return hasattr(obj, method) and callable(getattr(obj, method))
+
+# possibly doesn't belong here
+def fullname(sitefile):
+    """sitefile is relative to the site_root, not absolute"""
+    content_root = current_app.config['YAWT_CONTENT_FOLDER']
+    if not sitefile.startswith(content_root):
+        return None
+    rel_filename = re.sub('^%s/' % (content_root), '', sitefile) 
+    name, ext = os.path.splitext(rel_filename)
+    ext = ext[1:]
+    if ext not in current_app.config['YAWT_ARTICLE_EXTENSIONS']:
+        return None 
+    return name

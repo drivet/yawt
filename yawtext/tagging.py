@@ -2,24 +2,11 @@ from flask import current_app, Blueprint, g
 from whoosh.qparser import QueryParser
 from yawtext.collections import CollectionView, yawtwhoosh
 import jsonpickle
-from yawt.utils import save_file, load_file
+from yawt.utils import save_file, load_file, fullname
 import os
-import re
 
 taggingbp = Blueprint('tagging', __name__)
 
-
-def fullname(repofile):
-    """repofile is not absolute, but rather is relative to repo."""
-    content_root = current_app.config['YAWT_CONTENT_FOLDER']
-    if not repofile.startswith(content_root):
-        return None
-    rel_filename = re.sub('^%s/' % (content_root), '', repofile) 
-    name, ext = os.path.splitext(rel_filename)
-    ext = ext[1:]
-    if ext not in current_app.config['YAWT_ARTICLE_EXTENSIONS']:
-        return None 
-    return name
 
 def abs_tagcount_file():
     root = current_app.yawt_root_dir

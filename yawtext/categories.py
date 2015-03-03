@@ -2,26 +2,12 @@ from flask import current_app, g, Blueprint
 from whoosh.qparser import QueryParser
 from whoosh.query.qcore import Every
 from yawtext.collections import CollectionView, yawtwhoosh
-from yawt.utils import save_file, load_file
+from yawt.utils import save_file, load_file, fullname
 import re
 import os
 import jsonpickle
 
 categoriesbp = Blueprint('categories', __name__)
-
-def _config(key):
-    return current_app.config[key]
-
-def fullname(repofile):
-    content_root = _config('YAWT_CONTENT_FOLDER')
-    if not repofile.startswith(content_root):
-        return None
-    rel_filename = re.sub('^%s/' % (content_root), '', repofile) 
-    name, ext = os.path.splitext(rel_filename)
-    ext = ext[1:]
-    if ext not in _config('YAWT_ARTICLE_EXTENSIONS'):
-        return None 
-    return name
 
 class CategoryCount(object):
     def __init__(self):
@@ -115,16 +101,16 @@ class YawtCategories(object):
         article.info.categories = categories
         return article
 
-    def on_404(self, fullname, flavour):
-        """auto generate the index page if one was requested"""
+    def on_404(self, name, flavour):
+        """auto generate the index page if one was requested.  Name is fullname."""
         index_file = current_app.config['YAWT_INDEX_FILE']
-        if fullname != index_file and not fullname.endswith('/' + index_file):
-            # this doesn't look like an index file fullname
+        if name != index_file and not name.endswith('/' + index_file):
+            # this doesn't look like an index file name
             return False
 
         category = ''
-        if fullname.endswith('/' + index_file):
-            category = fullname.rsplit('/', 1)[0]
+        if name.endswith('/' + index_file):
+            category = name.rsplit('/', 1)[0]
 
         view_func = CategoryView.as_view('category_path')
         return view_func(category, flavour)
