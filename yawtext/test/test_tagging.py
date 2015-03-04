@@ -1,5 +1,5 @@
 import unittest
-from yawtext.tagging import YawtTagging, TagInfo
+from yawtext.tagging import YawtTagging
 from whoosh.fields import DATETIME, STORED, ID, KEYWORD, Schema
 from whoosh.index import create_in
 from yawt import create_app
@@ -69,8 +69,7 @@ class TestYawtTagging(unittest.TestCase):
 
         tagcountfile = self.abs_tagcount_file()
         self.assertTrue(os.path.exists(tagcountfile))
-        taginfo = jsonpickle.decode(load_file(tagcountfile))
-        tagcounts = taginfo.tagcounts
+        tagcounts = jsonpickle.decode(load_file(tagcountfile))
         self.assertEquals(2, tagcounts['tag1'])
         self.assertEquals(2, tagcounts['tag2'])
         self.assertEquals(2, tagcounts['tag3'])
@@ -173,13 +172,8 @@ class TestYawtTagging(unittest.TestCase):
         writer.commit()
 
         # set up tag info file
-        taginfo = TagInfo()
-        taginfo.tagcounts = {'tag1': 2, 'tag2': 2, 'tag3': 2, 'tag4': 2}
-        taginfo.name2tags = {'article1': ['tag1', 'tag2'], 
-                             'article2': ['tag3', 'tag4'], 
-                             'article3': ['tag3', 'tag1'], 
-                             'article4': ['tag2', 'tag4'] }
-        self.site.save_state_file(self.abs_tagcount_file(), jsonpickle.encode(taginfo))
+        tagcounts = {'tag1': 2, 'tag2': 2, 'tag3': 2, 'tag4': 2}
+        self.site.save_state_file(self.abs_tagcount_file(), jsonpickle.encode(tagcounts))
 
         self.site.save_content('article1.md', u'tags: tag5\n\nstuff1')
         modified = [os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'article1.md')]
@@ -196,8 +190,7 @@ class TestYawtTagging(unittest.TestCase):
 
         tagcountfile = self.abs_tagcount_file()
         self.assertTrue(os.path.exists(tagcountfile))
-        taginfo = jsonpickle.decode(load_file(tagcountfile))
-        tagcounts = taginfo.tagcounts
+        tagcounts = jsonpickle.decode(load_file(tagcountfile))
         self.assertFalse('tag1' in tagcounts)
         self.assertEquals(2, tagcounts['tag2'])
         self.assertEquals(1, tagcounts['tag3'])
@@ -225,7 +218,7 @@ class TestYawtTagging(unittest.TestCase):
         self.site.remove()
 #        print self.site.site_root
 
-def extension_info(plugin):
+def extension_info(yawttagging):
     from flask_whoosh import Whoosh
     whoosh = Whoosh()
     from yawtext.indexer import YawtWhoosh
@@ -238,16 +231,16 @@ def extension_info(plugin):
     return ({'whoosh': whoosh,
              'yawtwhoosh': yawtwhoosh,
              'yawtpaging': yawtpaging,
-             'yawttagging':plugin,
+             'yawttagging':yawttagging,
              'yawtmarkdown': yawtmarkdown},
-            [whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, plugin],
-            mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, plugin))
+            [yawtmarkdown, yawttagging, whoosh, yawtwhoosh, yawtpaging],
+            mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, yawttagging))
 
-def mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, plugin):
+def mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, yawt_tagging):
     def init_app(app):
         whoosh.init_app(app)
         yawtwhoosh.init_app(app)
         yawtpaging.init_app(app)
         yawtmarkdown.init_app(app)
-        plugin.init_app(app)
+        yawt_tagging.init_app(app)
     return init_app

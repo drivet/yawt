@@ -7,6 +7,8 @@ import os
 
 taggingbp = Blueprint('tagging', __name__)
 
+def whoosh():
+    return current_app.extension_info[0]['whoosh']
 
 def abs_tagcount_file():
     root = current_app.yawt_root_dir
@@ -15,17 +17,8 @@ def abs_tagcount_file():
     return os.path.join(root, state_folder, tagcountfile)
 
 
-class TagInfo(object):
-    def __init__(self):
-        self.tagcounts = {}
-
-        # record of name to tags so we know what to remove if the article
-        # gets deleted
-        self.name2tags = {}
-
-
 @taggingbp.app_context_processor
-def tagcounts():
+def tagcounts_cp():
     tagcountfile = abs_tagcount_file()
     tvars = {}
     if os.path.isfile(tagcountfile):
@@ -33,8 +26,7 @@ def tagcounts():
         if not tagbase.endswith('/'):
             tagbase += '/'
 
-        taginfo = jsonpickle.decode(load_file(tagcountfile))
-        tagcounts = taginfo.tagcounts
+        tagcounts = jsonpickle.decode(load_file(tagcountfile))
         tvars = {'tagcounts': tagcounts, 'tagbase': tagbase}
     return tvars
 
@@ -65,7 +57,7 @@ class YawtTagging(object):
         self.app = app
         if app is not None:
             self.init_app(app)
-        self.taginfo = TagInfo()
+        self.tagcounts = {}
             
     def init_app(self, app):
         app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
@@ -77,23 +69,22 @@ class YawtTagging(object):
         if (not hasattr(article.info, 'indexed') or not article.info.indexed) and \
            hasattr(article.info, 'tags'):
             tags_meta = article.info.tags
-            article.info.taglist = [x.strip() for x in tags_meta.split(',')] 
+            article.info.taglist = [x.strip() for x in tags_meta.split(',')]   
         return article
 
     def on_pre_walk(self):
-        self.taginfo = TagInfo()
+        self.tagcounts = {}
 
     def on_visit_article(self, article):
         if hasattr(article.info, 'taglist'):
-            self.taginfo.name2tags[article.info.fullname] = article.info.taglist
             for tag in article.info.taglist:
-                if tag in self.taginfo.tagcounts:
-                    self.taginfo.tagcounts[tag] += 1
+                if tag in self.tagcounts:
+                    self.tagcounts[tag] += 1
                 else:
-                    self.taginfo.tagcounts[tag] = 1
+                    self.tagcounts[tag] = 1
 
     def on_post_walk(self): 
-        pickled_info = jsonpickle.encode(self.taginfo)
+        pickled_info = jsonpickle.encode(self.tagcounts)
         save_file(abs_tagcount_file(), pickled_info)
 
     def on_files_changed(self, files_modified, files_added, files_removed):
@@ -102,15 +93,14 @@ class YawtTagging(object):
         filenames)
         """
         pickled_info = load_file(abs_tagcount_file())
-        self.taginfo = jsonpickle.decode(pickled_info)
+        self.tagcounts = jsonpickle.decode(pickled_info)
         for f in files_removed + files_modified: 
             name = fullname(f)
             if name: 
-                tags_to_remove = self.taginfo.name2tags[name]
-                del self.taginfo.name2tags[name]
+                tags_to_remove = self.tags_for_name(name)
                
                 for tag in tags_to_remove:
-                    self.taginfo.tagcounts[tag] -= 1
+                    self.tagcounts[tag] -= 1
 
         for f in files_modified + files_added: 
             article = g.site.fetch_article_by_repofile(f)
@@ -121,14 +111,25 @@ class YawtTagging(object):
         
         self.on_post_walk()
 
+    def tags_for_name(self, name):
+        searcher = whoosh().searcher
+        qp = QueryParser('fullname', schema=yawtwhoosh().schema())
+        q = qp.parse(unicode(name))
+        results = searcher.search(q)
+        tags = []
+        if len(results) > 0: 
+            info = jsonpickle.decode(results[0]['article_info_json'])
+            tags = info.taglist
+        return tags
+
     def delete_unused_tags(self):
         unused_tags = []
-        for tag in self.taginfo.tagcounts:
-            if self.taginfo.tagcounts[tag] == 0:
+        for tag in self.tagcounts:
+            if self.tagcounts[tag] == 0:
                 unused_tags.append(tag)
 
         for tag in unused_tags:
-            del self.taginfo.tagcounts[tag]
+            del self.tagcounts[tag]
 
 
 taggingbp.add_url_rule('/tags/<tag>/', view_func=TaggingView.as_view('tag_canonical'))
