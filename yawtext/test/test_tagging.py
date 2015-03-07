@@ -225,8 +225,8 @@ def extension_info(yawttagging):
     yawtwhoosh = YawtWhoosh()
     from yawtext.multimarkdown import YawtMarkdown
     yawtmarkdown = YawtMarkdown()
-    from yawtext.collections import YawtPaging
-    yawtpaging = YawtPaging()
+    from yawtext.collections import YawtCollections
+    yawtpaging = YawtCollections()
 
     return ({'whoosh': whoosh,
              'yawtwhoosh': yawtwhoosh,

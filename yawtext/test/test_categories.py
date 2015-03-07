@@ -316,8 +316,8 @@ def extension_info(plugin):
     whoosh = Whoosh()
     from yawtext.indexer import YawtWhoosh
     yawtwhoosh = YawtWhoosh()
-    from yawtext.collections import YawtPaging
-    yawtpaging = YawtPaging()
+    from yawtext.collections import YawtCollections
+    yawtpaging = YawtCollections()
 
     return ({'whoosh': whoosh, 
              'yawtwhoosh': yawtwhoosh,

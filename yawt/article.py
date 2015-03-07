@@ -1,14 +1,12 @@
 import os
 import re
 import yawt.default_templates
-from datetime import datetime
 from yawt.utils import ensure_path, save_file, move_file, base_and_ext, load_file
 
 def fetch_file_metadata(filename):
     sr = os.stat(filename)
     mtime = ctime = sr.st_mtime
-    return {'create_time': datetime.fromtimestamp(ctime), 
-            'modified_time': datetime.fromtimestamp(mtime)}
+    return {'create_time': ctime, 'modified_time': mtime}
 
 
 class ArticleInfo(object):

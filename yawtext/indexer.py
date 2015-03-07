@@ -1,8 +1,9 @@
 from flask import current_app, g
-from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT
+from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT, DATETIME
 import jsonpickle
 import re
 import os
+from datetime import datetime
 
 def _config(key):
     return current_app.config[key]
@@ -105,13 +106,18 @@ class YawtWhoosh(object):
         return values
 
     def value(self, field_value, field_type):
-        if type(field_value) is list:
-            ft = type(field_type)
-            if field_type == KEYWORD or ft is KEYWORD or \
-               field_type == IDLIST or ft is IDLIST:
+        fvt = type(field_value) 
+        ftt = type(field_type)
+        if fvt is list:
+            if field_type == KEYWORD or ftt is KEYWORD or \
+               field_type == IDLIST or ftt is IDLIST:
                 return ' '.join(field_value)
             else:
                 raise BadFieldType(field_type)
+        elif (fvt is long or fvt is int) and ftt is DATETIME:
+            return datetime.fromtimestamp(field_value)
+        elif fvt is unicode and ftt is DATETIME:
+            return datetime.fromtimestamp(long(field_value))
         else:
             return field_value
         

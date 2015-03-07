@@ -6,6 +6,7 @@ from yawt.article import FileBasedSiteManager
 from yawt.site_manager import YawtSiteManager
 from yawt.utils import has_method
 from yawt.view import render
+from datetime import datetime
 
 def _config(key):
     return current_app.config[key]
@@ -31,7 +32,10 @@ def page_not_found(error):
 # filter for date and time formatting
 @yawtbp.app_template_filter('dateformat')
 def date_format(value, ft='%H:%M / %d-%m-%Y'):
-    return value.strftime(ft)
+    if type(value) is unicode:
+        value = long(value)
+    v = datetime.fromtimestamp(value)
+    return v.strftime(ft)
 
 # make a usable url out of a site relative one
 @yawtbp.app_template_filter('url')
