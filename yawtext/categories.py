@@ -6,52 +6,15 @@ from yawt.utils import save_file, load_file, fullname
 import re
 import os
 import jsonpickle
+from yawtext.hierarchy_counter import HierarchyCount
 
 categoriesbp = Blueprint('categories', __name__)
-
-class CategoryCount(object):
-    def __init__(self):
-        self.category = ''
-        self.count = 0
-        self.children = []
-
-def _split_category(category):
-    (head, rest) = category, ''
-    if '/' in category:
-        (head, rest) = category.split('/',1)
-    return (head, rest)
-
-def count_category(root_node, category):
-    root_node.count += 1
-    if category:
-        (head, rest) = _split_category(category)
-        next_node = None
-        for c in root_node.children:
-            if c.category == head:
-                next_node = c
-        if next_node is None:
-            next_node = CategoryCount()
-            next_node.category = head
-            root_node.children.append(next_node)
-        count_category(next_node, rest)
-    
-def remove_category(root_node, category):
-    root_node.count -= 1
-    if category:
-        (head, rest) = _split_category(category)
-        for c in root_node.children:
-            if c.category == head:
-                remove_category(c, rest)
-                break
-        root_node.children = [c for c in root_node.children if c.count > 0]
-    
 
 def abs_category_count_file():
     root = current_app.yawt_root_dir
     countfile = current_app.config['YAWT_CATEGORY_COUNT_FILE']
     state_folder = current_app.config['YAWT_STATE_FOLDER']
     return os.path.join(root, state_folder, countfile)
-
 
 @categoriesbp.app_context_processor
 def categorycounts():
@@ -84,7 +47,7 @@ class YawtCategories(object):
         self.app = app
         if app is not None:
             self.init_app(app)
-        self.category_counts = CategoryCount()
+        self.category_counts = HierarchyCount()
 
     def init_app(self, app):
         app.config.setdefault('YAWT_CATEGORY_TEMPLATE', 'article_list')
@@ -116,22 +79,28 @@ class YawtCategories(object):
         return view_func(category, flavour)
 
     def on_pre_walk(self):
-        self.category_counts = CategoryCount()
-        countbase = current_app.config['YAWT_CATEGORY_BASE']
-        self.category_counts.category = countbase
+        self.category_counts = HierarchyCount()
+        self.category_counts.category = self._adjust_base_for_category()
 
     def on_visit_article(self, article): 
         category = article.info.category
-        countbase = current_app.config['YAWT_CATEGORY_BASE']
+        countbase = self._adjust_base_for_category() #blech
         if category == countbase or category.startswith(countbase):
-            category = self._adjust_category_for_base(category, countbase)
-            count_category(self.category_counts, category)
-
-    def _adjust_category_for_base(self, category, countbase):
+            category = self.slice_base_off_category(category, countbase)
+            self.category_counts.count_hierarchy(category)
+   
+    def slice_base_off_category(self, category, countbase):
         category = re.sub('^%s' % (countbase), '', category)
         if category.startswith('/'):
             category = category[1:]
         return category
+
+    # Feels very wrong
+    def _adjust_base_for_category(self):
+        countbase = current_app.config['YAWT_CATEGORY_BASE']
+        if countbase.startswith('/'):
+            countbase = countbase[1:]
+        return countbase
 
     def on_post_walk(self): 
         pickled_counts = jsonpickle.encode(self.category_counts)
@@ -145,8 +114,8 @@ class YawtCategories(object):
             name = fullname(f)
             countbase = current_app.config['YAWT_CATEGORY_BASE']
             category = unicode(os.path.dirname(name))
-            category = self._adjust_category_for_base(category, countbase)   
-            remove_category(self.category_counts, category)
+            category = self.slice_base_off_category(category, countbase)   
+            self.category_counts.remove_hierarchy(category)
 
         for f in files_modified + files_added: 
             article = g.site.fetch_article_by_repofile(f)

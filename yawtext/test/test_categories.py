@@ -1,5 +1,5 @@
 import unittest
-from yawtext.categories import YawtCategories, CategoryCount
+from yawtext.categories import YawtCategories, HierarchyCount
 from whoosh.fields import DATETIME, STORED, ID, KEYWORD, Schema
 from whoosh.index import create_in
 from yawt import create_app
@@ -241,15 +241,15 @@ class TestYawtCategories(unittest.TestCase):
         writer.commit()
 
         # set up category file
-        catcount = CategoryCount()
+        catcount = HierarchyCount()
         catcount.count = 4
         catcount.category = ''
         
-        foocat = CategoryCount()
+        foocat = HierarchyCount()
         foocat.category = 'foo'
         foocat.count = 3
 
-        barcat = CategoryCount()
+        barcat = HierarchyCount()
         barcat.category = 'bar'
         barcat.count = 1
 

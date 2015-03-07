@@ -38,7 +38,7 @@ def collection_title():
     
 class TaggingView(CollectionView): 
     def dispatch_request(self, *args, **kwargs):
-        g.tag = kwargs['tag']
+        g.tag = kwargs['tag'] # for use in templates
         return super(TaggingView, self).dispatch_request(*args, **kwargs)
         
     def query(self, category='', tag=None, *args, **kwargs):
