@@ -14,18 +14,6 @@ archivesbp = Blueprint('archives', __name__)
 def whoosh():
     return current_app.extension_info[0]['whoosh']
 
-def fetch_date_for_name(name):
-    searcher = whoosh().searcher
-    qp = QueryParser('fullname', schema=yawtwhoosh().schema())
-    q = qp.parse(unicode(name))
-    results = searcher.search(q)
-    ct = None
-    if len(results) > 0: 
-        info = jsonpickle.decode(results[0]['article_info_json'])  
-        datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-        ct = getattr(info, datefield)
-    return ct
-
 @archivesbp.app_template_filter('permalink')
 def permalink(info):
     base = current_app.config['YAWT_ARCHIVE_BASE']
@@ -165,6 +153,18 @@ class YawtArchives(object):
                 self.on_visit_article(article)
 
         self.on_post_walk()
+
+def fetch_date_for_name(name):
+    searcher = whoosh().searcher
+    qp = QueryParser('fullname', schema=yawtwhoosh().schema())
+    q = qp.parse(unicode(name))
+    results = searcher.search(q)
+    ct = None
+    if len(results) > 0: 
+        info = jsonpickle.decode(results[0]['article_info_json'])  
+        datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
+        ct = getattr(info, datefield)
+    return ct
 
 
 archivesbp.add_url_rule('/<path:category>/<int:year>/', 

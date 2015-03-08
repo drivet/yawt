@@ -30,7 +30,7 @@ class HierarchyCount(object):
             (head, rest) = _split_category(hierarchy)
             for c in self.children:
                 if c.category == head:
-                    c.remove_category(rest)
+                    c.remove_hierarchy(rest)
                     break
             self.children = [c for c in self.children if c.count > 0]
 
