@@ -135,17 +135,8 @@ class YawtArchives(object):
 
     def on_post_walk(self):
         self.archive_counts.sort_children(reverse=True)
-        self.convert_archive_dates_to_ints(self.archive_counts)
         pickled_info = jsonpickle.encode(self.archive_counts)
         save_file(abs_archivecount_file(), pickled_info)
-
-    # Feels very wrong
-    def convert_archive_dates_to_ints(self, archive_dates):
-        if len(archive_dates.children) > 0:
-            for c in archive_dates.children:
-                self.convert_archive_dates_to_ints(c)
-        if archive_dates.category:
-            archive_dates.category = int(archive_dates.category)
 
     # Feels very wrong
     def _adjust_base_for_category(self):

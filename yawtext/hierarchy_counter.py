@@ -37,5 +37,5 @@ class HierarchyCount(object):
     def sort_children(self, reverse=False):
         if len(self.children) > 0:
             for child in self.children:
-                child.sort_children()
+                child.sort_children(reverse)
             self.children.sort(key=lambda c: c.category, reverse=reverse)
