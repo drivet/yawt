@@ -1,5 +1,6 @@
 import markdown
 from flask import Markup, current_app
+import dateutil.parser
 
 class YawtMarkdown(object):
     def __init__(self,app=None):
@@ -10,6 +11,7 @@ class YawtMarkdown(object):
     def init_app(self, app):
         app.config.setdefault('YAWT_MULTIMARKDOWN_FILE_EXTENSIONS', ['md'])
         app.config.setdefault('YAWT_MULTIMARKDOWN_EXTENSIONS', ['meta'])
+        app.config.setdefault('YAWT_MULTIMARKDOWN_TYPES', {})
 
     def on_article_fetch(self, article):
         if article.info.extension in current_app.config['YAWT_MULTIMARKDOWN_FILE_EXTENSIONS']:
@@ -21,7 +23,22 @@ class YawtMarkdown(object):
  
     def _set_attributes(self, article_info, meta):
         for key in meta.keys():
-            setattr(article_info, key, '\n'.join(meta[key]))
+            mtypes = current_app.config['YAWT_MULTIMARKDOWN_TYPES'] 
+            mt = None
+            if key in mtypes:
+                mt = mtypes[key]
+            setattr(article_info, key, self._convert(mt, '\n'.join(meta[key])))
+
+    def _convert(self, mtype, value):
+        if mtype == 'list':
+            return [x.strip() for x in value.split(',')]
+        elif mtype == 'long':
+            return long(value)
+        elif mtype == 'iso8601':
+            d = dateutil.parser.parse(value)
+            return int(d.strftime("%s"))
+        else:
+            return value
 
 def load_markdown(file_contents):
     """Returns a tuple, where the first part is a dictionary of the metadata,

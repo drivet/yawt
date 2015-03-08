@@ -32,8 +32,6 @@ def page_not_found(error):
 # filter for date and time formatting
 @yawtbp.app_template_filter('dateformat')
 def date_format(value, ft='%H:%M / %d-%m-%Y'):
-    if type(value) is unicode:
-        value = long(value)
     v = datetime.fromtimestamp(value)
     return v.strftime(ft)
 

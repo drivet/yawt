@@ -28,7 +28,8 @@ setup(
         'Markdown',
         'Whoosh',
         'jsonpickle',
-        'Flask-Git'
+        'Flask-Git',
+        'dateutil'
     ],
     classifiers=[
         'Environment :: Web Environment',

@@ -65,19 +65,12 @@ class YawtTagging(object):
         app.config.setdefault('YAWT_TAGGING_COUNT_FILE', 'tagcounts')
         app.register_blueprint(taggingbp)
 
-    def on_article_fetch(self, article):
-        if (not hasattr(article.info, 'indexed') or not article.info.indexed) and \
-           hasattr(article.info, 'tags'):
-            tags_meta = article.info.tags
-            article.info.taglist = [x.strip() for x in tags_meta.split(',')]   
-        return article
-
     def on_pre_walk(self):
         self.tagcounts = {}
 
     def on_visit_article(self, article):
-        if hasattr(article.info, 'taglist'):
-            for tag in article.info.taglist:
+        if hasattr(article.info, 'tags'):
+            for tag in article.info.tags:
                 if tag in self.tagcounts:
                     self.tagcounts[tag] += 1
                 else:
@@ -119,7 +112,7 @@ class YawtTagging(object):
         tags = []
         if len(results) > 0: 
             info = jsonpickle.decode(results[0]['article_info_json'])
-            tags = info.taglist
+            tags = info.tags
         return tags
 
     def delete_unused_tags(self):

@@ -63,9 +63,6 @@ def _datestr(year, month=None, day=None):
     return datestr
 
 def _date_hierarchy(value):
-    # Feels very wrong
-    if type(value) is unicode:
-        value = long(value)
     v = datetime.fromtimestamp(value)
     return v.strftime('%Y/%m/%d')
 

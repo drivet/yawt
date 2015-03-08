@@ -114,7 +114,7 @@ class YawtWhoosh(object):
                 return ' '.join(field_value)
             else:
                 raise BadFieldType(field_type)
-        elif (fvt is long or fvt is int) and ftt is DATETIME:
+        elif (fvt is long or fvt is int or fvt is float) and ftt is DATETIME:
             return datetime.fromtimestamp(field_value)
         elif fvt is unicode and ftt is DATETIME:
             return datetime.fromtimestamp(long(field_value))

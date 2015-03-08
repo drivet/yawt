@@ -18,9 +18,12 @@ class YawtGit(object):
 
     def on_article_fetch(self, article):
         vc_info = self.fetch_vc_info(article.info.fullname, article.info.extension)
-        article.info.git_create_time = vc_info['create_time']
-        article.info.git_modified_time = vc_info['modified_time'] 
-        article.info.git_author = vc_info['author']
+        if 'create_time' in vc_info:
+            article.info.git_create_time = vc_info['create_time']
+        if 'modified_time' in vc_info:
+            article.info.git_modified_time = vc_info['modified_time'] 
+        if 'author' in vc_info:
+            article.info.git_author = vc_info['author']
         return article
 
     def fetch_vc_info(self, fullname, ext):

@@ -5,7 +5,7 @@ from yawt.utils import ensure_path, save_file, move_file, base_and_ext, load_fil
 
 def fetch_file_metadata(filename):
     sr = os.stat(filename)
-    mtime = ctime = sr.st_mtime
+    mtime = ctime = sr.st_mtime # epoch time in seconds
     return {'create_time': ctime, 'modified_time': mtime}
 
 
