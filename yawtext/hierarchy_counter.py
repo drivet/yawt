@@ -39,4 +39,3 @@ class HierarchyCount(object):
             for child in self.children:
                 child.sort_children()
             self.children.sort(key=lambda c: c.category, reverse=reverse)
-            

@@ -48,7 +48,7 @@ def url(relative_url):
 def static(filename):
     return url_for('static', filename=filename)
 
-@yawtbp.before_request
+@yawtbp.before_app_request
 def before_request():
     config = current_app.config
 #    current_app.logger.debug('creating article store with path ' +  

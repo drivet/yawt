@@ -7,9 +7,31 @@ from yawtext.hierarchy_counter import HierarchyCount
 from datetime import datetime
 import jsonpickle
 import os
-from yawt.utils import save_file, load_file
+from yawt.utils import save_file, load_file, fullname
 
 archivesbp = Blueprint('archives', __name__)
+
+def whoosh():
+    return current_app.extension_info[0]['whoosh']
+
+def fetch_date_for_name(name):
+    searcher = whoosh().searcher
+    qp = QueryParser('fullname', schema=yawtwhoosh().schema())
+    q = qp.parse(unicode(name))
+    results = searcher.search(q)
+    ct = None
+    if len(results) > 0: 
+        info = jsonpickle.decode(results[0]['article_info_json'])  
+        datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
+        ct = getattr(info, datefield)
+    return ct
+
+@archivesbp.app_template_filter('permalink')
+def permalink(info):
+    base = current_app.config['YAWT_ARCHIVE_BASE']
+    datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
+    date = getattr(info, datefield)
+    return base + _date_hierarchy(date) + '/' + info.slug
 
 @archivesbp.app_context_processor
 def archive_counts_cp():
@@ -24,7 +46,6 @@ def archive_counts_cp():
         tvars = {'archivecounts': archivecounts, 'archivebase': archivebase}
     return tvars
 
-    
 def abs_archivecount_file():
     root = current_app.yawt_root_dir
     archivecountfile = current_app.config['YAWT_ARCHIVE_COUNT_FILE']
@@ -42,6 +63,7 @@ def _datestr(year, month=None, day=None):
     return datestr
 
 def _date_hierarchy(value):
+    # Feels very wrong
     if type(value) is unicode:
         value = long(value)
     v = datetime.fromtimestamp(value)
@@ -68,14 +90,14 @@ class ArchiveView(CollectionView):
 
 
 class PermalinkView(View):
-    def dispatch_request(self, category, year, month, day, slug, flav):
+    def dispatch_request(self, category=None, year=None, month=None, day=None, slug=None, flav=None):
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-        article_infos = yawtwhoosh().search(_query(category, year, month, day),
+        ainfos, total = yawtwhoosh().search(_query(category, year, month, day),
                                             datefield,
                                             g.page, g.pagelen,
                                             True)
         article = None
-        for info in article_infos:
+        for info in ainfos:
             if info.slug == slug:
                 article = g.site.fetch_article(info.fullname)
 
@@ -120,6 +142,7 @@ class YawtArchives(object):
         pickled_info = jsonpickle.encode(self.archive_counts)
         save_file(abs_archivecount_file(), pickled_info)
 
+    # Feels very wrong
     def convert_archive_dates_to_ints(self, archive_dates):
         if len(archive_dates.children) > 0:
             for c in archive_dates.children:
@@ -134,6 +157,26 @@ class YawtArchives(object):
             countbase = countbase[1:]
         return countbase
 
+    def on_files_changed(self, files_modified, files_added, files_removed):
+        """pass in three lists of files, modified, added, removed, all relative to
+        the *repo* root, not the content root (so these are not absolute
+        filenames)
+        """
+        pickled_info = load_file(abs_archivecount_file())
+        self.archive_counts = jsonpickle.decode(pickled_info)
+        for f in files_removed + files_modified: 
+            name = fullname(f)
+            if name: 
+                ct = fetch_date_for_name(name)
+                dt = _date_hierarchy(ct)
+                self.archive_counts.remove_hierarchy(dt)
+
+        for f in files_modified + files_added: 
+            article = g.site.fetch_article_by_repofile(f)
+            if article:
+                self.on_visit_article(article)
+
+        self.on_post_walk()
 
 
 archivesbp.add_url_rule('/<path:category>/<int:year>/', 
