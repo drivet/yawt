@@ -112,10 +112,11 @@ class YawtCategories(object):
 
         for f in files_removed + files_modified:
             name = fullname(f)
-            countbase = current_app.config['YAWT_CATEGORY_BASE']
-            category = unicode(os.path.dirname(name))
-            category = self.slice_base_off_category(category, countbase)   
-            self.category_counts.remove_hierarchy(category)
+            if name:
+                countbase = current_app.config['YAWT_CATEGORY_BASE']
+                category = unicode(os.path.dirname(name))
+                category = self.slice_base_off_category(category, countbase)   
+                self.category_counts.remove_hierarchy(category)
 
         for f in files_modified + files_added: 
             article = g.site.fetch_article_by_repofile(f)
