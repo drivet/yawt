@@ -127,10 +127,10 @@ class YawtTagging(object):
 
 taggingbp.add_url_rule('/tags/<tag>/', view_func=TaggingView.as_view('tag_canonical'))
 taggingbp.add_url_rule('/tags/<tag>/index', view_func=TaggingView.as_view('tag_index'))
+taggingbp.add_url_rule('/tags/<tag>/index.<flav>', view_func=TaggingView.as_view('tag_index_flav'))
 taggingbp.add_url_rule('/<path:category>/tags/<tag>/', 
                        view_func=TaggingView.as_view('tag_category_canonical'))
 taggingbp.add_url_rule('/<path:category>/tags/<tag>/index', 
                        view_func=TaggingView.as_view('tag_category_index'))
-taggingbp.add_url_rule('/<tag>/index.<flav>', view_func=TaggingView.as_view('tag_index_flav'))
 taggingbp.add_url_rule('/<path:category>/tags/<tag>/index.<flav>', 
                        view_func=TaggingView.as_view('tag_category_index_flav'))
