@@ -1,47 +1,17 @@
 #!/usr/bin/python
 
-activate_this_file = "/path/to/venv/bin/activate_this.py"
+activate_this_file = "/path/to/virtualenv/bin/activate_this.py"
 execfile(activate_this_file, dict(__file__=activate_this_file))
+ 
+from yawt.git_hook_utils import git_diff_tree, \
+    extract_changed_files, yawt_changed_files
 
-import sys
-import subprocess
-
-repo_path = '/path/to/blog'
+repo_path = '/path/to/website'
 git = '/usr/bin/git'
 
-try:
-    cmd = ['sudo', '-u', 'www-data', '-H',
-           git, '--git-dir=' + repo_path + '/.git',
-           '--work-tree=' + repo_path,
-           'diff-tree', '-r', '--name-status', '--no-commit-id', 'ORIG_HEAD', 'HEAD']
+def main():
+    diff_tree_out = git_diff_tree(git, repo_path, 'ORIG_HEAD', 'HEAD')
+    added_files, modified_files, deleted_files = extract_changed_files(diff_tree_out)
+    yawt_changed_files(repo_path, added_files, modified_files, deleted_files)
 
-    diff_tree_out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-except subprocess.CalledProcessError as e:
-    print str(cmd) + ' failed: ' + str(e.returncode) + '\n' + e.output
-    sys.exit(e.returncode)
-
-added_files = []
-modified_files = []
-deleted_files = []
-for line in diff_tree_out.split('\n'):
-    if not line:
-        break
-
-    (status, f) = line.split()
-    if status == 'A':
-        added_files.append(f)
-    elif status == 'M':
-        modified_files.append(f)
-    elif status == 'D':
-        deleted_files.append(f)
-    else:
-        print "unknown git status: " + status
-        sys.exit(1)
-
-from flask import g, current_app
-import yawt
-app = yawt.create_app(repo_path)
-with app.test_request_context():
-    current_app.preprocess_request()
-    g.site.files_changed(modified_files, added_files, deleted_files)
-    
+main()
