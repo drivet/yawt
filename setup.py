@@ -26,10 +26,10 @@ setup(
         'Flask',
         'Flask-Script',
         'Markdown',
-        'Whoosh',
-        'jsonpickle',
+        'jsonpickle', 
+        'python-dateutil',
         'Flask-Git',
-        'dateutil'
+        'Flask-Whoosh'
     ],
     classifiers=[
         'Environment :: Web Environment',
