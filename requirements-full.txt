@@ -1,0 +1,24 @@
+# full requirements file for yawt and all included extensions assuming that
+# yawt and its coupled flask extension are installed via github.  IDeally
+# we'd have these on PyPI but we're not there yet.
+
+-e git+https://github.com/drivet/flask-git.git#egg=flask-git
+-e git+https://github.com/drivet/flask-whoosh.git#egg=flask-whoosh
+-e git+https://github.com/drivet/yawt.git#egg=yawt
+Flask==0.10.1
+Flask-Script==2.0.5
+Jinja2==2.7.3
+Markdown==2.6.1
+MarkupSafe==0.23
+Werkzeug==0.10.1
+Whoosh==2.6.0
+argparse==1.2.1
+cffi==0.9.1
+itsdangerous==0.24
+jsonpickle==0.9.0
+pycparser==2.10
+pygit2==0.22.0
+python-dateutil==2.4.1
+six==1.9.0
+venvgit2==0.22.1
+wsgiref==0.1.2
