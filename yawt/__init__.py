@@ -2,6 +2,7 @@ from flask import Flask
 import re
 import os
 import jinja2
+import logging
 
 # default configuration
 YAWT_BASE_URL = 'http://www.awesome.net/blog'
@@ -67,10 +68,23 @@ def create_app(root_dir,
                 static_url_path = static_url_path,
                 instance_path = root_dir,
                 instance_relative_config = True)
+    logHandler = logging.handlers.RotatingFileHandler('/var/log/yawt/yawt.log', 
+                                                      maxBytes=5242880,
+                                                      backupCount=5)
+    logHandler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logHandler.setLevel(logging.INFO)
+    app.logger.addHandler(logHandler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('created Flask app')
+
     app.yawt_root_dir = root_dir
     app.yawt_template_folder = template_folder
     app.yawt_static_folder = static_folder
     app.yawt_static_url_path = static_url_path
+    app.logger.info('yawt_root_dir = ' + app.yawt_root_dir )
+    app.logger.info('yawt_template_folder = ' + app.yawt_template_folder )
+    app.logger.info('yawt_static_folder = ' + app.yawt_static_folder )
+    app.logger.info('yawt_static_url_path = ' + app.yawt_static_url_path )
 
     path_to_templates = os.path.join(root_dir, template_folder)
     app.jinja_loader = jinja2.FileSystemLoader(path_to_templates)
