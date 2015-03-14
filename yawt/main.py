@@ -88,7 +88,7 @@ def handle_path(path):
     current_app.logger.debug('flavour requested: ' + flavour)
     article = g.site.fetch_article(fullname) 
     if article is None:
-        current_app.logger.warning('no article found at ' + fullname + ', aborting with 404')
+        current_app.logger.debug('no article found at ' + fullname + ', handling the 404')
         result = handle_404(fullname, flavour)
         if not result:
             abort(404)
