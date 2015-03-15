@@ -11,7 +11,7 @@ class YawtGit(object):
             self.init_app(app)
 
     def init_app(self, app):
-        pass
+        app.config.setdefault('YAWT_GIT_FOLLOW_RENAMES', False)
 
     def on_new_site(self, files):
         save_repo_file('.gitignore', '_state')
@@ -29,13 +29,14 @@ class YawtGit(object):
     def fetch_vc_info(self, fullname, ext):
         repofile = os.path.join(_config('YAWT_CONTENT_FOLDER'), fullname + '.' + ext)
         git_manager = current_app.extension_info[0]['git']
-        rev_commit_gen = git_manager.commits_for_path_recent_last(repofile)
-        first_commit = next(rev_commit_gen, None)
-        if first_commit is None:
-            return {}      
-        sorted_commit_gen = git_manager.commits_for_path_recent_first(repofile)
-        last_commit = next(sorted_commit_gen)
 
+        follow = _config('YAWT_GIT_FOLLOW_RENAMES')
+        sorted_commits = list(git_manager.commits_for_path_recent_first(repofile, follow=follow))
+        if len(sorted_commits) == 0:
+            return {}
+            
+        last_commit = sorted_commits[0]
+        first_commit = sorted_commits[-1]
         return { 'create_time': first_commit.commit_time, 
                  'modified_time': last_commit.commit_time, 
                  'author': first_commit.author.name }

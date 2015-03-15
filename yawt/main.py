@@ -7,6 +7,8 @@ from yawt.site_manager import YawtSiteManager
 from yawt.utils import has_method
 from yawt.view import render
 from datetime import datetime
+import logging
+import logging.handlers
 
 def _config(key):
     return current_app.config[key]
@@ -43,6 +45,17 @@ def url(relative_url):
 @yawtbp.app_template_filter('static')
 def static(filename):
     return url_for('static', filename=filename)
+
+@yawtbp.before_app_first_request
+def setup_logging():
+    if not current_app.debug:
+        log_handler = logging.handlers.RotatingFileHandler('/var/log/yawt/yawt.log',
+                                                           maxBytes=5242880,
+                                                           backupCount=5)
+        log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        log_handler.setLevel(logging.INFO)
+        current_app.logger.addHandler(log_handler)
+        current_app.logger.setLevel(logging.INFO)
 
 @yawtbp.before_app_request
 def before_request():
