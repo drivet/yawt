@@ -8,7 +8,7 @@ import os
 taggingbp = Blueprint('tagging', __name__)
 
 def whoosh():
-    return current_app.extension_info[0]['whoosh']
+    return current_app.extension_info[0]['flask_whoosh.Whoosh']
 
 def abs_tagcount_file():
     root = current_app.yawt_root_dir

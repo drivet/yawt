@@ -12,7 +12,7 @@ from yawt.utils import save_file, load_file, fullname
 archivesbp = Blueprint('archives', __name__)
 
 def whoosh():
-    return current_app.extension_info[0]['whoosh']
+    return current_app.extension_info[0]['flask_whoosh.Whoosh']
 
 @archivesbp.app_template_filter('permalink')
 def permalink(info):

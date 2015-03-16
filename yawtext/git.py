@@ -28,7 +28,7 @@ class YawtGit(object):
 
     def fetch_vc_info(self, fullname, ext):
         repofile = os.path.join(_config('YAWT_CONTENT_FOLDER'), fullname + '.' + ext)
-        git_manager = current_app.extension_info[0]['git']
+        git_manager = current_app.extension_info[0]['flask_git.Git']
 
         follow = _config('YAWT_GIT_FOLLOW_RENAMES')
         sorted_commits = list(git_manager.commits_for_path_recent_first(repofile, follow=follow))

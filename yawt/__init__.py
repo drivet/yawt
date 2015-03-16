@@ -2,6 +2,7 @@ from flask import Flask
 import re
 import os
 import jinja2
+import importlib
 
 # default configuration
 YAWT_BASE_URL = 'http://www.awesome.net/blog'
@@ -31,22 +32,40 @@ def configure_app(app, config):
         app.config.from_object(config)
     app.content_types = get_content_types(app.config)
 
-def load_extension_info():
-    try:
-        import ext
-        return ext.extension_info
-    except ImportError:
-        return None
+def init_extensions(app, extensions):
+    for ext in extensions:
+        ext.init_app(app)
+
+def load_class(full_class_string):
+    """
+    dynamically load a class from a string
+    """
+
+    class_data = full_class_string.split(".")
+    module_path = ".".join(class_data[:-1])
+    class_str = class_data[-1]
+
+    module = importlib.import_module(module_path)
+    # Finally, we retrieve the Class
+    return getattr(module, class_str)
+
+def load_extension_info(extension_class_names):
+    extension_info = [{},[]]
+    for class_name in extension_class_names:
+        cls = load_class(class_name)
+        cls_instance = cls()
+        extension_info[0][class_name] = cls_instance 
+        extension_info[1].append(cls_instance)
+    return extension_info
 
 def load_extensions(app, extension_info):
     if extension_info is None:
-        app.extension_info = load_extension_info()
+        app.extension_info = load_extension_info(app.config['YAWT_EXTENSIONS'])
     else:
         app.extension_info = extension_info
 
     if app.extension_info:
-        init_app_fn = app.extension_info[2]
-        init_app_fn(app)
+        init_extensions(app, app.extension_info[1])
 
 def configure(root_dir, app, config, extension_info):
     import sys

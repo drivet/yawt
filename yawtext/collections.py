@@ -65,4 +65,4 @@ class CollectionView(View):
 
 
 def yawtwhoosh():
-    return current_app.extension_info[0]['yawtwhoosh']
+    return current_app.extension_info[0]['yawtext.indexer.YawtWhoosh']

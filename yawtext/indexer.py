@@ -122,4 +122,4 @@ class YawtWhoosh(object):
             return field_value
         
     def whoosh(self):
-        return current_app.extension_info[0]['whoosh']
+        return current_app.extension_info[0]['flask_whoosh.Whoosh']
