@@ -1,5 +1,6 @@
 yawt
 ====
+[![Build Status](https://travis-ci.org/drivet/yawt.svg?branch=master)](https://travis-ci.org/drivet/yawt)
 
 YAWT is Yet Another Weblog Tool, written in python. It's a blogging/CMS
 engine in the style of blohg, jekyll and other DVCS based blogging tools.
