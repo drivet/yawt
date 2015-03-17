@@ -19,7 +19,6 @@ itsdangerous==0.24
 jsonpickle==0.9.0
 pycparser==2.10
 venvgit2==0.22.1
-pygit2==0.22.0
 python-dateutil==2.4.1
 six==1.9.0
 wsgiref==0.1.2
