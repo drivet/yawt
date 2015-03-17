@@ -55,4 +55,5 @@ class TestYawtMarkdown(unittest.TestCase):
         pass
 
 def extension_info(plugin):
-    return ({'yawtmultimarkdown': plugin}, [plugin], lambda app: plugin.init_app(app))
+    return ({'yawtext.multimarkdown.YawtMarkdown': plugin}, 
+            [plugin])

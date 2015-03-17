@@ -1,12 +1,13 @@
 import unittest
-#from mock import patch, Mock
-from yawt.article import FileBasedSiteManager, ArticleExistsError, SiteExistsError
+from yawt.article import FileBasedSiteManager, SiteExistsError
+from yawt.utils import save_file
 import os.path
-from yawt.test.utils import FakeOs
+import shutil
+from yawt.test.siteutils import TempSite
 
-class TestFileBasedArticleStore(unittest.TestCase):
+class TestFileBasedArticleStoreInitialization(unittest.TestCase):
     def setUp(self):
-        self.root_dir = '/root_dir'
+        self.root_dir = '/tmp/root_dir'
         self.draft_folder = 'drafts'
         self.template_folder = 'templates'
         self.content_folder = 'content'
@@ -16,28 +17,37 @@ class TestFileBasedArticleStore(unittest.TestCase):
                                            content_folder = self.content_folder, 
                                            template_folder = self.template_folder,
                                            file_extensions = self.extensions)
-        self.fake_os = FakeOs('yawt.article')
-        self.fake_os.start()
-   
+
     def test_initialize_fails_if_root_folder_exists(self):
-        self.fake_os.fs.CreateDirectory(self.root_dir)
+        os.mkdir(self.root_dir)
         self.assertRaises(SiteExistsError, self.store.initialize)
 
     def test_initialize_sets_up_site(self):
         self.store.initialize()
-        assert self.fake_os.fs.Exists(self.root_dir)
-        assert self.fake_os.fs.Exists(os.path.join(self.root_dir, self.template_folder))
-        assert self.fake_os.fs.Exists(os.path.join(self.root_dir, self.draft_folder))
-        assert self.fake_os.fs.Exists(os.path.join(self.root_dir, self.content_folder))
-        assert self.fake_os.fs.Exists(os.path.join(self.root_dir, 'config.py'))
-        assert self.fake_os.fs.Exists(os.path.join(self.root_dir, self.template_folder, 'article.html'))
-        assert self.fake_os.fs.Exists(os.path.join(self.root_dir, self.template_folder, '404.html'))
+        assert os.path.exists(self.root_dir)
+        assert os.path.exists(os.path.join(self.root_dir, self.template_folder))
+        assert os.path.exists(os.path.join(self.root_dir, self.content_folder))
+        assert os.path.exists(os.path.join(self.root_dir, 'config.py'))
+        assert os.path.exists(os.path.join(self.root_dir, self.template_folder, 'article.html'))
+        assert os.path.exists(os.path.join(self.root_dir, self.template_folder, '404.html'))
 
-    def test_fetch_draft_by_name(self):
-        name = 'slug01'
-        self._create_draft_file(name)
-        article = self.store.fetch_draft_by_name(name)
-        self._assert_article(article, name, '', 'slug01')
+    def tearDown(self):
+        assert self.root_dir.startswith('/tmp/')
+        if os.path.exists(self.root_dir):
+            shutil.rmtree(self.root_dir)
+
+
+class TestFileBasedArticleStore(unittest.TestCase):
+    def setUp(self):
+        self.site = TempSite()
+        self.site.initialize()
+
+        self.extensions = ['html']
+        self.store = FileBasedSiteManager( root_dir = self.site.site_root, 
+                                           draft_folder = self.site.draft_root,
+                                           content_folder = self.site.content_root,
+                                           template_folder = self.site.template_root,
+                                           file_extensions = self.extensions)
 
     def test_fetch_article_by_category_and_slug(self):
         self._create_content_file('cat01/entry03')
@@ -94,43 +104,7 @@ class TestFileBasedArticleStore(unittest.TestCase):
         self._create_content_file('entry01', contents='')
         article = self.store.fetch_article_by_fullname('entry01')
         self.assertEqual(article.content, '')
-
-    def test_save_template(self):
-        self._create_site_folder('templates')
-        self.store.save_template('article', 'html', 'hello')
-        assert 'hello' in self._read_site_file('templates/article.html')
- 
-    def test_save_draft(self):
-        self._create_site_folder('drafts')
-        self.store.save_draft('stuff', 'txt', 'blah')
-        assert 'blah' in self._read_site_file('drafts/stuff.txt')
-
-    def test_save_article(self):
-        self._create_site_folder('content')
-        self.store.save_article('stuff', 'txt', 'blah')
-        assert 'blah' in self._read_site_file('content/stuff.txt')
-
-    def test_move_article_fails_when_destination_exists(self):
-        self._create_content_file('entry01')
-        self._create_content_file('entry02')
-        self.assertRaises(ArticleExistsError, self.store.move_article, 'entry01','entry02')
-
-    def test_move_article(self):
-        self._create_content_file('entry01', contents='stuff', ext='html')
-        self.store.move_article('entry01','entry02')
-        assert 'stuff' in self._read_site_file('content/entry02.html')
- 
-    def test_publish_fails_when_destination_exists(self):
-        self._create_draft_file('entry01')
-        self._create_content_file('entry02')
-        self.assertRaises(ArticleExistsError, self.store.publish, 'entry01','entry02')
-
-    def test_publish_article(self):
-        self._create_site_folder('content')
-        self._create_draft_file('entry01', contents='stuff', ext='html')
-        self.store.publish('entry01', 'entry02')
-        assert 'stuff' in self._read_site_file('content/entry02.html')
-
+            
     def test_walk_articles(self):
         self._create_content_file('entry01')
         self._create_content_file('entry02')
@@ -144,10 +118,13 @@ class TestFileBasedArticleStore(unittest.TestCase):
         self._create_content_file('cat03/entry10')
         self._create_content_file('cat03/entry11')
      
-        # extraneous files that should be ignored
-        self.fake_os.fs.CreateFile('stupid01.png')
-        self.fake_os.fs.CreateFile('cat01/stupid02.png')
-        self.fake_os.fs.CreateFile('cat03/stupid03.png')
+        # extraneous files that should be ignored  
+        os.makedirs(os.path.join(self.site.site_root, 'cat01'))
+        os.makedirs(os.path.join(self.site.site_root, 'cat03'))
+        self.site.save_file('stupid01.png', 'blah')
+        self.site.save_file('stupid01.png', 'blah')
+        self.site.save_file('cat01/stupid02.png', 'blah')
+        self.site.save_file('cat03/stupid03.png', 'blah')
 
         names = [a for a in self.store.walk()]
         # articles aren't guaranteed to be in any particular order
@@ -168,41 +145,23 @@ class TestFileBasedArticleStore(unittest.TestCase):
         assert 'cat03/stupid03.png' not in names
 
     def tearDown(self):
-        self.fake_os.stop()
+        self.site.remove()
    
     def _create_content_file(self, fullname, mtime=None, contents='blah', ext=None):
         if ext is None:
             ext = self.extensions[0]
-        filename = self._make_content_filename(fullname, ext)
-        self.fake_os.fs.CreateFile(filename, contents=contents)
+        self.site.mk_content_category(os.path.dirname(fullname))
+        rel_filename = fullname + "." + ext
+        self.site.save_content(rel_filename, content=contents)
+        filename = os.path.join(self.site.abs_content_root(), rel_filename)
         if mtime is not None:
-            self.fake_os.os.utime(filename, (mtime, mtime))
-  
-    def _create_draft_file(self, fullname, mtime=None, contents='blah', ext=None):
-        if ext is None:
-            ext = self.extensions[0]
-        filename = self._make_draft_filename(fullname, ext)
-        self.fake_os.fs.CreateFile(filename, contents=contents)
-        if mtime is not None:
-            self.fake_os.os.utime(filename, (mtime, mtime))
+            os.utime(filename, (mtime, mtime))
 
     def _assert_article(self, article, fullname, category, slug):
         self.assertEquals(article.info.fullname, fullname)
         self.assertEquals(article.info.category, category)
         self.assertEquals(article.info.slug, slug)
-    
-    def _make_content_filename(self, fullname, ext):
-        return os.path.join(self.root_dir, self.content_folder, fullname + "." + ext)
 
-    def _make_draft_filename(self, name, ext):
-        return os.path.join(self.root_dir, self.draft_folder, name + "." + ext)
-
-    def _create_site_folder(self, path):
-        return self.fake_os.fs.CreateDirectory(os.path.join(self.root_dir, path))
-    
-    def _read_site_file(self, path):
-        with open(os.path.join(self.root_dir, path), 'r') as f:
-            return f.read()
         
 if __name__ == '__main__':
     unittest.main()

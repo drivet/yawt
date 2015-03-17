@@ -5,18 +5,23 @@ from whoosh.index import create_in
 from yawt import create_app
 from flask import g
 import os
-from datetime import datetime
-from yawt.utils import save_file, load_file
+from yawt.utils import load_file
 from yawt.article import ArticleInfo, Article
 import jsonpickle
 from yawt.test.siteutils import TempSite
 from yawtext.test.utils import generate_collection_template
+from datetime import datetime
+
+def dt(year, month, day):
+    dtime = datetime(year, month, day, 0, 0, 0)
+    import time
+    return long(time.mktime(dtime.timetuple()))
 
 class TestConfig(object):
     def __init__(self, site):
         self.WHOOSH_INDEX_ROOT = os.path.join(site.abs_state_root(), 'whoosh')
         self.YAWT_WHOOSH_ARTICLE_INFO_FIELDS = \
-            {'create_time': DATETIME, 'categories': KEYWORD(commas=True)}
+            {'create_time': DATETIME(sortable=True), 'categories': KEYWORD(commas=True)}
 
 class TestYawtCategories(unittest.TestCase):
     def setUp(self):
@@ -27,6 +32,7 @@ class TestYawtCategories(unittest.TestCase):
                               config = TestConfig(self.site),
                               extension_info = extension_info(self.plugin))
         self.app.testing = True
+        self.app.debug = True
         os.makedirs(self.app.config['WHOOSH_INDEX_ROOT'])
 
     def test_default_category_template(self):
@@ -61,17 +67,21 @@ class TestYawtCategories(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('article1', '', 'article1', 'txt',datetime(2004, 11, 03) )
-        writer.add_document(fullname=u'article1', create_time=datetime(2004, 11, 04), content=u'stuff1', 
+        info1 = ArticleInfo('article1', '', 'article1', 'txt', dt(2004, 11, 03) )
+        writer.add_document(fullname=u'article1', create_time=datetime.fromtimestamp(dt(2004, 11, 04)), 
+                            content=u'stuff1', 
                             article_info_json=jsonpickle.encode(info1))
-        info2 = ArticleInfo('article2', '', 'article2', 'txt', datetime(2004, 11, 05))
-        writer.add_document(fullname=u'article2', create_time=datetime(2004, 11, 05), content=u'stuff2', 
+        info2 = ArticleInfo('article2', '', 'article2', 'txt', dt(2004, 11, 05))
+        writer.add_document(fullname=u'article2', create_time=datetime.fromtimestamp(dt(2004, 11, 05)), 
+                            content=u'stuff2', 
                             article_info_json=jsonpickle.encode(info2))
-        info3 = ArticleInfo('article3', '', 'article3', 'txt', datetime(2004, 11, 04))
-        writer.add_document(fullname=u'article3', create_time=datetime(2004, 11, 04), content=u'stuff3',
+        info3 = ArticleInfo('article3', '', 'article3', 'txt', dt(2004, 11, 04))
+        writer.add_document(fullname=u'article3', create_time=datetime.fromtimestamp(dt(2004, 11, 04)), 
+                            content=u'stuff3',
                             article_info_json=jsonpickle.encode(info3))
-        info4 = ArticleInfo('article4', '', 'article4', 'txt', datetime(2004, 11, 02))
-        writer.add_document(fullname=u'article4', create_time=datetime(2004, 11, 02), content=u'stuff4',
+        info4 = ArticleInfo('article4', '', 'article4', 'txt', dt(2004, 11, 02))
+        writer.add_document(fullname=u'article4', create_time=datetime.fromtimestamp(dt(2004, 11, 02)), 
+                            content=u'stuff4',
                             article_info_json=jsonpickle.encode(info4))
         writer.commit()
 
@@ -97,20 +107,24 @@ class TestYawtCategories(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('foo/article1', 'foo', 'article1', 'txt',datetime(2004, 11, 03) )
-        writer.add_document(fullname=u'foo/article1', create_time=datetime(2004, 11, 04), 
+        info1 = ArticleInfo('foo/article1', 'foo', 'article1', 'txt',dt(2004, 11, 03) )
+        writer.add_document(fullname=u'foo/article1', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff1', 
                             article_info_json=jsonpickle.encode(info1), categories=u"foo")
-        info2 = ArticleInfo('bar/article2', 'bar', 'article2', 'txt', datetime(2004, 11, 05))
-        writer.add_document(fullname=u'bar/article2', create_time=datetime(2004, 11, 05), 
+        info2 = ArticleInfo('bar/article2', 'bar', 'article2', 'txt', dt(2004, 11, 05))
+        writer.add_document(fullname=u'bar/article2', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 05)),
                             content=u'stuff2', 
                             article_info_json=jsonpickle.encode(info2), categories=u"bar" )
-        info3 = ArticleInfo('foo/article3', 'foo', 'article3', 'txt', datetime(2004, 11, 04))
-        writer.add_document(fullname=u'foo/article3', create_time=datetime(2004, 11, 04), 
+        info3 = ArticleInfo('foo/article3', 'foo', 'article3', 'txt', dt(2004, 11, 04))
+        writer.add_document(fullname=u'foo/article3', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff3',
                             article_info_json=jsonpickle.encode(info3), categories=u"foo")
-        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', datetime(2004, 11, 02))
-        writer.add_document(fullname=u'bar/article4', create_time=datetime(2004, 11, 02), 
+        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', dt(2004, 11, 02))
+        writer.add_document(fullname=u'bar/article4', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 02)),
                             content=u'stuff4',
                             article_info_json=jsonpickle.encode(info4), categories=u"bar")
         writer.commit()
@@ -141,20 +155,24 @@ class TestYawtCategories(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('foo/har/article1', 'foo/har', 'article1', 'txt',datetime(2004, 11, 03) )
-        writer.add_document(fullname=u'foo/har/article1', create_time=datetime(2004, 11, 04),
+        info1 = ArticleInfo('foo/har/article1', 'foo/har', 'article1', 'txt',dt(2004, 11, 03) )
+        writer.add_document(fullname=u'foo/har/article1', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff1', 
                             article_info_json=jsonpickle.encode(info1), categories=u"foo,foo/har")
-        info2 = ArticleInfo('bar/article2', 'bar', 'article2', 'txt', datetime(2004, 11, 05))
-        writer.add_document(fullname=u'bar/article2', create_time=datetime(2004, 11, 05),
+        info2 = ArticleInfo('bar/article2', 'bar', 'article2', 'txt', dt(2004, 11, 05))
+        writer.add_document(fullname=u'bar/article2', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 05)),
                             content=u'stuff2', 
                             article_info_json=jsonpickle.encode(info2), categories=u"bar" )
-        info3 = ArticleInfo('foo/gad/article3', 'foo/gad', 'article3', 'txt', datetime(2004, 11, 04))
-        writer.add_document(fullname=u'foo/gad/article3', create_time=datetime(2004, 11, 04),
+        info3 = ArticleInfo('foo/gad/article3', 'foo/gad', 'article3', 'txt', dt(2004, 11, 04))
+        writer.add_document(fullname=u'foo/gad/article3', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff3',
                             article_info_json=jsonpickle.encode(info3), categories=u"foo,foo/gad")
-        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', datetime(2004, 11, 02))
-        writer.add_document(fullname=u'bar/article4', create_time=datetime(2004, 11, 02),
+        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', dt(2004, 11, 02))
+        writer.add_document(fullname=u'bar/article4', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 02)),
                             content=u'stuff4',
                             article_info_json=jsonpickle.encode(info4), categories=u"bar")
         writer.commit()
@@ -215,27 +233,31 @@ class TestYawtCategories(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('foo/article1', 'foo', 'article1', 'txt', datetime(2004, 11, 03) )
+        info1 = ArticleInfo('foo/article1', 'foo', 'article1', 'txt', dt(2004, 11, 03) )
         info1.categories = ['foo']
-        writer.add_document(fullname=u'foo/article1', create_time=datetime(2004, 11, 04),
+        writer.add_document(fullname=u'foo/article1', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff1',
                             article_info_json=jsonpickle.encode(info1))
 
-        info2 = ArticleInfo('foo/article2', 'foo', 'article2', 'txt', datetime(2004, 11, 05))
+        info2 = ArticleInfo('foo/article2', 'foo', 'article2', 'txt', dt(2004, 11, 05))
         info2.categories = ['foo']
-        writer.add_document(fullname=u'foo/article2', create_time=datetime(2004, 11, 05), 
+        writer.add_document(fullname=u'foo/article2', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 05)), 
                             content=u'stuff2',
                             article_info_json=jsonpickle.encode(info2))
 
-        info3 = ArticleInfo('foo/article3', 'foo', 'article3', 'txt', datetime(2004, 11, 04))
+        info3 = ArticleInfo('foo/article3', 'foo', 'article3', 'txt', dt(2004, 11, 04))
         info3.categories = ['foo']
-        writer.add_document(fullname=u'foo/article3', create_time=datetime(2004, 11, 04), 
+        writer.add_document(fullname=u'foo/article3',
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 04)), 
                             content=u'stuff3', 
                             article_info_json=jsonpickle.encode(info3))
 
-        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', datetime(2004, 11, 02))
+        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', dt(2004, 11, 02))
         info4.categories = ['bar']
-        writer.add_document(fullname=u'bar/article4', create_time=datetime(2004, 11, 02), 
+        writer.add_document(fullname=u'bar/article4', 
+                            create_time=datetime.fromtimestamp(dt(2004, 11, 02)),
                             content=u'stuff4',
                             article_info_json=jsonpickle.encode(info4))
         writer.commit()
@@ -319,17 +341,8 @@ def extension_info(plugin):
     from yawtext.collections import YawtCollections
     yawtpaging = YawtCollections()
 
-    return ({'whoosh': whoosh, 
-             'yawtwhoosh': yawtwhoosh,
-             'yawtpaging': yawtpaging,
-             'categories':plugin},
-            [whoosh, yawtwhoosh, yawtpaging, plugin], 
-            mk_init_app(whoosh, yawtwhoosh, yawtpaging, plugin))
-
-def mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtcategories):
-    def init_app(app):
-        whoosh.init_app(app)
-        yawtwhoosh.init_app(app)
-        yawtpaging.init_app(app)
-        yawtcategories.init_app(app)
-    return init_app
+    return ({'flask_whoosh.Whoosh': whoosh, 
+             'yawtext.indexer.YawtWhoosh': yawtwhoosh,
+             'yawtext.collections.YawtCollections': yawtpaging,
+             'yawtext.categories.YawtCategories':plugin},
+            [whoosh, yawtwhoosh, yawtpaging, plugin])

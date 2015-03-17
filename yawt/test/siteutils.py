@@ -38,7 +38,8 @@ class TempSite(object):
  
     def mk_content_category(self, category):
         abs_content_category = os.path.join(self.abs_content_root(), category)
-        os.makedirs(abs_content_category)
+        if not os.path.exists(abs_content_category):
+            os.makedirs(abs_content_category)
 
     def save_content(self, rel_filename, content=''):
         abs_content_file = os.path.join(self.abs_content_root(), rel_filename)
@@ -54,7 +55,8 @@ class TempSite(object):
   
     def mk_template_category(self, category):
         abs_template_category = os.path.join(self.abs_template_root(), category)
-        os.makedirs(abs_template_category)
+        if not os.path.exists(abs_template_category):
+            os.makedirs(abs_template_category)
 
     def save_template(self, rel_filename, template=''):
         abs_template_file = os.path.join(self.abs_template_root(), rel_filename)

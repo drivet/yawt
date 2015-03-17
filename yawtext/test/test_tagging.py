@@ -16,8 +16,9 @@ class TestConfig(object):
     def __init__(self, site):
         self.WHOOSH_INDEX_ROOT = os.path.join(site.abs_state_root(), 'whoosh')
         self.YAWT_WHOOSH_ARTICLE_INFO_FIELDS = \
-            {'create_time': DATETIME, 'tags': KEYWORD(commas=True)}
+            {'create_time': DATETIME(sortable=True), 'tags': KEYWORD(commas=True)}
         self.YAWT_ARTICLE_EXTENSIONS = ['md']
+        self.YAWT_MULTIMARKDOWN_TYPES = {'tags': 'list'}
 
 class TestYawtTagging(unittest.TestCase):
     def setUp(self):
@@ -30,32 +31,12 @@ class TestYawtTagging(unittest.TestCase):
                               config = TestConfig(self.site),
                               extension_info = extension_info(self.plugin))
         self.app.testing = True
+        self.app.debug = True
 
         os.makedirs(self.app.config['WHOOSH_INDEX_ROOT'])
 
     def test_default_tagging_template(self):
         self.assertEqual('article_list', self.app.config['YAWT_TAGGING_TEMPLATE'])
-
-    def test_on_article_fetch_sets_taglist(self):
-        with self.app.test_request_context():
-            self.app.preprocess_request()
-
-            info = ArticleInfo()
-            info.tags = 'tag1,tag2'
-            article = Article()
-            article.info = info
-            article = g.site._on_article_fetch(article)
-            self.assertEqual(['tag1', 'tag2'], article.info.taglist)
-            
-    def test_on_article_fetch_ignores_whitespace(self):
-        with self.app.test_request_context():
-            self.app.preprocess_request()
-            info = ArticleInfo()
-            info.tags = '   tag1, tag2  '
-            article = Article()
-            article.info = info
-            article = g.site._on_article_fetch(article)
-        self.assertEqual(['tag1', 'tag2'], article.info.taglist)
 
     def test_walking_produces_readable_tagcount_file(self):
         self.site.save_content('article1.md', u'tags: tag1,tag2\n\nstuff1')
@@ -89,32 +70,28 @@ class TestYawtTagging(unittest.TestCase):
         writer = idx.writer()
 
         info1 = ArticleInfo('article1', '', 'article1', 'md', datetime(2004, 11, 03) )
-        info1.tags = 'tag1,tag2'
-        info1.taglist = ['tag1','tag2']
+        info1.tags = ['tag1','tag2']
         writer.add_document(fullname=u'article1', create_time=datetime(2004, 11, 04),
                             tags=u'tag1,tag2',
                             content=u'tags: tag1,tag2\n\nstuff1',
                             article_info_json=jsonpickle.encode(info1))
 
         info2 = ArticleInfo('article2', '', 'article2', 'md', datetime(2004, 11, 05))
-        info2.tags = 'tag3,tag4'
-        info2.taglist = ['tag3','tag4']
+        info2.tags = ['tag3','tag4']
         writer.add_document(fullname=u'article2', create_time=datetime(2004, 11, 05), 
                             tags=u'tag3,tag4',
                             content=u'tags: tag3,tag4\n\nstuff2',
                             article_info_json=jsonpickle.encode(info2))
 
         info3 = ArticleInfo('article3', '', 'article3', 'md', datetime(2004, 11, 04))
-        info3.tags = 'tag3,tag1'
-        info3.taglist = ['tag3','tag1']
+        info3.tags = ['tag3','tag1']
         writer.add_document(fullname=u'article3', create_time=datetime(2004, 11, 04), 
                             content=u'tags: tag3,tag1\n\nstuff3', 
                             tags=u'tag3,tag1',
                             article_info_json=jsonpickle.encode(info3))
 
         info4 = ArticleInfo('article4', '', 'article4', 'md', datetime(2004, 11, 02))
-        info4.tags = 'tag2,tag4'
-        info4.taglist = ['tag2','tag4']
+        info4.tags = ['tag2','tag4']
         writer.add_document(fullname=u'article4', create_time=datetime(2004, 11, 02), 
                             tags=u'tag2,tag4',
                             content=u'tags: tag2,tag4\n\nstuff4',
@@ -139,32 +116,28 @@ class TestYawtTagging(unittest.TestCase):
         writer = idx.writer()
 
         info1 = ArticleInfo('article1', '', 'article1', 'md', datetime(2004, 11, 03) )
-        info1.tags = 'tag1,tag2'
-        info1.taglist = ['tag1','tag2']
+        info1.tags = ['tag1','tag2']
         writer.add_document(fullname=u'article1', create_time=datetime(2004, 11, 04),
                             tags=u'tag1,tag2',
                             content=u'tags: tag1,tag2\n\nstuff1',
                             article_info_json=jsonpickle.encode(info1))
 
         info2 = ArticleInfo('article2', '', 'article2', 'md', datetime(2004, 11, 05))
-        info2.tags = 'tag3,tag4'
-        info2.taglist = ['tag3','tag4']
+        info2.tags = ['tag3','tag4']
         writer.add_document(fullname=u'article2', create_time=datetime(2004, 11, 05), 
                             tags=u'tag3,tag4',
                             content=u'tags: tag3,tag4\n\nstuff2',
                             article_info_json=jsonpickle.encode(info2))
 
         info3 = ArticleInfo('article3', '', 'article3', 'md', datetime(2004, 11, 04))
-        info3.tags = 'tag3,tag1'
-        info3.taglist = ['tag3','tag1']
+        info3.tags = ['tag3','tag1']
         writer.add_document(fullname=u'article3', create_time=datetime(2004, 11, 04), 
                             content=u'tags: tag3,tag1\n\nstuff3', 
                             tags=u'tag3,tag1',
                             article_info_json=jsonpickle.encode(info3))
 
         info4 = ArticleInfo('article4', '', 'article4', 'md', datetime(2004, 11, 02))
-        info4.tags = 'tag2,tag4'
-        info4.taglist = ['tag2','tag4']
+        info4.tags = ['tag2','tag4']
         writer.add_document(fullname=u'article4', create_time=datetime(2004, 11, 02), 
                             tags=u'tag2,tag4',
                             content=u'tags: tag2,tag4\n\nstuff4',
@@ -228,19 +201,9 @@ def extension_info(yawttagging):
     from yawtext.collections import YawtCollections
     yawtpaging = YawtCollections()
 
-    return ({'whoosh': whoosh,
-             'yawtwhoosh': yawtwhoosh,
-             'yawtpaging': yawtpaging,
-             'yawttagging':yawttagging,
-             'yawtmarkdown': yawtmarkdown},
-            [yawtmarkdown, yawttagging, whoosh, yawtwhoosh, yawtpaging],
-            mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, yawttagging))
-
-def mk_init_app(whoosh, yawtwhoosh, yawtpaging, yawtmarkdown, yawt_tagging):
-    def init_app(app):
-        whoosh.init_app(app)
-        yawtwhoosh.init_app(app)
-        yawtpaging.init_app(app)
-        yawtmarkdown.init_app(app)
-        yawt_tagging.init_app(app)
-    return init_app
+    return ({'flask_whoosh.Whoosh': whoosh,
+             'yawtext.indexer.YawtWhoosh': yawtwhoosh,
+             'yawtext.collections.YawtCollections': yawtpaging,
+             'yawtext.tagging.YawtTagging':yawttagging,
+             'yawtext.multimarkdown.YawtMarkdown': yawtmarkdown},
+            [yawtmarkdown, yawttagging, whoosh, yawtwhoosh, yawtpaging])

@@ -214,10 +214,6 @@ class TestYawtWhoosh(unittest.TestCase):
 def extension_info(plugin):
     from flask_whoosh import Whoosh
     whoosh = Whoosh()
-    return ({'whoosh': whoosh, 'yawtwhoosh': plugin}, [plugin], mk_init_app(whoosh, plugin))
-
-def mk_init_app(whoosh, yawtwhoosh):
-    def init_app(app):
-        whoosh.init_app(app)
-        yawtwhoosh.init_app(app)
-    return init_app
+    return ({'flask_whoosh.Whoosh': whoosh, 
+             'yawtext.indexer.YawtWhoosh': plugin}, 
+            [whoosh, plugin])

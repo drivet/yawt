@@ -29,4 +29,5 @@ class TestYawtExcerpt(unittest.TestCase):
         pass
 
 def extension_info(plugin):
-    return ({'yawtexcerpt': plugin}, [plugin], lambda app: plugin.init_app(app))
+    return ({'yawtext.excerpt.YawtExcerpt': plugin}, 
+            [plugin])
