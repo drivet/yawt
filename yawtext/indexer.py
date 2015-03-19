@@ -41,11 +41,11 @@ class YawtWhoosh(object):
 
     def on_new_site(self, files):
         """Set up the index when we crate a new site"""
-        whoosh().init_index(self._schema())
+        whoosh().init_index(self.schema())
 
     def on_pre_walk(self):
         """Clear the index"""
-        whoosh().init_index(self._schema(), clear=True)
+        whoosh().init_index(self.schema(), clear=True)
 
     def on_visit_article(self, article):
         """Index this article"""
@@ -89,7 +89,7 @@ class YawtWhoosh(object):
             ainfos.append(jsonpickle.decode(result['article_info_json']))
         return ainfos, len(results)
 
-    def _schema(self):
+    def schema(self):
         fields = {}
         fields.update(_config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'))
         fields.update(_config('YAWT_WHOOSH_ARTICLE_FIELDS'))
@@ -98,7 +98,7 @@ class YawtWhoosh(object):
         return fields
 
     def _field_values(self, article):
-        schema = self._schema()
+        schema = self.schema()
         values = {}
         for field_name in _config('YAWT_WHOOSH_ARTICLE_FIELDS'):
             if hasattr(article, field_name):
