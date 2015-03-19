@@ -21,7 +21,7 @@ class YawtGit(object):
         if 'create_time' in vc_info:
             article.info.git_create_time = vc_info['create_time']
         if 'modified_time' in vc_info:
-            article.info.git_modified_time = vc_info['modified_time'] 
+            article.info.git_modified_time = vc_info['modified_time']
         if 'author' in vc_info:
             article.info.git_author = vc_info['author']
         return article
@@ -34,11 +34,11 @@ class YawtGit(object):
         sorted_commits = list(git_manager.commits_for_path_recent_first(repofile, follow=follow))
         if len(sorted_commits) == 0:
             return {}
-            
+
         last_commit = sorted_commits[0]
         first_commit = sorted_commits[-1]
-        return { 'create_time': first_commit.commit_time, 
-                 'modified_time': last_commit.commit_time, 
+        return { 'create_time': first_commit.commit_time,
+                 'modified_time': last_commit.commit_time,
                  'author': first_commit.author.name }
 
 def save_repo_file(repofile, contents):

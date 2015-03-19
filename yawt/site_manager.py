@@ -16,7 +16,7 @@ class YawtSiteManager(object):
         if article is None:
             return None
         return self._on_article_fetch(article)
- 
+
     def fetch_article_by_info(self, article_info):
         article = self.site_manager.fetch_article_by_fullname(article_info.fullname)
         if article is None:
@@ -38,13 +38,13 @@ class YawtSiteManager(object):
         self._call_plugins('on_post_walk')
 
     def files_changed(self, files_modified, files_added, files_removed):
-        self._call_plugins('on_files_changed', 
-                           files_modified, 
-                           files_added, 
+        self._call_plugins('on_files_changed',
+                           files_modified,
+                           files_added,
                            files_removed)
- 
+
     def _on_article_fetch(self, article):
-        for ext in self._extensions(): 
+        for ext in self._extensions():
             if has_method(ext, 'on_article_fetch'):
                 article = ext.on_article_fetch(article)
         return article
@@ -54,7 +54,7 @@ class YawtSiteManager(object):
             if has_method(ext, 'on_new_site'):
                 files = ext.on_new_site(files)
         return files
-        
+
     def _call_plugins(self, method, *args, **kw):
         for ext in self._extensions():
             if has_method(ext, method):

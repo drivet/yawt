@@ -10,8 +10,8 @@ def fetch_file_metadata(filename):
 
 
 class ArticleInfo(object):
-    def __init__(self, fullname = '', category = '', slug = '', extension = '', 
-                 create_time = None, modified_time = None):
+    def __init__(self, fullname='', category='', slug='', extension='',
+                 create_time=None, modified_time=None):
         self.fullname = fullname
         self.category = category
         self.slug = slug
@@ -41,7 +41,7 @@ class Article(object):
 
     def __str__(self):
         return "Article: " + str(self.info)
- 
+
     def __repr__(self):
         return "Article: " + repr(self.info)
 
@@ -49,7 +49,7 @@ class Article(object):
 class FileBasedSiteManager(object):
     """The default article store. Stores articles on disk. No plugins."""
 
-    def __init__(self, root_dir, draft_folder, content_folder, 
+    def __init__(self, root_dir, draft_folder, content_folder,
                  template_folder, file_extensions):
         self.root_dir = root_dir
         self.content_folder = content_folder
@@ -64,12 +64,12 @@ class FileBasedSiteManager(object):
         ensure_path(self._content_root())
         ensure_path(self._draft_root())
         ensure_path(self._template_root())
-        save_file(os.path.join(self.root_dir,'config.py'),'# put configuration here')
+        save_file(os.path.join(self.root_dir, 'config.py'), '# put configuration here')
         self._save_template('article', 'html', yawt.default_templates.default_article_template)
         self._save_template('404', 'html', yawt.default_templates.default_404_template)
 
         return ['config.py', 'article.html', '404.html']
- 
+
     def fetch_article_by_repofile(self, repofile):
         """Fetch single article info by repofile (path starting from root of
         repository). Returns None if no article exists with that name.
@@ -94,11 +94,11 @@ class FileBasedSiteManager(object):
         does not exist.
         """
         return self.fetch_article_by_fullname(os.path.join(category, slug))
- 
+
     def exists(self, fullname):
         """Return True if article exists"""
         return self.fullname2file(fullname) != None
-            
+
     def is_category(self, fullname):
         """Return True if fullname refers to category on disk"""
         return os.path.isdir(os.path.join(self._content_root(), fullname))
@@ -109,7 +109,7 @@ class FileBasedSiteManager(object):
         if not prefix.endswith('/'):
             prefix += '/'
         return repofile.startswith(prefix)
- 
+
     def walk(self, category=""):
         """Yields fullnames"""
         start_path = os.path.join(self._content_root(), category)
@@ -130,7 +130,7 @@ class FileBasedSiteManager(object):
         info.fullname = unicode(fullname)
         info.category = unicode(os.path.dirname(fullname))
         info.slug = unicode(os.path.basename(fullname))
-        info.extension =  unicode(base_and_ext(filename)[1])
+        info.extension = unicode(base_and_ext(filename)[1])
 
         file_metadata = fetch_file_metadata(filename)
         info.create_time = file_metadata['create_time']
@@ -143,10 +143,10 @@ class FileBasedSiteManager(object):
 
     def _fullname_ext2file(self, fullname, ext):
         return os.path.join(self._content_root(), fullname + "." + ext)
- 
+
     def _template_ext2file(self, templatename, ext):
         return os.path.join(self._template_root(), templatename + "." + ext)
- 
+
     def _save_template(self, name, flavour, contents):
         save_file(self._template_ext2file(name, flavour), contents)
 
@@ -165,7 +165,7 @@ class FileBasedSiteManager(object):
         rel_filename = re.sub('^%s/' % (self._content_root()), '', filename)
         fullname = os.path.splitext(rel_filename)[0]
         return fullname
-    
+
     def _content_root(self):
         return os.path.join(self.root_dir, self.content_folder)
 
@@ -181,7 +181,7 @@ class ArticleExistsError(Exception):
 
 
 class SiteExistsError(Exception):
-    def __init__(self, folder): 
+    def __init__(self, folder):
         super(SiteExistsError, self).__init__()
         self.folder = folder
     def __str__(self):

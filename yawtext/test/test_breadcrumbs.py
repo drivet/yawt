@@ -11,7 +11,7 @@ class TestYawtBreadcrumbs(unittest.TestCase):
         self.assertEquals('blog', bc[0]['crumb'])
         self.assertEquals('path1', bc[1]['crumb'])
         self.assertEquals('path2', bc[2]['crumb'])
-        
+
         self.assertEquals('/blog', bc[0]['url'])
         self.assertEquals('/blog/path1', bc[1]['url'])
         self.assertEquals('/blog/path1/path2', bc[2]['url'])

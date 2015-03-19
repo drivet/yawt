@@ -15,7 +15,7 @@ def render(template, category, base, flavour, template_variables):
         response.headers['Content-Type'] = content_type
         return response
     else:
-        return render_template(template_names, **template_variables)           
+        return render_template(template_names, **template_variables)
 
 def get_possible_templates(template, category, base, flavour):
     """
@@ -27,7 +27,7 @@ def get_possible_templates(template, category, base, flavour):
     templates = [base_file]
     template_base = template + '.' + flavour
     current_category = category
-    while current_category: 
+    while current_category:
         article_template = current_category + '/' + template_base
         templates.append(article_template)
         current_category = parent_category(current_category)

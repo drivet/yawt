@@ -1,23 +1,19 @@
+"""YAWT Indexing extension
+
+The goal here is to index each article using Whoosh and the configured fields.
+The indexing itself is done via the walk phase and the on_files_changed phase.
+"""
+from datetime import datetime
+
 from flask import current_app, g
 from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT, DATETIME
 import jsonpickle
-import re
-import os
-from datetime import datetime
+
+from yawt.utils import fullname
+
 
 def _config(key):
     return current_app.config[key]
-
-def fullname(repofile):
-    content_root = _config('YAWT_CONTENT_FOLDER')
-    if not repofile.startswith(content_root):
-        return None
-    rel_filename = re.sub('^%s/' % (content_root), '', repofile) 
-    name, ext = os.path.splitext(rel_filename)
-    ext = ext[1:]
-    if ext not in _config('YAWT_ARTICLE_EXTENSIONS'):
-        return None 
-    return name
 
 
 class BadFieldType(Exception):
@@ -30,42 +26,53 @@ class BadFieldType(Exception):
 
 
 class YawtWhoosh(object):
+    """YAWT Whoosh extension class.  IMplement the walk and on_file_changed
+    protocol.
+    """
     def __init__(self, app=None):
         self.app = app
         if app is not None:
             self.init_app(app)
 
     def init_app(self, app):
+        """Set up default config values.  By default we index content"""
         app.config.setdefault('YAWT_WHOOSH_ARTICLE_INFO_FIELDS', {})
         app.config.setdefault('YAWT_WHOOSH_ARTICLE_FIELDS', {'content': TEXT})
-    
-    def on_new_site(self, files):
-        self.whoosh().init_index(self.schema())
- 
-    def on_pre_walk(self):
-        self.whoosh().init_index(self.schema(), clear=True)
-        
-    def on_visit_article(self, article):
-        doc = self.field_values(article)
-        self.whoosh().writer.add_document(**doc)
 
-    def on_post_walk(self): 
-        self.whoosh().writer.commit()
+    def on_new_site(self, files):
+        """Set up the index when we crate a new site"""
+        whoosh().init_index(self._schema())
+
+    def on_pre_walk(self):
+        """Clear the index"""
+        whoosh().init_index(self._schema(), clear=True)
+
+    def on_visit_article(self, article):
+        """Index this article"""
+        doc = self._field_values(article)
+        whoosh().writer.add_document(**doc)
+
+    def on_post_walk(self):
+        """Commit the index"""
+        whoosh().writer.commit()
 
     def on_files_changed(self, files_modified, files_added, files_removed):
-        for f in files_removed + files_modified: 
+        """Delete all modified and removed files from the index.  Then index
+        all the added files and re-index all the modifed files.
+        """
+        for f in files_removed + files_modified:
             name = fullname(f)
             if name:
-                self.whoosh().writer.delete_by_term('fullname', name)
+                whoosh().writer.delete_by_term('fullname', name)
 
         for f in files_modified + files_added:
             article = g.site.fetch_article_by_repofile(f)
-            if article: 
-                doc = self.field_values(article)
-                self.whoosh().writer.add_document(**doc)
+            if article:
+                doc = self._field_values(article)
+                whoosh().writer.add_document(**doc)
 
-        self.whoosh().writer.commit()
- 
+        whoosh().writer.commit()
+
     def _extensions(self):
         if current_app.extension_info:
             return current_app.extension_info[1]
@@ -73,40 +80,44 @@ class YawtWhoosh(object):
             return []
 
     def search(self, query, sortedby, page, pagelen, reverse=False):
-        searcher = self.whoosh().searcher
-        results = searcher.search_page(query, page, pagelen, sortedby=sortedby, reverse=reverse)
-        article_infos = []
+        """Search the whoosh index using the supplied query"""
+        searcher = whoosh().searcher
+        results = searcher.search_page(query, page, pagelen, sortedby=sortedby,
+                                       reverse=reverse)
+        ainfos = []
         for result in results:
-            article_infos.append(jsonpickle.decode(result['article_info_json']))
-        return article_infos, len(results)
+            ainfos.append(jsonpickle.decode(result['article_info_json']))
+        return ainfos, len(results)
 
-    def schema(self):
+    def _schema(self):
         fields = {}
         fields.update(_config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'))
         fields.update(_config('YAWT_WHOOSH_ARTICLE_FIELDS'))
         fields['article_info_json'] = STORED()
-        fields['fullname'] = ID() # add (or override) whatever is in config
+        fields['fullname'] = ID()  # add (or override) whatever is in config
         return fields
 
-    def field_values(self, article):
-        schema = self.schema()
+    def _field_values(self, article):
+        schema = self._schema()
         values = {}
         for field_name in _config('YAWT_WHOOSH_ARTICLE_FIELDS'):
             if hasattr(article, field_name):
-                values[field_name] = self.value(getattr(article, field_name), schema[field_name])
+                values[field_name] = self._value(getattr(article, field_name),
+                                                 schema[field_name])
 
         info = article.info
         for field_name in _config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'):
             if hasattr(info, field_name):
-                values[field_name] = self.value(getattr(info, field_name), schema[field_name])
+                values[field_name] = self._value(getattr(info, field_name),
+                                                 schema[field_name])
 
         article.info.indexed = True
         values['fullname'] = article.info.fullname
         values['article_info_json'] = jsonpickle.encode(article.info)
         return values
 
-    def value(self, field_value, field_type):
-        fvt = type(field_value) 
+    def _value(self, field_value, field_type):
+        fvt = type(field_value)
         ftt = type(field_type)
         if fvt is list:
             if field_type == KEYWORD or ftt is KEYWORD or \
@@ -120,6 +131,7 @@ class YawtWhoosh(object):
             return datetime.fromtimestamp(long(field_value))
         else:
             return field_value
-        
-    def whoosh(self):
-        return current_app.extension_info[0]['flask_whoosh.Whoosh']
+
+
+def whoosh():
+    return current_app.extension_info[0]['flask_whoosh.Whoosh']

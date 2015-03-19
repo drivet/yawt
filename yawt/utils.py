@@ -41,9 +41,9 @@ def fullname(sitefile):
     content_root = current_app.config['YAWT_CONTENT_FOLDER']
     if not sitefile.startswith(content_root):
         return None
-    rel_filename = re.sub('^%s/' % (content_root), '', sitefile) 
+    rel_filename = re.sub('^%s/' % (content_root), '', sitefile)
     name, ext = os.path.splitext(rel_filename)
     ext = ext[1:]
     if ext not in current_app.config['YAWT_ARTICLE_EXTENSIONS']:
-        return None 
+        return None
     return name

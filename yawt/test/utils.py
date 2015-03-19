@@ -1,3 +1,5 @@
+#pylint: skip-file
+
 from mock import patch
 from yawt.test import fake_filesystem
 

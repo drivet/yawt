@@ -30,35 +30,35 @@ def tagcounts_cp():
         tvars = {'tagcounts': tagcounts, 'tagbase': tagbase}
     return tvars
 
-        
+
 @taggingbp.context_processor
 def collection_title():
     return {'collection_title': 'Found %s tag results for "%s"' % (g.total_results, g.tag)}
 
-    
-class TaggingView(CollectionView): 
+
+class TaggingView(CollectionView):
     def dispatch_request(self, *args, **kwargs):
         g.tag = kwargs['tag'] # for use in templates
         return super(TaggingView, self).dispatch_request(*args, **kwargs)
-        
+
     def query(self, category='', tag=None, *args, **kwargs):
         query_str = 'tags:' + tag
         if category:
             query_str += ' AND ' + category
         qp = QueryParser('categories', schema=yawtwhoosh().schema())
         return qp.parse(unicode(query_str))
-        
+
     def get_template_name(self):
         return current_app.config['YAWT_TAGGING_TEMPLATE']
 
-        
+
 class YawtTagging(object):
     def __init__(self, app=None):
         self.app = app
         if app is not None:
             self.init_app(app)
         self.tagcounts = {}
-            
+
     def init_app(self, app):
         app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
         app.config.setdefault('YAWT_TAGGING_BASE', '')
@@ -76,7 +76,7 @@ class YawtTagging(object):
                 else:
                     self.tagcounts[tag] = 1
 
-    def on_post_walk(self): 
+    def on_post_walk(self):
         pickled_info = jsonpickle.encode(self.tagcounts)
         save_file(abs_tagcount_file(), pickled_info)
 
@@ -87,21 +87,21 @@ class YawtTagging(object):
         """
         pickled_info = load_file(abs_tagcount_file())
         self.tagcounts = jsonpickle.decode(pickled_info)
-        for f in files_removed + files_modified: 
+        for f in files_removed + files_modified:
             name = fullname(f)
-            if name: 
+            if name:
                 tags_to_remove = self.tags_for_name(name)
-               
+
                 for tag in tags_to_remove:
                     self.tagcounts[tag] -= 1
 
-        for f in files_modified + files_added: 
+        for f in files_modified + files_added:
             article = g.site.fetch_article_by_repofile(f)
             if article:
                 self.on_visit_article(article)
 
         self.delete_unused_tags()
-        
+
         self.on_post_walk()
 
     def tags_for_name(self, name):
@@ -110,7 +110,7 @@ class YawtTagging(object):
         q = qp.parse(unicode(name))
         results = searcher.search(q)
         tags = []
-        if len(results) > 0: 
+        if len(results) > 0:
             info = jsonpickle.decode(results[0]['article_info_json'])
             tags = info.tags
         return tags
@@ -128,9 +128,9 @@ class YawtTagging(object):
 taggingbp.add_url_rule('/tags/<tag>/', view_func=TaggingView.as_view('tag_canonical'))
 taggingbp.add_url_rule('/tags/<tag>/index', view_func=TaggingView.as_view('tag_index'))
 taggingbp.add_url_rule('/tags/<tag>/index.<flav>', view_func=TaggingView.as_view('tag_index_flav'))
-taggingbp.add_url_rule('/<path:category>/tags/<tag>/', 
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/',
                        view_func=TaggingView.as_view('tag_category_canonical'))
-taggingbp.add_url_rule('/<path:category>/tags/<tag>/index', 
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/index',
                        view_func=TaggingView.as_view('tag_category_index'))
-taggingbp.add_url_rule('/<path:category>/tags/<tag>/index.<flav>', 
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/index.<flav>',
                        view_func=TaggingView.as_view('tag_category_index_flav'))

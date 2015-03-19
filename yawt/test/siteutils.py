@@ -1,3 +1,5 @@
+#pylint: skip-file
+
 import tempfile
 import os
 import shutil

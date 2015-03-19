@@ -20,7 +20,7 @@ class YawtHg(object):
         article.info.author = vc_info['author']
         return article
 
-    def fetch_vc_info(self, fullname, ext): 
+    def fetch_vc_info(self, fullname, ext):
         contentpath = current_app.yawt_root_dir + _config('YAWT_CONTENT_FOLDER')
         repofile = os.path.join(contentpath, fullname + '.' + ext)
 

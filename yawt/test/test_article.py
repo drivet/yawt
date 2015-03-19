@@ -1,6 +1,7 @@
+#pylint: skip-file
+
 import unittest
 from yawt.article import FileBasedSiteManager, SiteExistsError
-from yawt.utils import save_file
 import os.path
 import shutil
 from yawt.test.siteutils import TempSite

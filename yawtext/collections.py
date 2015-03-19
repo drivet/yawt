@@ -1,10 +1,12 @@
+from math import ceil
+
 from flask import current_app, g, request, Blueprint, abort
 from flask.views import View
 from yawt.view import render
 from jinja2 import TemplatesNotFound
-from math import ceil
 
 collectionsbp = Blueprint('paging', __name__)
+
 
 @collectionsbp.before_app_request
 def before_request():
@@ -22,26 +24,34 @@ def before_request():
     except KeyError:
         g.pagelen = current_app.config['YAWT_COLLECTIONS_DEFAULT_PAGELEN']
 
+
 class YawtCollections(object):
+    """YAWT Collection extension class"""
     def __init__(self, app=None):
         self.app = app
         if app is not None:
             self.init_app(app)
 
     def init_app(self, app):
+        """Register Blueprint and set default values"""
         app.config.setdefault('YAWT_COLLECTIONS_DEFAULT_PAGELEN', 10)
         app.config.setdefault('YAWT_COLLECTIONS_SORT_FIELD', 'create_time')
         app.register_blueprint(collectionsbp)
 
 
 class CollectionView(View):
-    def dispatch_request(self, category='', flav=None, *args, **kwargs): 
+    """YAWT Collection view class"""
+    def dispatch_request(self, category='', flav=None, *args, **kwargs):
+        """Query whoosh for collection of articles.  Sort the articles.  Setup
+        up pagination variables in the g variables.  Finally render the
+        template, or abort with a 404 if you don't find a template.
+        """
         query = self.query(category, *args, **kwargs)
         sortfield = current_app.config['YAWT_COLLECTIONS_SORT_FIELD']
-        
-        ainfos, total = yawtwhoosh().search(query=query, 
-                                            sortedby=sortfield, 
-                                            page=g.page, pagelen=g.pagelen, 
+
+        ainfos, total = yawtwhoosh().search(query=query,
+                                            sortedby=sortfield,
+                                            page=g.page, pagelen=g.pagelen,
                                             reverse=True)
         g.total_results = total
         g.total_pages = int(ceil(float(g.total_results)/g.pagelen))
@@ -61,6 +71,7 @@ class CollectionView(View):
         raise NotImplementedError()
 
     def get_template_name(self):
+        """Return the template name for the collection view"""
         raise NotImplementedError()
 
 

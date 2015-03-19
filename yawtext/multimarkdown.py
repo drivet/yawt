@@ -20,10 +20,10 @@ class YawtMarkdown(object):
             if not hasattr(article.info, 'indexed') or not article.info.indexed:
                 self._set_attributes(article.info, meta)
         return article
- 
+
     def _set_attributes(self, article_info, meta):
         for key in meta.keys():
-            mtypes = current_app.config['YAWT_MULTIMARKDOWN_TYPES'] 
+            mtypes = current_app.config['YAWT_MULTIMARKDOWN_TYPES']
             mt = None
             if key in mtypes:
                 mt = mtypes[key]
