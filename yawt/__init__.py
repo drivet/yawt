@@ -3,6 +3,7 @@ import re
 import os
 import jinja2
 import importlib
+import logging
 
 # default configuration
 YAWT_BASE_URL = 'http://www.awesome.net/blog'
@@ -77,11 +78,12 @@ def configure(root_dir, app, config, extension_info):
     sys.path = old_path
 
 def create_app(root_dir,
-               template_folder = 'templates', 
-               static_folder = 'static', 
-               static_url_path = '/static', 
-               config = None, 
-               extension_info = None):
+               template_folder = 'templates',
+               static_folder = 'static',
+               static_url_path = '/static',
+               config = None,
+               extension_info = None,
+               log_level = logging.INFO):
     app = Flask(__name__,
                 static_folder = os.path.join(root_dir, static_folder),
                 static_url_path = static_url_path,
@@ -93,9 +95,11 @@ def create_app(root_dir,
     app.yawt_static_folder = static_folder
     app.yawt_static_url_path = static_url_path
 
+    app.logger.setLevel(log_level)
+
     path_to_templates = os.path.join(root_dir, template_folder)
     app.jinja_loader = jinja2.FileSystemLoader(path_to_templates)
-    
+
     configure(root_dir, app, config, extension_info)
 
     from yawt.main import yawtbp

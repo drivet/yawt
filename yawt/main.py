@@ -7,8 +7,6 @@ from yawt.site_manager import YawtSiteManager
 from yawt.utils import has_method
 from yawt.view import render
 from datetime import datetime
-import logging
-import logging.handlers
 
 def _config(key):
     return current_app.config[key]
@@ -18,7 +16,7 @@ yawtbp = Blueprint('yawt', __name__)
 @yawtbp.route('/')
 def home():
     return handle_path('/')
-    
+
 @yawtbp.route('/<path:path>')
 def generic_path(path):
     return handle_path(path)
@@ -46,23 +44,12 @@ def url(relative_url):
 def static(filename):
     return url_for('static', filename=filename)
 
-@yawtbp.before_app_first_request
-def setup_logging():
-    if not current_app.debug:
-        log_handler = logging.handlers.RotatingFileHandler('/var/log/yawt/yawt.log',
-                                                           maxBytes=5242880,
-                                                           backupCount=5)
-        log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        log_handler.setLevel(logging.INFO)
-        current_app.logger.addHandler(log_handler)
-        current_app.logger.setLevel(logging.INFO)
-
 @yawtbp.before_app_request
 def before_request():
     config = current_app.config
     g.store = FileBasedSiteManager(current_app.yawt_root_dir,
                                    config['YAWT_DRAFT_FOLDER'],
-                                   config['YAWT_CONTENT_FOLDER'], 
+                                   config['YAWT_CONTENT_FOLDER'],
                                    config['YAWT_TEMPLATE_FOLDER'],
                                    config['YAWT_ARTICLE_EXTENSIONS'])
 
@@ -79,16 +66,16 @@ def handle_path(path):
     flavour = config['YAWT_DEFAULT_FLAVOUR']
 
     path = path.lstrip('/')
-        
+
     if path == '' or path.endswith('/'):
-        # user asked for a category page, without an index.  
+        # user asked for a category page, without an index.
         # Supply index file.
         fullname = path + config['YAWT_INDEX_FILE']
     else:
         p = re.compile(r'^(.*?)\.([^/.]+)$')
         m = p.match(path)
         if (m):
-            # we have a flavour ending path, which means the user is 
+            # we have a flavour ending path, which means the user is
             # requesting a file with particular flavour
             fullname = m.group(1)
             flavour = m.group(2)
@@ -99,7 +86,7 @@ def handle_path(path):
 
     current_app.logger.debug('fullname requested: ' + fullname)
     current_app.logger.debug('flavour requested: ' + flavour)
-    article = g.site.fetch_article(fullname) 
+    article = g.site.fetch_article(fullname)
     if article is None:
         current_app.logger.debug('no article found at ' + fullname + ', handling the 404')
         result = handle_404(fullname, flavour)
@@ -109,12 +96,12 @@ def handle_path(path):
             return result
     else:
         try:
-            return render('article', 
-                          article.info.category, 
+            return render('article',
+                          article.info.category,
                           article.info.slug,
                           flavour, {'article' : article})
         except TemplatesNotFound:
-            current_app.logger.warning('could not find, aborting with 404')
+            current_app.logger.debug('could not find, aborting with 404')
             abort(404)
 
 def handle_404(fullname, flavour):
