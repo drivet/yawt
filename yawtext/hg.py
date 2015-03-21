@@ -1,3 +1,4 @@
+#pylint: skip-file
 import os
 from flask import current_app
 

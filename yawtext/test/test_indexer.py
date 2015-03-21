@@ -1,3 +1,5 @@
+#pylint: skip-file
+
 import unittest
 from yawtext.indexer import YawtWhoosh
 from whoosh.fields import TEXT, DATETIME, STORED, ID, Schema

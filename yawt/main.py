@@ -1,51 +1,81 @@
-from flask import current_app, g, Blueprint, url_for, request, \
-      redirect, abort, render_template
-from jinja2 import TemplatesNotFound
+""" The main YAWT module, mostly implemented as a Blueprint.
+"""
+
+from __future__ import absolute_import
+
 import re
+from datetime import datetime
+
+from flask import current_app, g, Blueprint, url_for, request, \
+    redirect, abort, render_template
+from jinja2 import TemplatesNotFound
+
 from yawt.article import FileBasedSiteManager
 from yawt.site_manager import YawtSiteManager
 from yawt.utils import has_method
 from yawt.view import render
-from datetime import datetime
+
 
 def _config(key):
     return current_app.config[key]
 
+
+def _handle_404(fullname, flavour):
+    extensions = []
+    if current_app.extension_info:
+        extensions = current_app.extension_info[1]
+    for ext in extensions:
+        if has_method(ext, 'on_404'):
+            result = ext.on_404(fullname, flavour)
+            if result:
+                return result
+    return None
+
+
 yawtbp = Blueprint('yawt', __name__)
 
+
 @yawtbp.route('/')
-def home():
-    return handle_path('/')
+def _home():
+    return _handle_path('/')
+
 
 @yawtbp.route('/<path:path>')
-def generic_path(path):
-    return handle_path(path)
+def _generic_path(path):
+    return _handle_path(path)
+
 
 @yawtbp.errorhandler(404)
-def page_not_found(error):
+def _page_not_found(error):
     # TODO: figure out what the flavour in the request was
     template_name = '404.'+current_app.config['YAWT_DEFAULT_FLAVOUR']
     return render_template(template_name), 404
 
-# filter for date and time formatting
+
 @yawtbp.app_template_filter('dateformat')
 def date_format(value, ft='%H:%M / %d-%m-%Y'):
+    """filter for date and time formatting"""
+
     v = datetime.fromtimestamp(value)
     return v.strftime(ft)
 
-# make a usable url out of a site relative one
+
 @yawtbp.app_template_filter('url')
 def url(relative_url):
+    """make a usable url out of a site relative one"""
     base_url = current_app.config['YAWT_BASE_URL'] or request.url_root
     url_val = base_url.rstrip('/') + '/' + relative_url.lstrip('/')
     return url_val
 
+
 @yawtbp.app_template_filter('static')
 def static(filename):
+    """Generate static URLs"""
     return url_for('static', filename=filename)
 
+
 @yawtbp.before_app_request
-def before_request():
+def _before_request():
     config = current_app.config
     g.store = FileBasedSiteManager(current_app.yawt_root_dir,
                                    config['YAWT_DRAFT_FOLDER'],
@@ -55,7 +85,8 @@ def before_request():
 
     g.site = YawtSiteManager(g.store)
 
-def handle_path(path):
+
+def _handle_path(path):
     """
     Returns template source corresponding to path
     """
@@ -72,13 +103,13 @@ def handle_path(path):
         # Supply index file.
         fullname = path + config['YAWT_INDEX_FILE']
     else:
-        p = re.compile(r'^(.*?)\.([^/.]+)$')
-        m = p.match(path)
-        if (m):
+        pattern = re.compile(r'^(.*?)\.([^/.]+)$')
+        match = pattern.match(path)
+        if match:
             # we have a flavour ending path, which means the user is
             # requesting a file with particular flavour
-            fullname = m.group(1)
-            flavour = m.group(2)
+            fullname = match.group(1)
+            flavour = match.group(2)
         elif g.store.is_category(path):
             return redirect('/' + path + '/')
         else:
@@ -88,8 +119,9 @@ def handle_path(path):
     current_app.logger.debug('flavour requested: ' + flavour)
     article = g.site.fetch_article(fullname)
     if article is None:
-        current_app.logger.debug('no article found at ' + fullname + ', handling the 404')
-        result = handle_404(fullname, flavour)
+        current_app.logger.debug('no article found at ' + fullname +
+                                 ', handling the 404')
+        result = _handle_404(fullname, flavour)
         if not result:
             abort(404)
         else:
@@ -99,18 +131,7 @@ def handle_path(path):
             return render('article',
                           article.info.category,
                           article.info.slug,
-                          flavour, {'article' : article})
+                          flavour, {'article': article})
         except TemplatesNotFound:
             current_app.logger.debug('could not find, aborting with 404')
             abort(404)
-
-def handle_404(fullname, flavour):
-    extensions = []
-    if current_app.extension_info:
-        extensions = current_app.extension_info[1]
-    for ext in extensions:
-        if has_method(ext, 'on_404'):
-            result = ext.on_404(fullname, flavour)
-            if result:
-                return result
-    return None

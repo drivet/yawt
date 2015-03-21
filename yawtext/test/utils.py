@@ -1,3 +1,4 @@
+#pylint: skip-file
 
 def generate_collection_template(single_info, plural_info, info_fields=None):
     """generate a Jinga2 template that displays the given info fields, one on

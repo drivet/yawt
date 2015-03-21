@@ -1,3 +1,4 @@
+#pylint: skip-file
 import unittest
 from yawtext.categories import YawtCategories, HierarchyCount
 from whoosh.fields import DATETIME, STORED, ID, KEYWORD, Schema

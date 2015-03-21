@@ -1,6 +1,13 @@
+"""Basic rendering code"""
+
+from __future__ import absolute_import
+
 from flask import current_app, make_response, render_template
 
+
 def render(template, category, base, flavour, template_variables):
+    """The main YAWT render routine"""
+
     if flavour is None:
         flavour = current_app.config['YAWT_DEFAULT_FLAVOUR']
 
@@ -17,6 +24,7 @@ def render(template, category, base, flavour, template_variables):
     else:
         return render_template(template_names, **template_variables)
 
+
 def get_possible_templates(template, category, base, flavour):
     """
     start at category and return all templates up the chain.
@@ -30,11 +38,12 @@ def get_possible_templates(template, category, base, flavour):
     while current_category:
         article_template = current_category + '/' + template_base
         templates.append(article_template)
-        current_category = parent_category(current_category)
+        current_category = _parent_category(current_category)
     templates.append(template_base)
     return templates
 
-def parent_category(category):
+
+def _parent_category(category):
     if '/' in category:
         return category.rsplit('/', 1)[0]
     else:

@@ -3,6 +3,7 @@
 The goal here is to index each article using Whoosh and the configured fields.
 The indexing itself is done via the walk phase and the on_files_changed phase.
 """
+from __future__ import absolute_import
 from datetime import datetime
 
 from flask import current_app, g
@@ -16,7 +17,14 @@ def _config(key):
     return current_app.config[key]
 
 
+def _whoosh():
+    return current_app.extension_info[0]['flask_whoosh.Whoosh']
+
+
 class BadFieldType(Exception):
+    """Simple Exception that is thrown when there is a problem mapping the
+    article attribute to a whoosh datatype.
+    """
     def __init__(self, field_type):
         super(BadFieldType, self).__init__()
         self.field_type = field_type
@@ -41,20 +49,20 @@ class YawtWhoosh(object):
 
     def on_new_site(self, files):
         """Set up the index when we crate a new site"""
-        whoosh().init_index(self.schema())
+        _whoosh().init_index(self.schema())
 
     def on_pre_walk(self):
         """Clear the index"""
-        whoosh().init_index(self.schema(), clear=True)
+        _whoosh().init_index(self.schema(), clear=True)
 
     def on_visit_article(self, article):
         """Index this article"""
         doc = self._field_values(article)
-        whoosh().writer.add_document(**doc)
+        _whoosh().writer.add_document(**doc)
 
     def on_post_walk(self):
         """Commit the index"""
-        whoosh().writer.commit()
+        _whoosh().writer.commit()
 
     def on_files_changed(self, files_modified, files_added, files_removed):
         """Delete all modified and removed files from the index.  Then index
@@ -63,25 +71,19 @@ class YawtWhoosh(object):
         for f in files_removed + files_modified:
             name = fullname(f)
             if name:
-                whoosh().writer.delete_by_term('fullname', name)
+                _whoosh().writer.delete_by_term('fullname', name)
 
         for f in files_modified + files_added:
             article = g.site.fetch_article_by_repofile(f)
             if article:
                 doc = self._field_values(article)
-                whoosh().writer.add_document(**doc)
+                _whoosh().writer.add_document(**doc)
 
-        whoosh().writer.commit()
-
-    def _extensions(self):
-        if current_app.extension_info:
-            return current_app.extension_info[1]
-        else:
-            return []
+        _whoosh().writer.commit()
 
     def search(self, query, sortedby, page, pagelen, reverse=False):
-        """Search the whoosh index using the supplied query"""
-        searcher = whoosh().searcher
+        """Search the _whoosh index using the supplied query"""
+        searcher = _whoosh().searcher
         results = searcher.search_page(query, page, pagelen, sortedby=sortedby,
                                        reverse=reverse)
         ainfos = []
@@ -131,7 +133,3 @@ class YawtWhoosh(object):
             return datetime.fromtimestamp(long(field_value))
         else:
             return field_value
-
-
-def whoosh():
-    return current_app.extension_info[0]['flask_whoosh.Whoosh']

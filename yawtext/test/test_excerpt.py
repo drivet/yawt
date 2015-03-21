@@ -1,3 +1,4 @@
+#pylint: skip-file
 import unittest
 from yawtext.excerpt import YawtExcerpt
 from yawt.article import Article, ArticleInfo

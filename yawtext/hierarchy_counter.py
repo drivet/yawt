@@ -13,6 +13,9 @@ def _split_category(category):
 
 
 class HierarchyCount(object):
+    """Class which can process paths to count a 'hierarchy'.  You pass in
+    something like blah/foo.bar and we will count at each level.
+    """
     def __init__(self):
         self.category = ''
         self.count = 0

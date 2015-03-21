@@ -3,6 +3,8 @@
 This extension registers a Blueprint and provides - a template varable with the
 article counst for all the categories (folders), on the system.
 """
+from __future__ import absolute_import
+
 import re
 import os
 
@@ -11,14 +13,14 @@ from flask import current_app, g, Blueprint
 from whoosh.qparser import QueryParser
 from whoosh.query.qcore import Every
 
-from yawtext.collections import CollectionView, yawtwhoosh
+from yawtext.collections import CollectionView, _yawtwhoosh
 from yawt.utils import save_file, load_file, fullname
 from yawtext.hierarchy_counter import HierarchyCount
 
 categoriesbp = Blueprint('categories', __name__)
 
 
-def abs_category_count_file():
+def _abs_category_count_file():
     root = current_app.yawt_root_dir
     countfile = current_app.config['YAWT_CATEGORY_COUNT_FILE']
     state_folder = current_app.config['YAWT_STATE_FOLDER']
@@ -26,9 +28,9 @@ def abs_category_count_file():
 
 
 @categoriesbp.app_context_processor
-def categorycounts():
+def _categorycounts():
     """Context processor to provide a category counst to a template"""
-    catcountfile = abs_category_count_file()
+    catcountfile = _abs_category_count_file()
     tvars = {}
     if os.path.isfile(catcountfile):
         countbase = current_app.config['YAWT_CATEGORY_BASE']
@@ -41,12 +43,13 @@ def categorycounts():
 
 
 class CategoryView(CollectionView):
+    """YAWT Category view class"""
     def query(self, category, *args, **kwargs):
         """Return the Whoosh query to be used for fetching articles in a
         certain category.
         """
         if category:
-            qparser = QueryParser('categories', schema=yawtwhoosh().schema())
+            qparser = QueryParser('categories', schema=_yawtwhoosh().schema())
             return qparser.parse(unicode(category))
         else:
             return Every()
@@ -68,7 +71,7 @@ class YawtCategories(object):
         """Register the bluepriont and set some default config"""
         app.config.setdefault('YAWT_CATEGORY_TEMPLATE', 'article_list')
         app.config.setdefault('YAWT_CATEGORY_BASE', '')
-        app.config.setdefault('YAWT_CATEGORY_COUNT_FILE', 'categorycounts')
+        app.config.setdefault('YAWT_CATEGORY_COUNT_FILE', '_categorycounts')
         app.register_blueprint(categoriesbp)
 
     def on_article_fetch(self, article):
@@ -128,11 +131,11 @@ class YawtCategories(object):
     def on_post_walk(self):
         """Save HierarchyCounts to disk"""
         pickled_counts = jsonpickle.encode(self.category_counts)
-        save_file(abs_category_count_file(), pickled_counts)
+        save_file(_abs_category_count_file(), pickled_counts)
 
     def on_files_changed(self, files_modified, files_added, files_removed):
         """Register changed files against HierarchyCounts"""
-        pickled_counts = load_file(abs_category_count_file())
+        pickled_counts = load_file(_abs_category_count_file())
         self.category_counts = jsonpickle.decode(pickled_counts)
 
         for f in files_removed + files_modified:

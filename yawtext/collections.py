@@ -1,3 +1,10 @@
+"""YAWT Collections extension module
+
+Provides some base functionality for all modules wishing to implement a
+collection View
+"""
+from __future__ import absolute_import
+
 from math import ceil
 
 from flask import current_app, g, request, Blueprint, abort
@@ -5,11 +12,16 @@ from flask.views import View
 from yawt.view import render
 from jinja2 import TemplatesNotFound
 
+
 collectionsbp = Blueprint('paging', __name__)
 
 
+def _yawtwhoosh():
+    return current_app.extension_info[0]['yawtext.indexer.YawtWhoosh']
+
+
 @collectionsbp.before_app_request
-def before_request():
+def _before_request():
     try:
         g.page = int(request.args.get('page', '1'))
     except ValueError:
@@ -49,10 +61,10 @@ class CollectionView(View):
         query = self.query(category, *args, **kwargs)
         sortfield = current_app.config['YAWT_COLLECTIONS_SORT_FIELD']
 
-        ainfos, total = yawtwhoosh().search(query=query,
-                                            sortedby=sortfield,
-                                            page=g.page, pagelen=g.pagelen,
-                                            reverse=True)
+        ainfos, total = _yawtwhoosh().search(query=query,
+                                             sortedby=sortfield,
+                                             page=g.page, pagelen=g.pagelen,
+                                             reverse=True)
         g.total_results = total
         g.total_pages = int(ceil(float(g.total_results)/g.pagelen))
         g.has_prev_page = g.page > 1
@@ -74,6 +86,3 @@ class CollectionView(View):
         """Return the template name for the collection view"""
         raise NotImplementedError()
 
-
-def yawtwhoosh():
-    return current_app.extension_info[0]['yawtext.indexer.YawtWhoosh']

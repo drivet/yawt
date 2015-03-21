@@ -1,23 +1,31 @@
+"""The YAWT archives extension.
+
+Provides archive and permalink views and categorized archive routes.
+"""
+from __future__ import absolute_import
+import os
+from datetime import datetime
+
 from flask import current_app, g, Blueprint
 from whoosh.qparser import QueryParser
-from yawtext.collections import CollectionView, yawtwhoosh
 from flask.views import View
+import jsonpickle
+
+from yawt.utils import save_file, load_file, fullname
+from yawtext.collections import CollectionView, _yawtwhoosh
 from yawt.view import render
 from yawtext.hierarchy_counter import HierarchyCount
-from datetime import datetime
-import jsonpickle
-import os
-from yawt.utils import save_file, load_file, fullname
+
 
 archivesbp = Blueprint('archives', __name__)
 
 
-def whoosh():
+def _whoosh():
     return current_app.extension_info[0]['flask_whoosh.Whoosh']
 
 
 @archivesbp.app_template_filter('permalink')
-def permalink(info):
+def _permalink(info):
     base = current_app.config['YAWT_ARCHIVE_BASE']
     datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
     date = getattr(info, datefield)
@@ -25,8 +33,8 @@ def permalink(info):
 
 
 @archivesbp.app_context_processor
-def archive_counts_cp():
-    archivecountfile = abs_archivecount_file()
+def _archive_counts_cp():
+    archivecountfile = _abs_archivecount_file()
     tvars = {}
     if os.path.isfile(archivecountfile):
         archivebase = current_app.config['YAWT_ARCHIVE_BASE']
@@ -38,7 +46,7 @@ def archive_counts_cp():
     return tvars
 
 
-def abs_archivecount_file():
+def _abs_archivecount_file():
     root = current_app.yawt_root_dir
     archivecountfile = current_app.config['YAWT_ARCHIVE_COUNT_FILE']
     state_folder = current_app.config['YAWT_STATE_FOLDER']
@@ -66,8 +74,8 @@ def _query(category='', year=None, month=None, day=None):
     query_str = datefield+':' + _datestr(year, month, day)
     if category:
         query_str += ' AND ' + category
-    qp = QueryParser('categories', schema=yawtwhoosh().schema())
-    return qp.parse(unicode(query_str))
+    qparser = QueryParser('categories', schema=_yawtwhoosh().schema())
+    return qparser.parse(unicode(query_str))
 
 
 class ArchiveView(CollectionView):
@@ -86,10 +94,10 @@ class PermalinkView(View):
     def dispatch_request(self, category=None, year=None, month=None, day=None,
                          slug=None, flav=None):
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-        ainfos, total = yawtwhoosh().search(_query(category, year, month, day),
-                                            datefield,
-                                            g.page, g.pagelen,
-                                            True)
+        ainfos, total = _yawtwhoosh().search(_query(category, year, month, day),
+                                             datefield,
+                                             g.page, g.pagelen,
+                                             True)
         article = None
         for info in ainfos:
             if info.slug == slug:
@@ -133,7 +141,7 @@ class YawtArchives(object):
     def on_post_walk(self):
         self.archive_counts.sort_children(reverse=True)
         pickled_info = jsonpickle.encode(self.archive_counts)
-        save_file(abs_archivecount_file(), pickled_info)
+        save_file(_abs_archivecount_file(), pickled_info)
 
     # Feels very wrong
     def _adjust_base_for_category(self):
@@ -147,12 +155,12 @@ class YawtArchives(object):
         the *repo* root, not the content root (so these are not absolute
         filenames)
         """
-        pickled_info = load_file(abs_archivecount_file())
+        pickled_info = load_file(_abs_archivecount_file())
         self.archive_counts = jsonpickle.decode(pickled_info)
         for f in files_removed + files_modified:
             name = fullname(f)
             if name:
-                ct = fetch_date_for_name(name)
+                ct = _fetch_date_for_name(name)
                 dt = _date_hierarchy(ct)
                 self.archive_counts.remove_hierarchy(dt)
 
@@ -164,17 +172,17 @@ class YawtArchives(object):
         self.on_post_walk()
 
 
-def fetch_date_for_name(name):
-    searcher = whoosh().searcher
-    qp = QueryParser('fullname', schema=yawtwhoosh().schema())
-    q = qp.parse(unicode(name))
-    results = searcher.search(q)
-    ct = None
+def _fetch_date_for_name(name):
+    searcher = _whoosh().searcher
+    qparser = QueryParser('fullname', schema=_yawtwhoosh().schema())
+    query = qparser.parse(unicode(name))
+    results = searcher.search(query)
+    create_time = None
     if len(results) > 0:
         info = jsonpickle.decode(results[0]['article_info_json'])
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-        ct = getattr(info, datefield)
-    return ct
+        create_time = getattr(info, datefield)
+    return create_time
 
 
 archivesbp.add_url_rule('/<path:category>/<int:year>/',
@@ -252,7 +260,7 @@ archivesbp.add_url_rule('/<path:category>/<int:year>/' +
 
 archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
                         '<int(fixed_digits=2):day>/<slug>',
-                        view_func=PermalinkView.as_view('permalink'))
+                        view_func=PermalinkView.as_view('_permalink'))
 
 archivesbp.add_url_rule('/<path:category>/<int:year>/' +
                         '<int(fixed_digits=2):month>/' +

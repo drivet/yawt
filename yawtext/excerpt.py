@@ -1,4 +1,6 @@
 """The basic YAWT excerpt extension"""
+from __future__ import absolute_import
+
 from flask import current_app
 
 

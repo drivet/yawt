@@ -1,3 +1,5 @@
+#pylint: skip-file
+
 import unittest
 import datetime
 import shutil

@@ -1,3 +1,5 @@
+#pylint: skip-file
+
 import unittest
 from yawtext.multimarkdown import YawtMarkdown
 from yawt.article import Article, ArticleInfo

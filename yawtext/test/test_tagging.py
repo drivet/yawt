@@ -1,3 +1,5 @@
+#pylint: skip-file
+
 import unittest
 from yawtext.tagging import YawtTagging
 from whoosh.fields import DATETIME, STORED, ID, KEYWORD, Schema

@@ -1,15 +1,40 @@
+"""Most things relating to article definitions reside here"""
+from __future__ import absolute_import
+
 import os
 import re
+
 import yawt.default_templates
 from yawt.utils import ensure_path, save_file, base_and_ext, load_file
 
-def fetch_file_metadata(filename):
-    sr = os.stat(filename)
-    mtime = ctime = sr.st_mtime # epoch time in seconds
+
+def _fetch_file_metadata(filename):
+    stat = os.stat(filename)
+    mtime = ctime = stat.st_mtime  # epoch time in seconds
     return {'create_time': ctime, 'modified_time': mtime}
 
 
+def _make_article(fullname, filename):
+    info = ArticleInfo()
+    info.fullname = unicode(fullname)
+    info.category = unicode(os.path.dirname(fullname))
+    info.slug = unicode(os.path.basename(fullname))
+    info.extension = unicode(base_and_ext(filename)[1])
+
+    file_metadata = _fetch_file_metadata(filename)
+    info.create_time = file_metadata['create_time']
+    info.modified_time = file_metadata['modified_time']
+
+    article = Article()
+    article.info = info
+    article.content = load_file(filename)
+    return article
+
+
 class ArticleInfo(object):
+    """Basically an Article header.  Carries information about the article
+    without the content
+    """
     def __init__(self, fullname='', category='', slug='', extension='',
                  create_time=None, modified_time=None):
         self.fullname = fullname
@@ -26,15 +51,18 @@ class ArticleInfo(object):
             return False
 
     def __str__(self):
-        return "<" + self.fullname + ", " + self.category + ", " + self.slug + ", " + \
-               self.extension + ">"
+        return "<" + self.fullname + ", " + self.category + ", " + \
+            self.slug + ", " + self.extension + ">"
 
     def __repr__(self):
-        return "<" + self.fullname + ", " + self.category + ", " + self.slug + ", " + \
-               self.extension + ">"
+        return "<" + self.fullname + ", " + self.category + ", " + \
+            self.slug + ", " + self.extension + ">"
 
 
 class Article(object):
+    """The main article class, basically just conbining an info instance and
+    content
+    """
     def __init__(self):
         self.info = ArticleInfo()
         self.content = ""
@@ -58,15 +86,19 @@ class FileBasedSiteManager(object):
         self.file_extensions = file_extensions
 
     def initialize(self):
+        """Set up an empty blog folder"""
         if os.path.exists(self.root_dir):
             raise SiteExistsError(self.root_dir)
 
         ensure_path(self._content_root())
         ensure_path(self._draft_root())
         ensure_path(self._template_root())
-        save_file(os.path.join(self.root_dir, 'config.py'), '# put configuration here')
-        self._save_template('article', 'html', yawt.default_templates.default_article_template)
-        self._save_template('404', 'html', yawt.default_templates.default_404_template)
+        config_content = '# put configuration here'
+        save_file(os.path.join(self.root_dir, 'config.py'), config_content)
+        template_contents = yawt.default_templates.default_article_template
+        self._save_template('article', 'html', template_contents)
+        template_404_contents = yawt.default_templates.default_404_template
+        self._save_template('404', 'html', template_404_contents)
 
         return ['config.py', 'article.html', '404.html']
 
@@ -86,7 +118,7 @@ class FileBasedSiteManager(object):
         filename = self.fullname2file(fullname)
         if filename is None:
             return None
-        return self._make_article(fullname, filename)
+        return _make_article(fullname, filename)
 
     def fetch_article_by_category_and_slug(self, category, slug):
         """Fetches a single article by category and slug, which together
@@ -125,22 +157,6 @@ class FileBasedSiteManager(object):
         base, extension = base_and_ext(basefile)
         return extension in self.file_extensions and base != 'index'
 
-    def _make_article(self, fullname, filename):
-        info = ArticleInfo()
-        info.fullname = unicode(fullname)
-        info.category = unicode(os.path.dirname(fullname))
-        info.slug = unicode(os.path.basename(fullname))
-        info.extension = unicode(base_and_ext(filename)[1])
-
-        file_metadata = fetch_file_metadata(filename)
-        info.create_time = file_metadata['create_time']
-        info.modified_time = file_metadata['modified_time']
-
-        article = Article()
-        article.info = info
-        article.content = load_file(filename)
-        return article
-
     def _fullname_ext2file(self, fullname, ext):
         return os.path.join(self._content_root(), fullname + "." + ext)
 
@@ -176,13 +192,11 @@ class FileBasedSiteManager(object):
         return os.path.join(self.root_dir, self.template_folder)
 
 
-class ArticleExistsError(Exception):
-    pass
-
-
 class SiteExistsError(Exception):
+    """Raised when we try to initialize a site over an existsing site"""
     def __init__(self, folder):
         super(SiteExistsError, self).__init__()
         self.folder = folder
+
     def __str__(self):
         return repr(self.folder)
