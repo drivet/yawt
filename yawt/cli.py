@@ -1,7 +1,11 @@
+"""The main Command Line Interface classes for YAWT"""
+
+from __future__ import absolute_import
+
 import os
 
 from flask import g, current_app
-from flask_script import Command, Option, Manager, Server
+from flask_script import Command, Manager, Server
 
 import yawt
 
@@ -32,43 +36,10 @@ class Walk(Command):
         current_app.preprocess_request()
         g.site.walk()
 
-class FilesAdded(Command):
-    """
-    Inform YAWT that new files have been added to the repository
-    """
-    option_list = (
-        Option('files'),
-    )
-
-    def run(self, files):
-        g.site.files_added(files)
-
-
-class FilesModified(Command):
-    """
-    Inform YAWT that new files have been modified in the repository
-    """
-    option_list = (
-        Option('files'),
-    )
-
-    def run(self, files):
-        g.site.files_modified(files)
-
-
-class FilesDeleted(Command):
-    """
-    Inform YAWT that new files have been deleted in the repository
-    """
-    option_list = (
-        Option('files'),
-    )
-
-    def run(self, files):
-        g.site.files_deleted(files)
-
 
 def create_manager():
+    """Create the command line manager"""
+
     manager = Manager(yawt.create_app)
     # root_dir will be passed to the create_app method
     manager.add_option('-r', '--root_dir', dest='root_dir',
@@ -79,8 +50,4 @@ def create_manager():
     manager.add_command('runserver', server)
     manager.add_command('newsite', NewSite())
     manager.add_command('walk', Walk())
-    manager.add_command('added', FilesAdded())
-    manager.add_command('modified', FilesModified())
-    manager.add_command('deleted', FilesDeleted())
     return manager
-
