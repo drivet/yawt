@@ -1,9 +1,11 @@
 #pylint: skip-file
+
 import unittest
 from yawtext.excerpt import YawtExcerpt
 from yawt.article import Article, ArticleInfo
 from yawt import create_app
-from flask import g
+from flask import g, Markup
+
 
 class TestYawtExcerpt(unittest.TestCase):
     def setUp(self):
@@ -13,7 +15,7 @@ class TestYawtExcerpt(unittest.TestCase):
     def test_default_word_count_is_50(self):
         self.assertEqual(50, self.app.config['YAWT_EXCERPT_WORDCOUNT'])
 
-    def test_summary_attribute_set_correctly(self):
+    def test_text_summary_attribute_set_correctly(self):
         with self.app.test_request_context():
             self.app.preprocess_request()
 
@@ -25,7 +27,22 @@ class TestYawtExcerpt(unittest.TestCase):
             self.app.config['YAWT_EXCERPT_WORDCOUNT'] = 5
             article = g.site._on_article_fetch(article)
         self.assertEqual('stuff blah hello dude the [...]', article.info.summary)
-  
+
+ 
+    def test_html_summary_attribute_set_correctly(self):
+        with self.app.test_request_context():
+            self.app.preprocess_request()
+
+            info = ArticleInfo()
+            info.extension = 'md'
+            article = Article()
+            article.info = info
+            article.content = '<p>stuff</p><p>blah hello</p><p>dude the</p><p>east market</p>'
+            self.app.config['YAWT_EXCERPT_WORDCOUNT'] = 5
+            article = g.site._on_article_fetch(article)
+        self.assertEqual(Markup('<p>stuff</p><p>blah hello</p><p>dude the</p>'), article.info.summary)
+
+
     def tearDown(self):
         pass
 
