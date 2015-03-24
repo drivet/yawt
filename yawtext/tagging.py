@@ -45,7 +45,8 @@ def _tagcounts_cp():
 
 @taggingbp.context_processor
 def _collection_title():
-    return {'collection_title': 'Found %s tag results for "%s"' % (g.total_results, g.tag)}
+    return {'collection_title':
+            'Found %s tag results for "%s"' % (g.total_results, g.tag)}
 
 
 class TaggingView(CollectionView):
@@ -66,6 +67,9 @@ class TaggingView(CollectionView):
     def get_template_name(self):
         return current_app.config['YAWT_TAGGING_TEMPLATE']
 
+    def is_load_articles(self, flav):
+        return flav in current_app.config['YAWT_TAGGING_FULL_ARTICLE_FLAVOURS']
+
 
 class YawtTagging(object):
     """The YAWT tagging plugin class itself"""
@@ -80,6 +84,7 @@ class YawtTagging(object):
         app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
         app.config.setdefault('YAWT_TAGGING_BASE', '')
         app.config.setdefault('YAWT_TAGGING_COUNT_FILE', 'tagcounts')
+        app.config.setdefault('YAWT_TAGGING_FULL_ARTICLE_FLAVOURS', [])
         app.register_blueprint(taggingbp)
 
     def on_pre_walk(self):

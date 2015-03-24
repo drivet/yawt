@@ -10,6 +10,7 @@ from math import ceil
 from flask import current_app, g, request, Blueprint, abort
 from flask.views import View
 from yawt.view import render
+from yawt.article import Article
 from jinja2 import TemplatesNotFound
 
 
@@ -72,9 +73,18 @@ class CollectionView(View):
         g.prev_page = g.page - 1
         g.next_page = g.page + 1
 
+        articles = []
+        for ainfo in ainfos:
+            if self.is_load_articles(flav):
+                article = g.site.fetch_article_by_info(ainfo)
+            else:
+                article = Article()
+                article.info = ainfo
+            articles.append(article)
+
         try:
             return render(self.get_template_name(), category, 'index',
-                          flav, {'article_infos': ainfos})
+                          flav, {'articles': articles})
         except TemplatesNotFound:
             abort(404)
 
@@ -86,3 +96,8 @@ class CollectionView(View):
         """Return the template name for the collection view"""
         raise NotImplementedError()
 
+    def is_load_articles(self, flav):
+        """Return True if article conetnt is meant to be loaded along with
+        the infos
+        """
+        return False

@@ -58,6 +58,9 @@ class CategoryView(CollectionView):
         """Return the template to be used for category collections"""
         return current_app.config['YAWT_CATEGORY_TEMPLATE']
 
+    def is_load_articles(self, flav):
+        return flav in current_app.config['YAWT_CATEGORY_FULL_ARTICLE_FLAVOURS']
+
 
 class YawtCategories(object):
     """YAWT category extension class"""
@@ -72,6 +75,7 @@ class YawtCategories(object):
         app.config.setdefault('YAWT_CATEGORY_TEMPLATE', 'article_list')
         app.config.setdefault('YAWT_CATEGORY_BASE', '')
         app.config.setdefault('YAWT_CATEGORY_COUNT_FILE', '_categorycounts')
+        app.config.setdefault('YAWT_CATEGORY_FULL_ARTICLE_FLAVOURS', [])
         app.register_blueprint(categoriesbp)
 
     def on_article_fetch(self, article):
