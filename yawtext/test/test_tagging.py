@@ -59,7 +59,7 @@ class TestYawtTagging(unittest.TestCase):
         self.assertEquals(2, tagcounts['tag4'])
 
     def test_tag_urls_render_templates(self):
-        template = generate_collection_template('info', 'article_infos', ['fullname'])
+        template = generate_collection_template('a', 'articles', ['info.fullname'])
         self.site.save_template('article_list.html', template)
         self.site.save_content('article1.md', u'tags: tag1,tag2\n\nstuff1')
         self.site.save_content('article2.md', u'tags: tag3,tag4\n\nstuff2')

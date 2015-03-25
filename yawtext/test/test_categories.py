@@ -1,4 +1,5 @@
 #pylint: skip-file
+
 import unittest
 from yawtext.categories import YawtCategories, HierarchyCount
 from whoosh.fields import DATETIME, STORED, ID, KEYWORD, Schema
@@ -56,7 +57,7 @@ class TestYawtCategories(unittest.TestCase):
             self.assertFalse(self.plugin.on_404('blah', 'html'))
 
     def test_on_404_renders_if_fullname_is_root_index_file(self):
-        template = generate_collection_template('info', 'article_infos', ['fullname'])
+        template = generate_collection_template('a', 'articles', ['info.fullname'])
         self.site.save_template('article_list.html', template)
         self.site.save_content('article1.txt', u'stuff1')
         self.site.save_content('article2.txt', u'stuff2')
@@ -94,7 +95,7 @@ class TestYawtCategories(unittest.TestCase):
             assert 'article4' in rv.data
 
     def test_on_404_renders_if_fullname_is_categorized_index_file(self):
-        template = generate_collection_template('info', 'article_infos', ['fullname'])
+        template = generate_collection_template('a', 'articles', ['info.fullname'])
         self.site.save_template('article_list.html', template)
         self.site.mk_content_category('foo')
         self.site.mk_content_category('bar')
@@ -139,7 +140,7 @@ class TestYawtCategories(unittest.TestCase):
             
 
     def test_on_404_renders_if_fullname_is_nested_categorized_index_file(self):
-        template = generate_collection_template('info', 'article_infos', ['fullname'])
+        template = generate_collection_template('a', 'articles', ['info.fullname'])
         self.site.save_template('article_list.html', template)
         self.site.mk_content_category('foo')
         self.site.mk_content_category('foo/har')
