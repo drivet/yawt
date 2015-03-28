@@ -111,6 +111,7 @@ class PermalinkView(View):
 
 
 class YawtArchives(object):
+    """The YAWT archive plugin class itself"""
     def __init__(self, app=None):
         self.app = app
         if app is not None:
@@ -118,6 +119,7 @@ class YawtArchives(object):
         self.archive_counts = None
 
     def init_app(self, app):
+        """Set up some default config and register the blueprint"""
         app.config.setdefault('YAWT_ARCHIVE_TEMPLATE', 'article_list')
         app.config.setdefault('YAWT_PERMALINK_TEMPLATE', 'article')
         app.config.setdefault('YAWT_ARCHIVE_BASE', '')
@@ -126,19 +128,22 @@ class YawtArchives(object):
         app.register_blueprint(archivesbp)
 
     def on_pre_walk(self):
+        """Initialize the archive counts"""
         self.archive_counts = HierarchyCount()
 
     def on_visit_article(self, article):
+        """Count and register for this article"""
         category = article.info.category
         countbase = self._adjust_base_for_category()  # blech
 
         if category == countbase or category.startswith(countbase):
             datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
             date = getattr(article.info, datefield)
-            dh = _date_hierarchy(date)
-            self.archive_counts.count_hierarchy(dh)
+            datestring = _date_hierarchy(date)
+            self.archive_counts.count_hierarchy(datestring)
 
     def on_post_walk(self):
+        """Save the archive counts to disk"""
         self.archive_counts.sort_children(reverse=True)
         pickled_info = jsonpickle.encode(self.archive_counts)
         save_file(_abs_archivecount_file(), pickled_info)
@@ -151,18 +156,19 @@ class YawtArchives(object):
         return countbase
 
     def on_files_changed(self, files_modified, files_added, files_removed):
-        """pass in three lists of files, modified, added, removed, all relative to
-        the *repo* root, not the content root (so these are not absolute
-        filenames)
+        """pass in three lists of files, modified, added, removed, all
+        relative to the *repo* root, not the content root (so these are not
+        absolute filenames)
         """
         pickled_info = load_file(_abs_archivecount_file())
         self.archive_counts = jsonpickle.decode(pickled_info)
         for f in files_removed + files_modified:
             name = fullname(f)
             if name:
-                ct = _fetch_date_for_name(name)
-                dt = _date_hierarchy(ct)
-                self.archive_counts.remove_hierarchy(dt)
+                create_time = _fetch_date_for_name(name)
+                if create_time:
+                    datestring = _date_hierarchy(create_time)
+                    self.archive_counts.remove_hierarchy(datestring)
 
         for f in files_modified + files_added:
             article = g.site.fetch_article_by_repofile(f)
@@ -182,6 +188,7 @@ def _fetch_date_for_name(name):
         info = jsonpickle.decode(results[0]['article_info_json'])
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
         create_time = getattr(info, datefield)
+
     return create_time
 
 

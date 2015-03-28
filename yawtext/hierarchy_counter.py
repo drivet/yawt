@@ -59,3 +59,10 @@ class HierarchyCount(object):
             for child in self.children:
                 child.sort_children(reverse)
             self.children.sort(key=lambda c: c.category, reverse=reverse)
+
+    def __str__(self):
+        val = '['+self.category + ', ' + str(self.count) + ', '
+        for child in self.children:
+            val += str(child) + ', '
+        val += ']'
+        return val

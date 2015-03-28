@@ -268,7 +268,7 @@ class TestYawtCategories(unittest.TestCase):
         catcount = HierarchyCount()
         catcount.count = 4
         catcount.category = ''
-        
+
         foocat = HierarchyCount()
         foocat.category = 'foo'
         foocat.count = 3
@@ -284,7 +284,7 @@ class TestYawtCategories(unittest.TestCase):
 
         self.site.save_content('foo/article1.txt', u'stuff_blah')
         modified = [os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'foo/article1.txt')]
-        
+
         self.site.save_content('bar/article5.txt', u'stuff5')
         self.site.save_content('bar/article2.txt', u'stuff5')
         added = [os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'bar/article5.txt')]
@@ -300,7 +300,7 @@ class TestYawtCategories(unittest.TestCase):
         countfile = self.abs_category_count_file()
         self.assertTrue(os.path.exists(countfile))
         categorycounts = jsonpickle.decode(load_file(countfile))
-        
+
         self.assertEquals(5, categorycounts.count)
         assert 'foo' in [c.category for c in categorycounts.children]
         assert 'bar' in [c.category for c in categorycounts.children]

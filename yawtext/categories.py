@@ -17,6 +17,7 @@ from yawtext.collections import CollectionView, _yawtwhoosh
 from yawt.utils import save_file, load_file, fullname
 from yawtext.hierarchy_counter import HierarchyCount
 
+
 categoriesbp = Blueprint('categories', __name__)
 
 
@@ -25,6 +26,21 @@ def _abs_category_count_file():
     countfile = current_app.config['YAWT_CATEGORY_COUNT_FILE']
     state_folder = current_app.config['YAWT_STATE_FOLDER']
     return os.path.join(root, state_folder, countfile)
+
+
+def _slice_base_off_category(category, countbase):
+    category = re.sub('^%s' % (countbase), '', category)
+    if category.startswith('/'):
+        category = category[1:]
+    return category
+
+
+# Feels very wrong
+def _adjust_base_for_category():
+    countbase = current_app.config['YAWT_CATEGORY_BASE']
+    if countbase.startswith('/'):
+        countbase = countbase[1:]
+    return countbase
 
 
 @categoriesbp.app_context_processor
@@ -109,28 +125,15 @@ class YawtCategories(object):
     def on_pre_walk(self):
         """Start tracking a new HierarchyCounts instance"""
         self.category_counts = HierarchyCount()
-        self.category_counts.category = self._adjust_base_for_category()
+        self.category_counts.category = _adjust_base_for_category()
 
     def on_visit_article(self, article):
         """Register this article against the HierarchyCounts instance"""
         category = article.info.category
-        countbase = self._adjust_base_for_category()  # blech
+        countbase = _adjust_base_for_category()  # blech
         if category == countbase or category.startswith(countbase):
-            category = self._slice_base_off_category(category, countbase)
+            category = _slice_base_off_category(category, countbase)
             self.category_counts.count_hierarchy(category)
-
-    def _slice_base_off_category(self, category, countbase):
-        category = re.sub('^%s' % (countbase), '', category)
-        if category.startswith('/'):
-            category = category[1:]
-        return category
-
-    # Feels very wrong
-    def _adjust_base_for_category(self):
-        countbase = current_app.config['YAWT_CATEGORY_BASE']
-        if countbase.startswith('/'):
-            countbase = countbase[1:]
-        return countbase
 
     def on_post_walk(self):
         """Save HierarchyCounts to disk"""
@@ -145,9 +148,9 @@ class YawtCategories(object):
         for f in files_removed + files_modified:
             name = fullname(f)
             if name:
-                countbase = current_app.config['YAWT_CATEGORY_BASE']
+                countbase = _adjust_base_for_category()  # blech
                 category = unicode(os.path.dirname(name))
-                category = self._slice_base_off_category(category, countbase)
+                category = _slice_base_off_category(category, countbase)
                 self.category_counts.remove_hierarchy(category)
 
         for f in files_modified + files_added:
