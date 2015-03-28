@@ -131,13 +131,14 @@ class YawtTagging(object):
 
     def _tags_for_name(self, name):
         searcher = _whoosh().searcher
-        qp = QueryParser('fullname', schema=_yawtwhoosh().schema())
-        q = qp.parse(unicode(name))
-        results = searcher.search(q)
+        qparser = QueryParser('fullname', schema=_yawtwhoosh().schema())
+        query = qparser.parse(unicode(name))
+        results = searcher.search(query)
         tags = []
         if len(results) > 0:
             info = jsonpickle.decode(results[0]['article_info_json'])
-            tags = info.tags
+            if hasattr(info, 'tags') and info.tags:
+                tags = info.tags
         return tags
 
     def _delete_unused_tags(self):
