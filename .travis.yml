@@ -7,8 +7,10 @@ before_install:
 
 # command to install dependencies
 install:
-  - "pip install -r requirements-test.txt"
+  - "pip install -r requirements-test.txt" 
+  - "pip install coveralls"
 
 # command to run tests
-script:  nosetests
+script:  nosetests --with-coverage --cover-package=yawt --cover-package=yawtext
 
+after_success: coveralls
