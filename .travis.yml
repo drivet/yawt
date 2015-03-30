@@ -11,6 +11,6 @@ install:
   - "pip install coveralls"
 
 # command to run tests
-script:  nosetests --with-coverage --cover-package=yawt --cover-package=yawtext
+script:  nosetests --with-coverage --cover-package=yawt --cover-package=yawtext --cover-inclusive
 
 after_success: coveralls
