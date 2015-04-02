@@ -26,8 +26,9 @@ setup(
         'Flask',
         'Flask-Script',
         'Markdown',
-        'jsonpickle', 
+        'jsonpickle',
         'python-dateutil',
+        'Pygments',
         'Flask-Git',
         'Flask-Whoosh'
     ],
