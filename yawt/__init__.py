@@ -23,6 +23,7 @@ YAWT_ARTICLE_EXTENSIONS = ['txt']
 YAWT_DEFAULT_EXTENSION = 'txt'
 YAWT_STATE_FOLDER = '_state'
 YAWT_EXTENSIONS = []
+YAWT_META_TYPES = {}
 
 
 def _get_content_types(config):

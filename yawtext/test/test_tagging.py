@@ -20,7 +20,7 @@ class TestConfig(object):
         self.YAWT_WHOOSH_ARTICLE_INFO_FIELDS = \
             {'create_time': DATETIME(sortable=True), 'tags': KEYWORD(commas=True)}
         self.YAWT_ARTICLE_EXTENSIONS = ['md']
-        self.YAWT_MULTIMARKDOWN_TYPES = {'tags': 'list'}
+        self.YAWT_META_TYPES = {'tags': 'list'}
 
 class TestYawtTagging(unittest.TestCase):
     def setUp(self):
@@ -41,10 +41,10 @@ class TestYawtTagging(unittest.TestCase):
         self.assertEqual('article_list', self.app.config['YAWT_TAGGING_TEMPLATE'])
 
     def test_walking_produces_readable_tagcount_file(self):
-        self.site.save_content('article1.md', u'tags: tag1,tag2\n\nstuff1')
-        self.site.save_content('article2.md', u'tags: tag3,tag4\n\nstuff2')
-        self.site.save_content('article3.md', u'tags: tag3,tag1\n\nstuff3')
-        self.site.save_content('article4.md', u'tags: tag2,tag4\n\nstuff4')
+        self.site.save_content('article1.md', u'---\ntags: tag1,tag2\n---\n\nstuff1')
+        self.site.save_content('article2.md', u'---\ntags: tag3,tag4\n---\n\nstuff2')
+        self.site.save_content('article3.md', u'---\ntags: tag3,tag1\n---\n\nstuff3')
+        self.site.save_content('article4.md', u'---\ntags: tag2,tag4\n---\n\nstuff4')
 
         with self.app.test_request_context():
             self.app.preprocess_request()
@@ -53,6 +53,7 @@ class TestYawtTagging(unittest.TestCase):
         tagcountfile = self.abs_tagcount_file()
         self.assertTrue(os.path.exists(tagcountfile))
         tagcounts = jsonpickle.decode(load_file(tagcountfile))
+        print "tagcounts: "+str(tagcounts)
         self.assertEquals(2, tagcounts['tag1'])
         self.assertEquals(2, tagcounts['tag2'])
         self.assertEquals(2, tagcounts['tag3'])
@@ -107,10 +108,10 @@ class TestYawtTagging(unittest.TestCase):
             assert 'article4' not in rv.data
 
     def test_changed_files_adjust_tags(self):
-        self.site.save_content('article1.md', u'tags: tag1,tag2\n\nstuff1')
-        self.site.save_content('article2.md', u'tags: tag3,tag4\n\nstuff2')
-        self.site.save_content('article3.md', u'tags: tag3,tag1\n\nstuff3')
-        self.site.save_content('article4.md', u'tags: tag2,tag4\n\nstuff4')
+        self.site.save_content('article1.md', u'---\ntags: tag1,tag2\n---\n\nstuff1')
+        self.site.save_content('article2.md', u'---\ntags: tag3,tag4\n---\n\nstuff2')
+        self.site.save_content('article3.md', u'---\ntags: tag3,tag1\n---\n\nstuff3')
+        self.site.save_content('article4.md', u'---\ntags: tag2,tag4\n---\n\nstuff4')
 
         fields = self._schema()
         schema = Schema(**fields)
@@ -121,20 +122,20 @@ class TestYawtTagging(unittest.TestCase):
         info1.tags = ['tag1','tag2']
         writer.add_document(fullname=u'article1', create_time=datetime(2004, 11, 04),
                             tags=u'tag1,tag2',
-                            content=u'tags: tag1,tag2\n\nstuff1',
+                            content=u'---\ntags: tag1,tag2\n---\n\nstuff1',
                             article_info_json=jsonpickle.encode(info1))
 
         info2 = ArticleInfo('article2', '', 'article2', 'md', datetime(2004, 11, 05))
         info2.tags = ['tag3','tag4']
         writer.add_document(fullname=u'article2', create_time=datetime(2004, 11, 05), 
                             tags=u'tag3,tag4',
-                            content=u'tags: tag3,tag4\n\nstuff2',
+                            content=u'---\ntags: tag3,tag4\n---\n\nstuff2',
                             article_info_json=jsonpickle.encode(info2))
 
         info3 = ArticleInfo('article3', '', 'article3', 'md', datetime(2004, 11, 04))
         info3.tags = ['tag3','tag1']
         writer.add_document(fullname=u'article3', create_time=datetime(2004, 11, 04), 
-                            content=u'tags: tag3,tag1\n\nstuff3', 
+                            content=u'---\ntags: tag3,tag1\n---\n\nstuff3', 
                             tags=u'tag3,tag1',
                             article_info_json=jsonpickle.encode(info3))
 
@@ -142,7 +143,7 @@ class TestYawtTagging(unittest.TestCase):
         info4.tags = ['tag2','tag4']
         writer.add_document(fullname=u'article4', create_time=datetime(2004, 11, 02), 
                             tags=u'tag2,tag4',
-                            content=u'tags: tag2,tag4\n\nstuff4',
+                            content=u'---\ntags: tag2,tag4\n---\n\nstuff4',
                             article_info_json=jsonpickle.encode(info4))
         writer.commit()
 
@@ -150,10 +151,10 @@ class TestYawtTagging(unittest.TestCase):
         tagcounts = {'tag1': 2, 'tag2': 2, 'tag3': 2, 'tag4': 2}
         self.site.save_state_file(self.abs_tagcount_file(), jsonpickle.encode(tagcounts))
 
-        self.site.save_content('article1.md', u'tags: tag5\n\nstuff1')
+        self.site.save_content('article1.md', u'---\ntags: tag5\n---\n\nstuff1')
         modified = [os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'article1.md')]
         
-        self.site.save_content('article5.md', u'tags: tag2\n\nstuff5')
+        self.site.save_content('article5.md', u'---\ntags: tag2\n---\n\nstuff5')
         added = [os.path.join(self.app.config['YAWT_CONTENT_FOLDER'],'article5.md')]
 
         self.site.remove_content('article3.md')

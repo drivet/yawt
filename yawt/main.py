@@ -81,7 +81,8 @@ def _before_request():
                                    config['YAWT_DRAFT_FOLDER'],
                                    config['YAWT_CONTENT_FOLDER'],
                                    config['YAWT_TEMPLATE_FOLDER'],
-                                   config['YAWT_ARTICLE_EXTENSIONS'])
+                                   config['YAWT_ARTICLE_EXTENSIONS'],
+                                   config['YAWT_META_TYPES'])
 
     g.site = YawtSiteManager(g.store)
 

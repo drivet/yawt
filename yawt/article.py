@@ -4,8 +4,35 @@ from __future__ import absolute_import
 import os
 import re
 
+import frontmatter
+
 import yawt.default_templates
-from yawt.utils import ensure_path, save_file, base_and_ext, load_file
+from yawt.utils import ensure_path, save_file, base_and_ext
+
+
+def _set_attributes(article_info, meta, meta_types):
+    for key in meta.keys():
+        mtype = None
+        if key in meta_types:
+            mtype = meta_types[key]
+        setattr(article_info, key, _convert(mtype, meta[key]))
+
+
+def _convert(mtype, value):
+    if mtype == 'list':
+        return [unicode(x.strip()) for x in value.split(',')]
+    elif mtype == 'long':
+        return long(value)
+    elif mtype == 'iso8601':
+        return int(value.strftime("%s"))
+    else:
+        return unicode(value)
+
+
+def _load_post(filename, article, meta_types):
+    post = frontmatter.load(filename)
+    article.content = post.content
+    _set_attributes(article.info, post.metadata, meta_types)
 
 
 def _fetch_file_metadata(filename):
@@ -14,7 +41,7 @@ def _fetch_file_metadata(filename):
     return {'create_time': ctime, 'modified_time': mtime}
 
 
-def _make_article(fullname, filename):
+def _make_article(fullname, filename, meta_types):
     info = ArticleInfo()
     info.fullname = unicode(fullname)
     info.category = unicode(os.path.dirname(fullname))
@@ -27,7 +54,7 @@ def _make_article(fullname, filename):
 
     article = Article()
     article.info = info
-    article.content = load_file(filename)
+    _load_post(filename, article, meta_types)
     return article
 
 
@@ -78,12 +105,13 @@ class FileBasedSiteManager(object):
     """The default article store. Stores articles on disk. No plugins."""
 
     def __init__(self, root_dir, draft_folder, content_folder,
-                 template_folder, file_extensions):
+                 template_folder, file_extensions, meta_types):
         self.root_dir = root_dir
         self.content_folder = content_folder
         self.draft_folder = draft_folder
         self.template_folder = template_folder
         self.file_extensions = file_extensions
+        self.meta_types = meta_types
 
     def initialize(self):
         """Set up an empty blog folder"""
@@ -118,7 +146,7 @@ class FileBasedSiteManager(object):
         filename = self.fullname2file(fullname)
         if filename is None:
             return None
-        return _make_article(fullname, filename)
+        return _make_article(fullname, filename, self.meta_types)
 
     def fetch_article_by_category_and_slug(self, category, slug):
         """Fetches a single article by category and slug, which together

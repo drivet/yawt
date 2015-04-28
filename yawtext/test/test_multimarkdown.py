@@ -13,8 +13,7 @@ class TestYawtMarkdown(unittest.TestCase):
 
     def test_default_extensions_are_set(self):
         self.assertEquals(['md'], self.app.config['YAWT_MULTIMARKDOWN_FILE_EXTENSIONS'])
-        self.assertEquals(['meta'], self.app.config['YAWT_MULTIMARKDOWN_EXTENSIONS'])
-        
+
     def test_plugin_skips_non_markdown_articles(self): 
         with self.app.test_request_context():
             self.app.preprocess_request()
@@ -38,20 +37,6 @@ class TestYawtMarkdown(unittest.TestCase):
             article.content = '*stuff*'
             article = g.site._on_article_fetch(article)
             self.assertEqual('<p><em>stuff</em></p>', article.content)
-
-    def test_markdown_metadata_overrides_article_attributes(self): 
-        with self.app.test_request_context():
-            self.app.preprocess_request()
-            info = ArticleInfo()
-            info.extension = 'md'
-            info.title = 'okay title'
-            info.author = 'john'
-            article = Article()
-            article.info = info
-            article.content = 'title: awesome title\nauthor:desmond\n\n*stuff*'
-            article = g.site._on_article_fetch(article)
-            self.assertEqual('awesome title', article.info.title)
-            self.assertEqual('desmond', article.info.author)
 
     def tearDown(self):
         pass

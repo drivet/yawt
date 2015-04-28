@@ -12,12 +12,14 @@ class TestFileBasedArticleStoreInitialization(unittest.TestCase):
         self.draft_folder = 'drafts'
         self.template_folder = 'templates'
         self.content_folder = 'content'
-        self.extensions = ['html']
+        self.extensions = ['html'] 
+        self.meta_types = {}
         self.store = FileBasedSiteManager( root_dir = self.root_dir, 
                                            draft_folder = self.draft_folder,
                                            content_folder = self.content_folder, 
                                            template_folder = self.template_folder,
-                                           file_extensions = self.extensions)
+                                           file_extensions = self.extensions,
+                                           meta_types = self.meta_types)
 
     def test_initialize_fails_if_root_folder_exists(self):
         os.mkdir(self.root_dir)
@@ -44,17 +46,25 @@ class TestFileBasedArticleStore(unittest.TestCase):
         self.site.initialize()
 
         self.extensions = ['html']
+        self.meta_types = {}
         self.store = FileBasedSiteManager( root_dir = self.site.site_root, 
                                            draft_folder = self.site.draft_root,
                                            content_folder = self.site.content_root,
                                            template_folder = self.site.template_root,
-                                           file_extensions = self.extensions)
+                                           file_extensions = self.extensions,
+                                           meta_types = self.meta_types)
+
+    def test_fetch_article_by_fullname_loads_metadata(self):
+        fullname = 'category01/slug01'
+        self._create_content_file(fullname)
+        article = self.store.fetch_article_by_fullname(fullname)
+        self.assertEquals(article.info.stuff, 'foo')
 
     def test_fetch_article_by_category_and_slug(self):
         self._create_content_file('cat01/entry03')
         article = self.store.fetch_article_by_category_and_slug('cat01', 'entry03')
         self._assert_article(article, 'cat01/entry03', 'cat01', 'entry03')
-        
+
     def test_fetch_article_by_non_existent_category_and_slug(self):
         article = self.store.fetch_article_by_category_and_slug('cat01', 'entry03')
         assert article is None
@@ -63,19 +73,19 @@ class TestFileBasedArticleStore(unittest.TestCase):
         fullname = 'category01/category02/slug01'
         article = self.store.fetch_article_by_fullname(fullname)
         assert article is None
-        
+
     def test_fetch_article_by_fullname_with_subcategory(self):
         fullname = 'category01/category02/slug01'
         self._create_content_file(fullname)
         article = self.store.fetch_article_by_fullname(fullname)
         self._assert_article(article, fullname, 'category01/category02', 'slug01')
-        
+
     def test_fetch_article_by_fullname_with_category(self):
         fullname = 'category01/slug01'
         self._create_content_file(fullname)
         article = self.store.fetch_article_by_fullname(fullname)
         self._assert_article(article, fullname, 'category01', 'slug01')
-        
+
     def test_fetch_article_by_fullname_at_root(self):
         fullname = 'slug01'
         self._create_content_file(fullname)
@@ -105,7 +115,7 @@ class TestFileBasedArticleStore(unittest.TestCase):
         self._create_content_file('entry01', contents='')
         article = self.store.fetch_article_by_fullname('entry01')
         self.assertEqual(article.content, '')
-            
+
     def test_walk_articles(self):
         self._create_content_file('entry01')
         self._create_content_file('entry02')
@@ -118,7 +128,7 @@ class TestFileBasedArticleStore(unittest.TestCase):
         self._create_content_file('cat03/entry09')
         self._create_content_file('cat03/entry10')
         self._create_content_file('cat03/entry11')
-     
+
         # extraneous files that should be ignored  
         os.makedirs(os.path.join(self.site.site_root, 'cat01'))
         os.makedirs(os.path.join(self.site.site_root, 'cat03'))
@@ -147,8 +157,10 @@ class TestFileBasedArticleStore(unittest.TestCase):
 
     def tearDown(self):
         self.site.remove()
-   
-    def _create_content_file(self, fullname, mtime=None, contents='blah', ext=None):
+
+    def _create_content_file(self, fullname, mtime=None,
+                             contents='---\nstuff: foo\n---\n\nblah',
+                             ext=None):
         if ext is None:
             ext = self.extensions[0]
         self.site.mk_content_category(os.path.dirname(fullname))
@@ -163,6 +175,6 @@ class TestFileBasedArticleStore(unittest.TestCase):
         self.assertEquals(article.info.category, category)
         self.assertEquals(article.info.slug, slug)
 
-        
+
 if __name__ == '__main__':
     unittest.main()
