@@ -24,3 +24,5 @@ python-dateutil==2.4.1
 six==1.9.0
 wsgiref==0.1.2
 BeautifulSoup==3.2.1
+PyYAML==3.11
+python-frontmatter==0.2.1
