@@ -28,33 +28,6 @@ class TestYawtGitNewSite(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root_dir)
 
-class TestYawtGitMetadata(unittest.TestCase):
-    def setUp(self): 
-        self.temprepo = setup_repo()
-        self.plugin = YawtGit()
-        self.app = create_app(self.temprepo.root_dir, extension_info = extension_info(self.plugin))
-        self.app.config['GIT_REPOPATH'] = self.temprepo.root_dir
-        self.app.config['GIT_SEARCH_PATH'] = self.temprepo.root_dir
- 
-    def test_git_metadata_is_set(self):
-        with self.app.test_request_context():
-            self.app.preprocess_request()
-
-            info = ArticleInfo()
-            info.extension = 'md'
-            info.fullname = 'hello'
-            info.create_time = 10000
-            info.modified_time = 20000
-            info.author = "the dude"
-            article = Article()
-            article.info = info
-            article = g.site._on_article_fetch(article)
-            self.assertEqual(100, article.info.git_create_time)
-            self.assertEqual(200, article.info.git_modified_time)
-            self.assertEqual('Daffy Duck', article.info.git_author)
-        
-    def tearDown(self):
-        self.temprepo.delete()
 
 def setup_repo():
     tr = TempRepo()

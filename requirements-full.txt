@@ -26,3 +26,4 @@ wsgiref==0.1.2
 BeautifulSoup==3.2.1
 PyYAML==3.11
 python-frontmatter==0.2.1
+pytz==2015.4

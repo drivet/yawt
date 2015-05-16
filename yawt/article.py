@@ -5,9 +5,11 @@ import os
 import re
 
 import frontmatter
+import pytz
 
 import yawt.default_templates
 from yawt.utils import ensure_path, save_file, base_and_ext
+from datetime import datetime
 
 
 def _set_attributes(article_info, meta, meta_types):
@@ -24,13 +26,18 @@ def _convert(mtype, value):
     elif mtype == 'long':
         return long(value)
     elif mtype == 'iso8601':
-        return int(value.strftime("%s"))
+        epoch = datetime(1970, 1, 1, tzinfo=pytz.utc)
+        return int((value-epoch).total_seconds())
     else:
         return unicode(value)
 
 
 def _load_post(filename, article, meta_types):
     post = frontmatter.load(filename)
+    for key in post.keys():
+        if isinstance(post[key], datetime) and not post[key].tzinfo:
+            # no timezone means UTC
+            post[key] = pytz.utc.localize(post[key])
     article.content = post.content
     _set_attributes(article.info, post.metadata, meta_types)
 

@@ -13,6 +13,11 @@ class YawtSiteManager(object):
     def __init__(self, site_manager):
         self.site_manager = site_manager
 
+    @property
+    def root_dir(self):
+        """Return the root directory of the website"""
+        return self.site_manager.root_dir
+
     def new_site(self):
         """Creates a new site, calling all the plugins"""
         files = self.site_manager.initialize()

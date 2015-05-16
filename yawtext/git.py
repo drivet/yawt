@@ -4,12 +4,24 @@ modified_time and author information
 from __future__ import absolute_import
 
 import os
+import datetime
+import frontmatter
 
-from flask import current_app
+from flask import current_app, g
 
 
 def _config(key):
     return current_app.config[key]
+
+
+def _content_folder():
+    return _config('YAWT_CONTENT_FOLDER')
+
+
+def _abs_filename(fullname, ext):
+    root_dir = g.site.root_dir
+    abs_path = os.path.join(root_dir, _content_folder(), fullname + '.' + ext)
+    return abs_path
 
 
 def _save_repo_file(repofile, contents):
@@ -22,6 +34,7 @@ class YawtGit(object):
     """The YAWT Git plugin class"""
 
     def __init__(self, app=None):
+        self.meta = {}
         self.app = app
         if app is not None:
             self.init_app(app)
@@ -36,22 +49,46 @@ class YawtGit(object):
         _save_repo_file('.gitignore', '_state')
 
     def on_article_fetch(self, article):
-        """When we fetch an article, we'll attach some information gleaned
-        from the repo about create/modied times, and author info as well.
-        """
-        vc_info = self._fetch_vc_info(article.info.fullname,
-                                      article.info.extension)
-        if 'create_time' in vc_info:
-            article.info.git_create_time = vc_info['create_time']
-        if 'modified_time' in vc_info:
-            article.info.git_modified_time = vc_info['modified_time']
-        if 'author' in vc_info:
-            article.info.git_author = vc_info['author']
+        self.meta = self._fill_article(article)
         return article
 
+    def on_visit_article(self, article):
+        abspath = _abs_filename(article.info.fullname,
+                                article.info.extension)
+        with open(abspath) as f:
+            post = frontmatter.load(f)
+            for key in self.meta:
+                post[key] = self.meta[key]
+        with open(abspath, 'w') as f:
+            frontmatter.dump(post, f)
+
+    def _fill_article(self, article):
+        if hasattr(article.info, 'md_create_time') and \
+           hasattr(article.info, 'md_modified_time'):
+            return []
+
+        vc_info = self._fetch_vc_info(article.info.fullname,
+                                      article.info.extension)
+        meta = {}
+        if 'create_time' in vc_info and \
+           not hasattr(article.info, 'md_create_time'):
+            date = datetime.datetime.utcfromtimestamp(vc_info['create_time'])
+            meta['md_create_time'] = date
+            article.info.md_create_time = vc_info['create_time']
+
+        if 'modified_time' in vc_info and \
+           not hasattr(article.info, 'md_modified_time'):
+#            date = datetime.datetime.utcfromtimestamp(vc_info['modified_time'])
+#            meta['md_modified_time'] = date
+#            article.info.md_modified_time = vc_info['modified_time']
+            # we're changing the metadata, so the last modified time is now
+            now = datetime.datetime.utcnow()
+            meta['md_modified_time'] = now
+            article.info.md_modified_time = now
+        return meta
+
     def _fetch_vc_info(self, fullname, ext):
-        repofile = os.path.join(_config('YAWT_CONTENT_FOLDER'),
-                                fullname + '.' + ext)
+        repofile = os.path.join(_content_folder(), fullname + '.' + ext)
         git = current_app.extension_info[0]['flask_git.Git']
         follow = _config('YAWT_GIT_FOLLOW_RENAMES')
         sorted_commits = list(git.commits_for_path_recent_first(repofile, follow))
@@ -61,5 +98,4 @@ class YawtGit(object):
         last_commit = sorted_commits[0]
         first_commit = sorted_commits[-1]
         return {'create_time': first_commit.commit_time,
-                'modified_time': last_commit.commit_time,
-                'author': first_commit.author.name}
+                'modified_time': last_commit.commit_time}
