@@ -16,6 +16,7 @@ def load_file(filename):
 
 def save_file(filename, contents):
     """Save contents to filename"""
+    ensure_path(os.path.dirname(filename))
     with open(filename, 'w') as f:
         f.write(unicode(contents))
 
@@ -70,3 +71,32 @@ def fullname(sitefile):
     if ext not in current_app.config['YAWT_ARTICLE_EXTENSIONS']:
         return None
     return name
+
+
+def extensions(app=None):
+    """Returns the list of extension known to YAWT"""
+    if not app:
+        app = current_app
+    if app.extension_info:
+        return app.extension_info[1]
+    else:
+        return []
+
+
+def call_plugins(method, *args, **kw):
+    """Go through all known extensions and call the supplied method with the
+    supplied args if present
+    """
+    for ext in extensions():
+        if has_method(ext, method):
+            getattr(ext, method)(*args, **kw)
+
+
+def write_post(metadata, content, filename):
+    """Quick and easy way to save a post with metadata"""
+    with open(filename, 'w') as f:
+        f.write(u'---\n')
+        for key in metadata:
+            f.write(u'%s: %s\n' % (key, metadata[key]))
+        f.write(u'---\n')
+        f.write(unicode(content))

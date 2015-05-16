@@ -26,31 +26,42 @@ def _whoosh():
 
 @archivesbp.app_template_filter('permalink')
 def _permalink(info):
-    base = current_app.config['YAWT_ARCHIVE_BASE']
     datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
     date = getattr(info, datefield)
+    base = _find_base(info.fullname)
+    if base:
+        base = "/" + base + "/"
     return base + _date_hierarchy(date) + '/' + info.slug
+
+
+def _find_base(name):
+    longest_base = None
+    for base in current_app.config['YAWT_ARCHIVE_BASE']:
+        if not base or name.startswith(base + "/"):
+            if not longest_base or len(base) > len(longest_base):
+                longest_base = base
+    return longest_base
 
 
 @archivesbp.app_context_processor
 def _archive_counts_cp():
-    archivecountfile = _abs_archivecount_file()
+    archivecountmap = {}
+    for base in current_app.config['YAWT_ARCHIVE_BASE']:
+        archivecountfile = _abs_archivecount_file(base)
+        if os.path.isfile(archivecountfile):
+            archivecounts = jsonpickle.decode(load_file(archivecountfile))
+            archivecountmap[base] = archivecounts
     tvars = {}
-    if os.path.isfile(archivecountfile):
-        archivebase = current_app.config['YAWT_ARCHIVE_BASE']
-        if not archivebase.endswith('/'):
-            archivebase += '/'
-
-        archivecounts = jsonpickle.decode(load_file(archivecountfile))
-        tvars = {'archivecounts': archivecounts, 'archivebase': archivebase}
+    if len(archivecountmap) > 0:
+        tvars['archivecounts'] = archivecountmap
     return tvars
 
 
-def _abs_archivecount_file():
+def _abs_archivecount_file(base):
     root = current_app.yawt_root_dir
     archivecountfile = current_app.config['YAWT_ARCHIVE_COUNT_FILE']
     state_folder = current_app.config['YAWT_STATE_FOLDER']
-    return os.path.join(root, state_folder, archivecountfile)
+    return os.path.join(root, state_folder, base, archivecountfile)
 
 
 def _datestr(year, month=None, day=None):
@@ -116,59 +127,61 @@ class YawtArchives(object):
         self.app = app
         if app is not None:
             self.init_app(app)
-        self.archive_counts = None
+        self.archive_counts_map = {}
 
     def init_app(self, app):
         """Set up some default config and register the blueprint"""
         app.config.setdefault('YAWT_ARCHIVE_TEMPLATE', 'article_list')
         app.config.setdefault('YAWT_PERMALINK_TEMPLATE', 'article')
-        app.config.setdefault('YAWT_ARCHIVE_BASE', '')
+        app.config.setdefault('YAWT_ARCHIVE_BASE', [''])
         app.config.setdefault('YAWT_ARCHIVE_DATEFIELD', 'create_time')
         app.config.setdefault('YAWT_ARCHIVE_COUNT_FILE', 'archivecounts')
         app.register_blueprint(archivesbp)
 
     def on_pre_walk(self):
         """Initialize the archive counts"""
-        self.archive_counts = HierarchyCount()
+        self.archive_counts_map = {}
+        for base in current_app.config['YAWT_ARCHIVE_BASE']:
+            self.archive_counts_map[base] = HierarchyCount()
 
     def on_visit_article(self, article):
         """Count and register for this article"""
-        category = article.info.category
-        countbase = self._adjust_base_for_category()  # blech
-
-        if category == countbase or category.startswith(countbase):
+        for base in self._get_bases(article):
             datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
             date = getattr(article.info, datefield)
             datestring = _date_hierarchy(date)
-            self.archive_counts.count_hierarchy(datestring)
+            self.archive_counts_map[base].count_hierarchy(datestring)
+
+    def _get_bases(self, article):
+        bases = []
+        for base in current_app.config['YAWT_ARCHIVE_BASE']:
+            if article.info.fullname.startswith(base):
+                bases.append(base)
+        return bases
 
     def on_post_walk(self):
         """Save the archive counts to disk"""
-        self.archive_counts.sort_children(reverse=True)
-        pickled_info = jsonpickle.encode(self.archive_counts)
-        save_file(_abs_archivecount_file(), pickled_info)
-
-    # Feels very wrong
-    def _adjust_base_for_category(self):
-        countbase = current_app.config['YAWT_CATEGORY_BASE']
-        if countbase.startswith('/'):
-            countbase = countbase[1:]
-        return countbase
+        for base in self.archive_counts_map:
+            archive_counts = self.archive_counts_map[base]
+            archive_counts.sort_children(reverse=True)
+            pickled_info = jsonpickle.encode(archive_counts)
+            save_file(_abs_archivecount_file(base), pickled_info)
 
     def on_files_changed(self, files_modified, files_added, files_removed):
         """pass in three lists of files, modified, added, removed, all
         relative to the *repo* root, not the content root (so these are not
         absolute filenames)
         """
-        pickled_info = load_file(_abs_archivecount_file())
-        self.archive_counts = jsonpickle.decode(pickled_info)
-        for f in files_removed + files_modified:
-            name = fullname(f)
-            if name:
-                create_time = _fetch_date_for_name(name)
-                if create_time:
-                    datestring = _date_hierarchy(create_time)
-                    self.archive_counts.remove_hierarchy(datestring)
+        for base in current_app.config['YAWT_ARCHIVE_BASE']:
+            pickled_info = load_file(_abs_archivecount_file(base))
+            self.archive_counts_map[base] = jsonpickle.decode(pickled_info)
+            for f in files_removed + files_modified:
+                name = fullname(f)
+                if name:
+                    create_time = _fetch_date_for_name(name)
+                    if create_time:
+                        datestring = _date_hierarchy(create_time)
+                        self.archive_counts_map[base].remove_hierarchy(datestring)
 
         for f in files_modified + files_added:
             article = g.site.fetch_article_by_repofile(f)

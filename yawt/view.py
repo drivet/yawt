@@ -7,7 +7,6 @@ from flask import current_app, make_response, render_template
 
 def render(template, category, base, flavour, template_variables):
     """The main YAWT render routine"""
-
     if flavour is None:
         flavour = current_app.config['YAWT_DEFAULT_FLAVOUR']
 

@@ -1,7 +1,29 @@
 """The YAWT tagging module.
 
-Provides tagging search/routing functionality. Makes Markdown tags available
-in article objects.
+A YAWT module which provides tagging functionality.
+
+This module implements the walk protocol.  For each article in the repository,
+it will:
+
+- index the tags in the article
+- keep a running count of the tags seen in the repository, acccording to the
+  base categories configured.
+
+Tags are stored in the "tags" key in YAML frontmatter for each article.
+
+Tag counts are stored as JSON pickled data in a file whose path is defined by
+the concatenation of
+
+- the base (from YAWT_TAGGING_BASE) used to define the particular set of counts
+  you want
+- the YAWT_TAGGING_COUNT_FILE value
+
+YAWT_TAGGING_BASE is a list.  One tag count file will be produced for every
+base defined in this list.
+
+In addition, the tag count files are made available to templates via the
+tagcounts template variable, which is a map of bases mapped to tag counts maps.
+
 """
 from __future__ import absolute_import
 
@@ -22,24 +44,24 @@ def _whoosh():
     return current_app.extension_info[0]['flask_whoosh.Whoosh']
 
 
-def _abs_tagcount_file():
+def _abs_tagcount_file(base):
     root = current_app.yawt_root_dir
     tagcountfile = current_app.config['YAWT_TAGGING_COUNT_FILE']
     state_folder = current_app.config['YAWT_STATE_FOLDER']
-    return os.path.join(root, state_folder, tagcountfile)
+    return os.path.join(root, state_folder, base, tagcountfile)
 
 
 @taggingbp.app_context_processor
 def _tagcounts_cp():
-    tagcountfile = _abs_tagcount_file()
+    tagcountmap = {}
+    for base in current_app.config['YAWT_TAGGING_BASE']:
+        tagcountfile = _abs_tagcount_file(base)
+        if os.path.isfile(tagcountfile):
+            tagcounts = jsonpickle.decode(load_file(tagcountfile))
+            tagcountmap[base] = tagcounts
     tvars = {}
-    if os.path.isfile(tagcountfile):
-        tagbase = current_app.config['YAWT_TAGGING_BASE']
-        if not tagbase.endswith('/'):
-            tagbase += '/'
-
-        tagcounts = jsonpickle.decode(load_file(tagcountfile))
-        tvars = {'tagcounts': tagcounts, 'tagbase': tagbase}
+    if len(tagcountmap) > 0:
+        tvars['tagcounts'] = tagcountmap
     return tvars
 
 
@@ -77,48 +99,60 @@ class YawtTagging(object):
         self.app = app
         if app is not None:
             self.init_app(app)
-        self.tagcounts = {}
+        self.tagcountmap = {}
 
     def init_app(self, app):
         """Set up some default config and register the blueprint"""
         app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
-        app.config.setdefault('YAWT_TAGGING_BASE', '')
+        app.config.setdefault('YAWT_TAGGING_BASE', [''])
         app.config.setdefault('YAWT_TAGGING_COUNT_FILE', 'tagcounts')
         app.config.setdefault('YAWT_TAGGING_FULL_ARTICLE_FLAVOURS', [])
         app.register_blueprint(taggingbp)
 
     def on_pre_walk(self):
         """Initialize the tag counts"""
-        self.tagcounts = {}
+        self.tagcountmap = {}
+        for base in current_app.config['YAWT_TAGGING_BASE']:
+            self.tagcountmap[base] = {}
 
     def on_visit_article(self, article):
         """Count the tags for this article"""
         if hasattr(article.info, 'tags'):
-            for tag in article.info.tags:
-                if tag in self.tagcounts:
-                    self.tagcounts[tag] += 1
-                else:
-                    self.tagcounts[tag] = 1
+            for base in self._get_bases(article):
+                for tag in article.info.tags:
+                    if tag in self.tagcountmap[base]:
+                        self.tagcountmap[base][tag] += 1
+                    else:
+                        self.tagcountmap[base][tag] = 1
+
+    def _get_bases(self, article):
+        bases = []
+        for base in current_app.config['YAWT_TAGGING_BASE']:
+            if article.info.fullname.startswith(base):
+                bases.append(base)
+        return bases
 
     def on_post_walk(self):
         """Save the tag counts to disk"""
-        pickled_info = jsonpickle.encode(self.tagcounts)
-        save_file(_abs_tagcount_file(), pickled_info)
+        for base in self.tagcountmap:
+            tagcounts = self.tagcountmap[base]
+            pickled_info = jsonpickle.encode(tagcounts)
+            save_file(_abs_tagcount_file(base), pickled_info)
 
     def on_files_changed(self, files_modified, files_added, files_removed):
         """pass in three lists of files, modified, added, removed, all
         relative to the *repo* root, not the content root (so these are
         not absolute filenames)
         """
-        pickled_info = load_file(_abs_tagcount_file())
-        self.tagcounts = jsonpickle.decode(pickled_info)
-        for f in files_removed + files_modified:
-            name = fullname(f)
-            if name:
-                tags_to_remove = self._tags_for_name(name)
-
-                for tag in tags_to_remove:
-                    self.tagcounts[tag] -= 1
+        for base in current_app.config['YAWT_TAGGING_BASE']:
+            pickled_info = load_file(_abs_tagcount_file(base))
+            self.tagcountmap[base] = jsonpickle.decode(pickled_info)
+            for f in files_removed + files_modified:
+                name = fullname(f)
+                if name:
+                    tags_to_remove = self._tags_for_name(name)
+                    for tag in tags_to_remove:
+                        self.tagcountmap[base][tag] -= 1
 
         for f in files_modified + files_added:
             article = g.site.fetch_article_by_repofile(f)
@@ -143,12 +177,16 @@ class YawtTagging(object):
 
     def _delete_unused_tags(self):
         unused_tags = []
-        for tag in self.tagcounts:
-            if self.tagcounts[tag] == 0:
-                unused_tags.append(tag)
+        for base in current_app.config['YAWT_TAGGING_BASE']:
+            for tag in self.tagcountmap[base]:
+                if self.tagcountmap[base][tag] == 0 and \
+                   tag not in unused_tags:
+                    unused_tags.append(tag)
 
         for tag in unused_tags:
-            del self.tagcounts[tag]
+            for base in current_app.config['YAWT_TAGGING_BASE']:
+                if tag in self.tagcountmap[base]:
+                    del self.tagcountmap[base][tag]
 
 
 taggingbp.add_url_rule('/tags/<tag>/',
