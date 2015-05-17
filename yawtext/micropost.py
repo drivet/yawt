@@ -119,6 +119,7 @@ class Micropost(Command):
 
         slug = "%d%d%d%d%d%d" % (now.year, now.month, now.day, now.hour, now.minute, now.second)
         repo_file = os.path.join(repo_category, slug)
+        repo_file += "." + _cfg('YAWT_MICROPOST_EXTENSION')
         write_post(metadata, post, os.path.join(root_dir, repo_file))
         if commit:
             _git_add(root_dir, repo_file)
@@ -138,6 +139,7 @@ class YawtMicropost(object):
 
     def init_app(self, app):
         app.config.setdefault('YAWT_MICROPOST_CATEGORY', 'microposts')
+        app.config.setdefault('YAWT_MICROPOST_EXTENSION', 'txt')
         app.config.setdefault('YAWT_MICROPOST_NETWORKS', ['facebook'])
         app.config.setdefault('YAWT_MICROPOST_FB_ACCESS_TOKEN_FILE',
                               '~/.fbaccesstoken')
