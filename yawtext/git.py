@@ -5,7 +5,6 @@ from __future__ import absolute_import
 
 import os
 import datetime
-import frontmatter
 
 from flask import current_app, g
 
@@ -49,23 +48,9 @@ class YawtGit(object):
         _save_repo_file('.gitignore', '_state')
 
     def on_article_fetch(self, article):
-        self.meta = self._fill_article(article)
-        return article
-
-    def on_visit_article(self, article):
-        abspath = _abs_filename(article.info.fullname,
-                                article.info.extension)
-        with open(abspath) as f:
-            post = frontmatter.load(f)
-            for key in self.meta:
-                post[key] = self.meta[key]
-        with open(abspath, 'w') as f:
-            frontmatter.dump(post, f)
-
-    def _fill_article(self, article):
         if hasattr(article.info, 'md_create_time') and \
            hasattr(article.info, 'md_modified_time'):
-            return []
+            return article
 
         vc_info = self._fetch_vc_info(article.info.fullname,
                                       article.info.extension)
@@ -74,18 +59,15 @@ class YawtGit(object):
            not hasattr(article.info, 'md_create_time'):
             date = datetime.datetime.utcfromtimestamp(vc_info['create_time'])
             meta['md_create_time'] = date
-            article.info.md_create_time = vc_info['create_time']
+            article.info.git_create_time = vc_info['create_time']
 
         if 'modified_time' in vc_info and \
            not hasattr(article.info, 'md_modified_time'):
-#            date = datetime.datetime.utcfromtimestamp(vc_info['modified_time'])
-#            meta['md_modified_time'] = date
-#            article.info.md_modified_time = vc_info['modified_time']
-            # we're changing the metadata, so the last modified time is now
-            now = datetime.datetime.utcnow()
-            meta['md_modified_time'] = now
-            article.info.md_modified_time = now
-        return meta
+            date = datetime.datetime.utcfromtimestamp(vc_info['modified_time'])
+            meta['md_modified_time'] = date
+            article.info.git_modified_time = vc_info['modified_time']
+
+        return article
 
     def _fetch_vc_info(self, fullname, ext):
         repofile = os.path.join(_content_folder(), fullname + '.' + ext)

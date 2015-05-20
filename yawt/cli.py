@@ -48,6 +48,9 @@ def _root_dir():
 
 def create_manager():
     """Create the command line manager"""
+
+    # we create the app here instead of passing in an app factory so we can
+    # properly run the on_cli_init calls under a request context
     app = yawt.create_app(_root_dir())
     manager = Manager(app)
 
