@@ -5,8 +5,14 @@ from __future__ import absolute_import
 
 import os
 import datetime
+import subprocess
 
 from flask import current_app, g
+
+from yawt.git_hook_utils import git_diff_tree, extract_changed_files
+
+
+GIT = '/usr/bin/git'
 
 
 def _config(key):
@@ -27,6 +33,55 @@ def _save_repo_file(repofile, contents):
     path = os.path.join(current_app.yawt_root_dir, repofile)
     with open(path, 'w') as f:
         f.write(contents)
+
+
+def _git_cmd(root_dir, args):
+    git_dir = root_dir + '/.git'
+    return [GIT, '--git-dir='+git_dir,
+            '--work-tree='+root_dir] + args
+
+
+def git_status(root_dir):
+    """run got status -s which tells you the status of your repo at root_dir"""
+    args = ['status', '-s']
+    print _git_cmd(root_dir, args)
+    status_out = subprocess.check_output(_git_cmd(root_dir, args),
+                                         stderr=subprocess.STDOUT)
+    return status_out
+
+
+def git_add_all(root_dir):
+    """run git add -A, which will add all files in the repo at root_dir"""
+    args = ['add', '-A']
+    print _git_cmd(root_dir, args)
+    subprocess.check_call(_git_cmd(root_dir, args))
+
+
+def git_add(root_dir, path):
+    """run git add on the path provided, in the repo at root_dir"""
+    print _git_cmd(root_dir, args)
+    subprocess.check_call(_git_cmd(root_dir, ['add', path]))
+
+
+def git_commit(root_dir, message):
+    """run git commit on the repo at root_dir, with the message provided"""
+    args = ['commit', '-m', message]
+    # subprocess.check_call(_git_cmd(root_dir, args))
+    print _git_cmd(root_dir, args)
+
+
+def git_push(root_dir):
+    """run git push on the repo at root_dir"""
+    # subprocess.check_call(_git_cmd(root_dir, ['push']))
+    print _git_cmd(root_dir, ['push'])
+
+
+def git_latest_changes():
+    """return a string with the latest git commit changes.  First column is the
+    change, second column is the file
+    """
+    diff_tree_out = git_diff_tree(GIT, g.site.root_dir, 'HEAD')
+    return extract_changed_files(diff_tree_out)
 
 
 class YawtGit(object):
