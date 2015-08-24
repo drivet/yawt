@@ -6,8 +6,8 @@ from __future__ import absolute_import
 
 from flask import current_app, request, g, Blueprint
 from whoosh.qparser import QueryParser
-from yawtext.collections import CollectionView, _yawtwhoosh
-
+from yawtext.collections import CollectionView
+from yawtext.indexer import schema
 
 searchbp = Blueprint('search', __name__)
 
@@ -24,7 +24,7 @@ class SearchView(CollectionView):
         query_str = 'content:' + searchtext
         if category:
             query_str += ' AND ' + category
-        qparser = QueryParser('categories', schema=_yawtwhoosh().schema())
+        qparser = QueryParser('categories', schema=schema())
         return qparser.parse(unicode(query_str))
 
     def get_template_name(self):

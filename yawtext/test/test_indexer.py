@@ -1,7 +1,7 @@
 #pylint: skip-file
 
 import unittest
-from yawtext.indexer import YawtWhoosh
+from yawtext.indexer import YawtWhoosh, search
 from whoosh.fields import TEXT, DATETIME, STORED, ID, Schema
 from whoosh.index import create_in
 from whoosh.qparser import QueryParser
@@ -12,7 +12,7 @@ import shutil
 import glob
 import os
 from datetime import datetime
-from yawt.utils import save_file
+from yawt.utils import save_file, call_plugins
 from yawt.article import ArticleInfo
 import jsonpickle
 
@@ -134,9 +134,11 @@ class TestYawtWhoosh(unittest.TestCase):
 
         with self.app.test_request_context():
             self.app.preprocess_request()
-            g.site.files_changed(files_modified=['content/article1.txt', 'content/article2.txt'], 
-                                 files_added=['content/article5.txt', 'content/article6.txt'],
-                                 files_removed=['content/article3.txt', 'content/article4.txt'])
+            call_plugins('on_files_changed',
+                         ['content/article5.txt', 'content/article6.txt'],
+                         ['content/article1.txt', 'content/article2.txt'],
+                         ['content/article3.txt', 'content/article4.txt'],
+                         {})
 
         qp = QueryParser('fullname', schema=schema)
         with idx.searcher() as searcher:
@@ -184,7 +186,7 @@ class TestYawtWhoosh(unittest.TestCase):
         qp = QueryParser('fullname', schema=schema)
         with self.app.test_request_context():
             self.app.preprocess_request()
-            infos, total = self.plugin.search(qp.parse(u"article1"), 'create_time', 1, 10)
+            infos, total = search(qp.parse(u"article1"), 'create_time', 1, 10)
         self.assertEquals(1, len(infos))
         self.assertEquals('article1', infos[0].fullname)
         
@@ -192,7 +194,7 @@ class TestYawtWhoosh(unittest.TestCase):
         qp.add_plugin(DateParserPlugin())
         with self.app.test_request_context():
             self.app.preprocess_request()
-            infos, total = self.plugin.search(qp.parse('20041102'), 'fullname', 1, 10)
+            infos, total = search(qp.parse('20041102'), 'fullname', 1, 10)
         self.assertEquals(4, len(infos))
         self.assertEquals('article1', infos[0].fullname)
         self.assertEquals('article2', infos[1].fullname)

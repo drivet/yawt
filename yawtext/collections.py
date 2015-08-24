@@ -12,7 +12,7 @@ from flask.views import View
 from yawt.view import render
 from yawt.article import Article
 from jinja2 import TemplatesNotFound
-
+from yawtext.indexer import search
 
 collectionsbp = Blueprint('paging', __name__)
 
@@ -62,10 +62,10 @@ class CollectionView(View):
         query = self.query(category, *args, **kwargs)
         sortfield = current_app.config['YAWT_COLLECTIONS_SORT_FIELD']
 
-        ainfos, total = _yawtwhoosh().search(query=query,
-                                             sortedby=sortfield,
-                                             page=g.page, pagelen=g.pagelen,
-                                             reverse=True)
+        ainfos, total = search(query=query,
+                               sortedby=sortfield,
+                               page=g.page, pagelen=g.pagelen,
+                               reverse=True)
         g.total_results = total
         g.total_pages = int(ceil(float(g.total_results)/g.pagelen))
         g.has_prev_page = g.page > 1

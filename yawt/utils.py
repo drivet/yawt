@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import os
 import re
 from flask import current_app
-
+import yawt
 
 def load_file(filename):
     """Load file filename and return contents"""
@@ -100,3 +100,22 @@ def write_post(metadata, content, filename):
             f.write(u'%s: %s\n' % (key, metadata[key]))
         f.write(u'---\n')
         f.write(unicode(content))
+
+
+def run_in_context(repo_path, func, *args, **kwargs):
+    """run the function in a YAWT/Flask request context"""
+    app = yawt.create_app(repo_path)
+    with app.test_request_context():
+        current_app.preprocess_request()
+        func(*args, **kwargs)
+
+
+def normalize_renames(added, modified, deleted, renamed):
+    """incorporate renames into the added and deleted lists"""
+    new_added = list(added)
+    new_modified = list(modified)
+    new_deleted = list(deleted)
+    for old, new in renamed.iteritems():
+        new_deleted = old
+        new_added = new
+    return new_added, new_modified, new_deleted

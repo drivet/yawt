@@ -7,7 +7,7 @@ from whoosh.index import create_in
 from yawt import create_app
 from flask import g
 import os
-from yawt.utils import load_file
+from yawt.utils import load_file, call_plugins
 from yawt.article import ArticleInfo, Article
 import jsonpickle
 from yawt.test.siteutils import TempSite
@@ -224,7 +224,7 @@ class TestYawtCategories(unittest.TestCase):
     def test_changed_files_adjust_categories(self):
         self.site.mk_content_category('foo')
         self.site.mk_content_category('bar')
-        
+
         self.site.save_content('foo/article1.txt', u'stuff1')
         self.site.save_content('foo/article2.txt', u'stuff2')
         self.site.save_content('foo/article3.txt', u'stuff3')
@@ -295,7 +295,8 @@ class TestYawtCategories(unittest.TestCase):
 
         with self.app.test_request_context():
             self.app.preprocess_request()
-            g.site.files_changed(modified, added, removed)
+            call_plugins('on_files_changed',
+                         added, modified, removed, {})
 
         countfile = self.abs_category_count_file()
         self.assertTrue(os.path.exists(countfile))

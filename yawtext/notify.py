@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import os.path
+import socket
 from flask import current_app
 from yawtext.micropost import post_social
 from yawt.utils import fullname
@@ -28,6 +29,31 @@ def _notify_message(file_added):
 def _post_notification(added):
     msg = _notify_message(added)
     post_social(msg, _cfg('YAWT_NOTIFY_NETWORKS'))
+#    print "notify with msg = '"+msg + "' and file = "+added
+
+
+def notify_new_files(files_added, files_renamed):
+    """Sends out a notification about new blog files to social networks"""
+
+    if _cfg('YAWT_NOTIFY_HOSTS') and \
+       socket.gethostname() not in _cfg('YAWT_NOTIFY_HOSTS'):
+        return
+
+    cat_paths = []
+    for cat in _cfg('YAWT_NOTIFY_CATEGORIES'):
+        cat_paths.append(os.path.join(_content_folder(), cat))
+
+    new_renames = []
+    for old, new in files_renamed.iteritems():
+        old_not_content = not old.startswith(_content_folder())
+        new_is_content = new.startswith(_content_folder())
+        if old_not_content and new_is_content:
+            new_renames.append(new)
+
+    for added in files_added + new_renames:
+        for cpath in cat_paths:
+            if added.startswith(cpath):
+                _post_notification(added)
 
 
 class YawtNotify(object):
@@ -41,15 +67,9 @@ class YawtNotify(object):
         app.config.setdefault('YAWT_NOTIFY_CATEGORIES', [''])
         app.config.setdefault('YAWT_NOTIFY_BASE_URL', '')
         app.config.setdefault('YAWT_NOTIFY_NETWORKS', ['facebook'])
+        app.config.setdefault('YAWT_NOTIFY_HOSTS', [])
         app.config.setdefault('YAWT_NOTIFY_FB_ACCESS_TOKEN_FILE',
                               '~/.fbaccesstoken')
 
-    def on_sync(self, files_added, files_modified, files_deleted):
-        """handle the sync event"""
-        cat_paths = []
-        for cat in _cfg('YAWT_NOTIFY_CATEGORIES'):
-            cat_paths.append(os.path.join(_content_folder(), cat))
-        for added in files_added:
-            for cpath in cat_paths:
-                if added.startswith(cpath):
-                    _post_notification(added)
+    def on_files_changed(self, added, modified, deleted, renamed):
+        notify_new_files(added, renamed)

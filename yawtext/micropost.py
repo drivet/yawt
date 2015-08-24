@@ -8,8 +8,6 @@ from flask_script import Command, Option
 
 from yawt.utils import call_plugins, ensure_path, load_file, write_post
 
-from yawtext.git import git_push, git_commit, git_add
-
 
 def _cfg(key):
     return current_app.config[key]
@@ -59,52 +57,39 @@ def post_social(post, networks=None):
     return metadata or {}
 
 
+def _post(post):
+    metadata = post_social(post)
+    now = datetime.datetime.now()
+    metadata.update({'md_create_time': now.isoformat(),
+                     'md_modified_time': now.isoformat()})
+
+    tags = _extract_tags(post)
+    if len(tags) > 0:
+        metadata['tags'] = ','.join(tags)
+
+    root_dir = g.site.root_dir
+    repo_category = os.path.join(_content_folder(),
+                                 _cfg('YAWT_MICROPOST_CATEGORY'))
+    ensure_path(os.path.join(root_dir, repo_category))
+
+    slug = "%d%d%d%d%d%d" % (now.year, now.month, now.day, now.hour, now.minute, now.second)
+    repo_file = os.path.join(repo_category, slug)
+    repo_file += "." + _cfg('YAWT_MICROPOST_EXTENSION')
+    write_post(metadata, post, os.path.join(root_dir, repo_file))
+
+
 class Micropost(Command):
     """Micropost command"""
     def __init__(self):
         super(Micropost, self).__init__()
 
     def get_options(self):
-        return [Option('post'),
-                Option('--commit', '-c', action='store_true'),
-                Option('--message', '-m'),
-                Option('--push', '-p', action='store_true')]
+        return [Option('post')]
 
-    def run(self, post, commit=False, message=None, push=False):
+    def run(self, post):
         current_app.preprocess_request()
-
-        if not message:
-            message = "posted '%s'" % (post)
-
-        if self._post(post, commit, message, push):
-            call_plugins('on_micropost')
-
-    def _post(self, post, commit, message, push):
-        metadata = post_social(post)
-        now = datetime.datetime.now()
-        metadata.update({'md_create_time': now.isoformat(),
-                         'md_modified_time': now.isoformat()})
-
-        tags = _extract_tags(post)
-        if len(tags) > 0:
-            metadata['tags'] = ','.join(tags)
-
-        root_dir = g.site.root_dir
-        repo_category = os.path.join(_content_folder(),
-                                     _cfg('YAWT_MICROPOST_CATEGORY'))
-        ensure_path(os.path.join(root_dir, repo_category))
-
-        slug = "%d%d%d%d%d%d" % (now.year, now.month, now.day, now.hour, now.minute, now.second)
-        repo_file = os.path.join(repo_category, slug)
-        repo_file += "." + _cfg('YAWT_MICROPOST_EXTENSION')
-        write_post(metadata, post, os.path.join(root_dir, repo_file))
-        if commit:
-            git_add(root_dir, repo_file)
-            git_commit(root_dir, message)
-        if push:
-            git_push(root_dir)
-            return True
-        return False
+        _post(post)
+        call_plugins('on_micropost')
 
 
 class YawtMicropost(object):

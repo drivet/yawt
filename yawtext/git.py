@@ -6,13 +6,21 @@ from __future__ import absolute_import
 import os
 import datetime
 import subprocess
+import sys
 
 from flask import current_app, g
 
-from yawt.git_hook_utils import git_diff_tree, extract_changed_files
-
 
 GIT = '/usr/bin/git'
+
+
+class ChangedFiles(object):
+    """Structure to represent a summary of changed files in a git changeset"""
+    def __init__(self):
+        self.added = []
+        self.modified = []
+        self.deleted = []
+        self.renamed = {}
 
 
 def _config(key):
@@ -41,39 +49,117 @@ def _git_cmd(root_dir, args):
             '--work-tree='+root_dir] + args
 
 
+def extract_diff_tree_files(diff_tree_out):
+    """Given git diff tree output, return the list of added, modied and
+    removed files."""
+    added_files = []
+    modified_files = []
+    deleted_files = []
+    renamed_files = {}
+    for line in diff_tree_out.split('\n'):
+        if not line:
+            break
+        (status, rest) = line.split(None, 1)
+        if status == 'A':
+            added_files.append(rest)
+        elif status == 'M':
+            modified_files.append(rest)
+        elif status == 'D':
+            deleted_files.append(rest)
+        elif status.startswith('R'):
+            (old, new) = rest.split()
+            renamed_files[old] = new
+        else:
+            print "unknown git status: " + status
+            sys.exit(1)
+    changed = ChangedFiles()
+    changed.added = added_files
+    changed.modified = modified_files
+    changed.deleted = deleted_files
+    changed.renamed = renamed_files
+    return changed
+
+
+def extract_indexed_status_files(status_out):
+    """Given git status output, return the list of added, modified and removed
+    files.  Note that files MUST have been added to the index.
+    """
+    added_files = []
+    modified_files = []
+    deleted_files = []
+    renamed_files = {}
+    for line in status_out.split('\n'):
+        if not line:
+            break
+        (status, rest) = line.split(None, 1)
+        if status == 'A':
+            added_files.append(rest)
+        elif status == 'M':
+            modified_files.append(rest)
+        elif status == 'D':
+            deleted_files.append(rest)
+        elif status == 'R':
+            (old, new) = rest.split(' -> ')
+            renamed_files[old] = new
+        else:
+            print "Skipping unknown status: "+status
+    changed = ChangedFiles()
+    changed.added = added_files
+    changed.modified = modified_files
+    changed.deleted = deleted_files
+    changed.renamed = renamed_files
+    return changed
+
+
+def git_diff_tree(git, repo_path, tree1, tree2=None):
+    """Execute a git diff-tree and return the output"""
+    try:
+        cmd = ['sudo', '-u', 'www-data', '-H',
+               git, '--git-dir=' + repo_path + '/.git',
+               '--work-tree=' + repo_path,
+               'diff-tree', '-r', '--name-status', '--no-commit-id',
+               '--find-renames', tree1]
+
+        if tree2:
+            cmd.append(tree2)
+
+        diff_tree_out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        return diff_tree_out
+    except subprocess.CalledProcessError as excep:
+        print str(cmd) + ' failed: ' + str(excep.returncode) + '\n' + excep.output
+        sys.exit(excep.returncode)
+
+
 def git_status(root_dir):
     """run got status -s which tells you the status of your repo at root_dir"""
     args = ['status', '-s']
-    print _git_cmd(root_dir, args)
+#    print _git_cmd(root_dir, args)
     status_out = subprocess.check_output(_git_cmd(root_dir, args),
                                          stderr=subprocess.STDOUT)
     return status_out
 
 
-def git_add_all(root_dir):
-    """run git add -A, which will add all files in the repo at root_dir"""
-    args = ['add', '-A']
-    print _git_cmd(root_dir, args)
-    subprocess.check_call(_git_cmd(root_dir, args))
-
-
-def git_add(root_dir, path):
+def git_add(root_dir, *args):
     """run git add on the path provided, in the repo at root_dir"""
-    print _git_cmd(root_dir, args)
-    subprocess.check_call(_git_cmd(root_dir, ['add', path]))
+    cmd_args = ['add']
+    if args:
+        cmd_args += args
+#    print _git_cmd(root_dir, args)
+    subprocess.check_call(_git_cmd(root_dir, cmd_args))
 
 
 def git_commit(root_dir, message):
     """run git commit on the repo at root_dir, with the message provided"""
     args = ['commit', '-m', message]
-    # subprocess.check_call(_git_cmd(root_dir, args))
-    print _git_cmd(root_dir, args)
+#    print _git_cmd(root_dir, args)
+    subprocess.check_call(_git_cmd(root_dir, args))
 
 
 def git_push(root_dir):
     """run git push on the repo at root_dir"""
-    # subprocess.check_call(_git_cmd(root_dir, ['push']))
-    print _git_cmd(root_dir, ['push'])
+    args = ['push']
+#    print _git_cmd(root_dir, args)
+    subprocess.check_call(_git_cmd(root_dir, args))
 
 
 def git_latest_changes():

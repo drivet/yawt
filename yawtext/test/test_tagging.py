@@ -8,7 +8,7 @@ from yawt import create_app
 from flask import g
 import os
 from datetime import datetime
-from yawt.utils import load_file
+from yawt.utils import load_file, call_plugins
 from yawt.article import ArticleInfo, Article
 import jsonpickle
 from yawt.test.siteutils import TempSite
@@ -162,7 +162,8 @@ class TestYawtTagging(unittest.TestCase):
 
         with self.app.test_request_context():
             self.app.preprocess_request()
-            g.site.files_changed(modified, added, removed)
+            call_plugins('on_files_changed',
+                         added, modified, removed, {})
 
         tagcountfile = self.abs_tagcount_file()
         self.assertTrue(os.path.exists(tagcountfile))

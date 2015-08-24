@@ -33,9 +33,9 @@ from flask import current_app, Blueprint, g
 from whoosh.qparser import QueryParser
 import jsonpickle
 
-from yawt.utils import save_file, load_file, fullname
-from yawtext.collections import CollectionView, _yawtwhoosh
-
+from yawt.utils import save_file, load_file, fullname, normalize_renames
+from yawtext.collections import CollectionView
+from yawtext.indexer import schema
 
 taggingbp = Blueprint('tagging', __name__)
 
@@ -83,7 +83,7 @@ class TaggingView(CollectionView):
         query_str = 'tags:' + tag
         if category:
             query_str += ' AND ' + category
-        qparser = QueryParser('categories', schema=_yawtwhoosh().schema())
+        qparser = QueryParser('categories', schema=schema())
         return qparser.parse(unicode(query_str))
 
     def get_template_name(self):
@@ -139,22 +139,24 @@ class YawtTagging(object):
             pickled_info = jsonpickle.encode(tagcounts)
             save_file(_abs_tagcount_file(base), pickled_info)
 
-    def on_files_changed(self, files_modified, files_added, files_removed):
+    def on_files_changed(self, added, modified, deleted, renamed):
         """pass in three lists of files, modified, added, removed, all
         relative to the *repo* root, not the content root (so these are
         not absolute filenames)
         """
+        added, modified, deleted = \
+            normalize_renames(added, modified, deleted, renamed)
         for base in current_app.config['YAWT_TAGGING_BASE']:
             pickled_info = load_file(_abs_tagcount_file(base))
             self.tagcountmap[base] = jsonpickle.decode(pickled_info)
-            for f in files_removed + files_modified:
+            for f in deleted + modified:
                 name = fullname(f)
                 if name:
                     tags_to_remove = self._tags_for_name(name)
                     for tag in tags_to_remove:
                         self.tagcountmap[base][tag] -= 1
 
-        for f in files_modified + files_added:
+        for f in modified + added:
             article = g.site.fetch_article_by_repofile(f)
             if article:
                 self.on_visit_article(article)
@@ -165,7 +167,7 @@ class YawtTagging(object):
 
     def _tags_for_name(self, name):
         searcher = _whoosh().searcher
-        qparser = QueryParser('fullname', schema=_yawtwhoosh().schema())
+        qparser = QueryParser('fullname', schema=schema())
         query = qparser.parse(unicode(name))
         results = searcher.search(query)
         tags = []

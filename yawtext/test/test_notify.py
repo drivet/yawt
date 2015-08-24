@@ -25,12 +25,10 @@ class TestNotify(unittest.TestCase):
         self.app = create_app(self.tempdir)
         self.notify = yawtext.notify.YawtNotify(self.app)
         with self.app.test_request_context():
-            self.notify.on_sync(files_added=['content/cat1/a.txt',
-                                             'content/cat2/b.txt'],
-                                files_modified=['content/cat3/c.txt',
-                                                'content/cat4/d.txt'],
-                                files_deleted=['content/cat5/e.txt',
-                                               'content/cat6/f.txt'])
+            self.notify.on_files_changed(['content/cat1/a.txt', 'content/cat2/b.txt'],
+                                         ['content/cat3/c.txt','content/cat4/d.txt'],
+                                         ['content/cat5/e.txt', 'content/cat6/f.txt'],
+                                         {})
         args_list = yawtext.notify.post_social.call_args_list
         call = args_list[0]
         msg = call[0][0]
@@ -45,12 +43,10 @@ class TestNotify(unittest.TestCase):
         self.app = create_app(self.tempdir, config=Config())
         self.notify = yawtext.notify.YawtNotify(self.app)
         with self.app.test_request_context():
-            self.notify.on_sync(files_added=['content/cat1/a.txt',
-                                             'content/cat2/b.txt'],
-                                files_modified=['content/cat3/c.txt',
-                                                'content/cat4/d.txt'],
-                                files_deleted=['content/cat5/e.txt',
-                                               'content/cat6/f.txt'])
+            self.notify.on_files_changed(['content/cat1/a.txt', 'content/cat2/b.txt'],
+                                         ['content/cat3/c.txt', 'content/cat4/d.txt'],
+                                         ['content/cat5/e.txt', 'content/cat6/f.txt'], 
+                                         {})
         args_list = yawtext.notify.post_social.call_args_list
         self.assertEquals(1, len(args_list))
         call = args_list[0]

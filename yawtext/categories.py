@@ -1,7 +1,7 @@
 """YAWT extension for category management
 
 This extension registers a Blueprint and provides - a template varable with the
-article counst for all the categories (folders), on the system.
+article counts for all the categories (folders), on the system.
 """
 from __future__ import absolute_import
 
@@ -13,8 +13,9 @@ from flask import current_app, g, Blueprint
 from whoosh.qparser import QueryParser
 from whoosh.query.qcore import Every
 
-from yawtext.collections import CollectionView, _yawtwhoosh
-from yawt.utils import save_file, load_file, fullname
+from yawtext.collections import CollectionView
+from yawtext.indexer import schema
+from yawt.utils import save_file, load_file, fullname, normalize_renames
 from yawtext.hierarchy_counter import HierarchyCount
 
 
@@ -65,7 +66,7 @@ class CategoryView(CollectionView):
         certain category.
         """
         if category:
-            qparser = QueryParser('categories', schema=_yawtwhoosh().schema())
+            qparser = QueryParser('categories', schema=schema())
             return qparser.parse(unicode(category))
         else:
             return Every()
@@ -140,12 +141,14 @@ class YawtCategories(object):
         pickled_counts = jsonpickle.encode(self.category_counts)
         save_file(_abs_category_count_file(), pickled_counts)
 
-    def on_files_changed(self, files_modified, files_added, files_removed):
+    def on_files_changed(self, added, modified, deleted, renamed):
         """Register changed files against HierarchyCounts"""
+        added, modified, deleted = \
+            normalize_renames(added, modified, deleted, renamed)
         pickled_counts = load_file(_abs_category_count_file())
         self.category_counts = jsonpickle.decode(pickled_counts)
 
-        for f in files_removed + files_modified:
+        for f in deleted + modified:
             name = fullname(f)
             if name:
                 countbase = _adjust_base_for_category()  # blech
@@ -153,7 +156,7 @@ class YawtCategories(object):
                 category = _slice_base_off_category(category, countbase)
                 self.category_counts.remove_hierarchy(category)
 
-        for f in files_modified + files_added:
+        for f in modified + added:
             article = g.site.fetch_article_by_repofile(f)
             if article:
                 self.on_visit_article(article)

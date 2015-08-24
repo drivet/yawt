@@ -54,15 +54,6 @@ class YawtSiteManager(object):
             call_plugins('on_visit_article', article)
         call_plugins('on_post_walk')
 
-    def files_changed(self, files_modified, files_added, files_removed):
-        """Inform the system that the suplied files have changed
-        (and call the plugins)
-        """
-        call_plugins('on_files_changed',
-                     files_modified,
-                     files_added,
-                     files_removed)
-
     def _on_article_fetch(self, article):
         for ext in extensions():
             if has_method(ext, 'on_article_fetch'):
