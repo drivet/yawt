@@ -154,7 +154,8 @@ class YawtTagging(object):
                 if name:
                     tags_to_remove = self._tags_for_name(name)
                     for tag in tags_to_remove:
-                        self.tagcountmap[base][tag] -= 1
+                        if tag in self.tagcountmap[base]:
+                            self.tagcountmap[base][tag] -= 1
 
         for f in modified + added:
             article = g.site.fetch_article_by_repofile(f)

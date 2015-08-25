@@ -116,6 +116,6 @@ def normalize_renames(added, modified, deleted, renamed):
     new_modified = list(modified)
     new_deleted = list(deleted)
     for old, new in renamed.iteritems():
-        new_deleted = old
-        new_added = new
+        new_deleted.append(old)
+        new_added.append(new)
     return new_added, new_modified, new_deleted
