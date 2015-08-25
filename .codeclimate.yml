@@ -1,0 +1,4 @@
+exclude_paths:
+- "yawt/test/*"
+- "yawt/systemtest/*"
+- "yawtext/test/*"
