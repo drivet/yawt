@@ -25,7 +25,9 @@ def _add_tags_for_article(abs_article_file, searcher):
                     in searcher.key_terms_from_text("content", post.content,
                                                     numterms=3)]
         keyword_str = ",".join(keywords)
-        post['tags'] = keyword_str
+        usertags = raw_input('Enter tags (default '+keyword_str+'): ')
+        tags = usertags or keyword_str
+        post['tags'] = tags
         save_file(abs_article_file, frontmatter.dumps(post))
 
 
