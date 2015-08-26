@@ -4,7 +4,6 @@ modified_time and author information
 from __future__ import absolute_import
 
 import os
-import datetime
 import subprocess
 import sys
 
@@ -71,7 +70,6 @@ def extract_diff_tree_files(diff_tree_out):
             renamed_files[old] = new
         else:
             print "unknown git status: " + status
-            sys.exit(1)
     changed = ChangedFiles()
     changed.added = added_files
     changed.modified = modified_files
@@ -178,45 +176,11 @@ class YawtGit(Plugin):
         self.meta = {}
 
     def init_app(self, app):
-        app.config.setdefault('YAWT_GIT_FOLLOW_RENAMES', False)
+        app.config.setdefault('YAWT_GIT_REPOPATH', False)
+        app.config.setdefault('YAWT_GIT_SEARCH_PATH', False)
 
     def on_new_site(self, files):
         """When a new site is created, we'll save a gitignore file so we can
         ignore the _state directory
         """
         _save_repo_file('.gitignore', '_state')
-
-    def on_article_fetch(self, article):
-        if hasattr(article.info, 'md_create_time') and \
-           hasattr(article.info, 'md_modified_time'):
-            return article
-
-        vc_info = self._fetch_vc_info(article.info.fullname,
-                                      article.info.extension)
-        meta = {}
-        if 'create_time' in vc_info and \
-           not hasattr(article.info, 'md_create_time'):
-            date = datetime.datetime.utcfromtimestamp(vc_info['create_time'])
-            meta['md_create_time'] = date
-            article.info.git_create_time = vc_info['create_time']
-
-        if 'modified_time' in vc_info and \
-           not hasattr(article.info, 'md_modified_time'):
-            date = datetime.datetime.utcfromtimestamp(vc_info['modified_time'])
-            meta['md_modified_time'] = date
-            article.info.git_modified_time = vc_info['modified_time']
-
-        return article
-
-    def _fetch_vc_info(self, fullname, ext):
-        repofile = os.path.join(_content_folder(), fullname + '.' + ext)
-        git = current_app.extension_info[0]['flask_git.Git']
-        follow = _config('YAWT_GIT_FOLLOW_RENAMES')
-        sorted_commits = list(git.commits_for_path_recent_first(repofile, follow))
-        if len(sorted_commits) == 0:
-            return {}
-
-        last_commit = sorted_commits[0]
-        first_commit = sorted_commits[-1]
-        return {'create_time': first_commit.commit_time,
-                'modified_time': last_commit.commit_time}

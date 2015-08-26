@@ -70,11 +70,6 @@ class TestMicropost(unittest.TestCase):
             self.micropostCmd.run(post='this is a post')
         yawtext.micropost.call_plugins.assert_called_with('on_micropost')
 
-    def test_micropost_doesn_not_call_plugins_when_not_pushed(self):
-        with self.app.test_request_context():
-            self.micropostCmd.run(post='this is a post')
-        yawtext.micropost.call_plugins.assert_not_called()
-
     def tearDown(self):
         yawtext.micropost._post_fb = self.old_post_fb
         yawtext.micropost.write_post = self.old_write_post

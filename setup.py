@@ -29,8 +29,11 @@ setup(
         'jsonpickle',
         'python-dateutil',
         'Pygments',
-        'Flask-Git',
-        'Flask-Whoosh'
+        'Flask-Whoosh',
+        'BeautifulSoup',
+        'PyYAML',
+        'python-frontmatter',
+        'pytz'
     ],
     classifiers=[
         'Environment :: Web Environment',

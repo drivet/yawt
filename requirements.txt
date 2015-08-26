@@ -1,0 +1,6 @@
+# a requirements file to "boot" the virtualenv.  Run this when requirements
+# or dependencies change
+
+-e git+https://github.com/drivet/flask-whoosh.git#egg=flask-whoosh
+-e git+https://github.com/drivet/update-github-clone.git#egg=update-github-clone
+-e .
