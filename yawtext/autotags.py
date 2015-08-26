@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import os
 from flask import current_app
 import frontmatter
-from yawt.utils import save_file
+from yawt.utils import save_file, find_new_renames
 
 
 def _cfg(key):
@@ -31,14 +31,8 @@ def _add_tags_for_article(abs_article_file, searcher):
 
 def _add_tags(root_dir, changed):
     searcher = _whoosh().searcher
-    new_renames = []
-    for old, new in changed.renamed.items():
-        old_not_content = not old.startswith(_content_folder())
-        new_is_content = new.startswith(_content_folder())
-        if old_not_content and new_is_content:
-            new_renames.append(new)
-
-    for new_file in changed.added + new_renames:
+    files = changed.added + find_new_renames(changed.renamed)
+    for new_file in files:
         if new_file.startswith(_content_folder()):
             _add_tags_for_article(os.path.join(root_dir, new_file), searcher)
 

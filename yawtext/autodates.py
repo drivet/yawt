@@ -6,7 +6,7 @@ import os
 import yaml
 from flask import current_app
 import frontmatter
-from yawt.utils import save_file
+from yawt.utils import save_file, find_new_renames
 
 
 class ExplicitDumper(yaml.SafeDumper):
@@ -36,14 +36,8 @@ def _fix_dates_for_article(abs_article_file):
 
 def _fix_dates(root_dir, changed):
     """Add timestamps to files mentioned in the index"""
-    new_renames = []
-    for old, new in changed.renamed.items():
-        old_not_content = not old.startswith(_content_folder())
-        new_is_content = new.startswith(_content_folder())
-        if old_not_content and new_is_content:
-            new_renames.append(new)
-
-    for changed_file in changed.added + changed.modified + new_renames:
+    files = changed.added + changed.modified + find_new_renames(changed.renamed)
+    for changed_file in files:
         if changed_file.startswith(_content_folder()):
             _fix_dates_for_article(os.path.join(root_dir, changed_file))
 

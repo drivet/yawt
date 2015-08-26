@@ -7,6 +7,7 @@ import re
 from flask import current_app
 import yawt
 
+
 def load_file(filename):
     """Load file filename and return contents"""
     with open(filename, 'r') as f:
@@ -119,3 +120,25 @@ def normalize_renames(added, modified, deleted, renamed):
         new_deleted.append(old)
         new_added.append(new)
     return new_added, new_modified, new_deleted
+
+
+def find_new_renames(renamed):
+    """Given a dictionary of renamed files, find the ones that correspond
+    to new entries on the content folder"""
+    new_renames = []
+    for old, new in renamed.items():
+        old_not_content = not old.startswith(content_folder())
+        new_is_content = new.startswith(content_folder())
+        if old_not_content and new_is_content:
+            new_renames.append(new)
+    return new_renames
+
+
+def cfg(key):
+    """Easy way to get access to the config object"""
+    return current_app.config[key]
+
+
+def content_folder():
+    """"Easy way to get access to the content folder"""
+    return cfg('YAWT_CONTENT_FOLDER')
