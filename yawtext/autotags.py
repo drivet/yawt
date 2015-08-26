@@ -7,6 +7,7 @@ from flask_script import Command, Option
 import frontmatter
 from yawt.utils import save_file, \
     find_new_renames, content_folder, fullname
+from yawtext.base import Plugin
 
 
 def _whoosh():
@@ -66,12 +67,10 @@ class Autotag(Command):
         _add_tags_for_indexed_article(g.site.root_dir, article, edit)
 
 
-class YawtAutotags(object):
+class YawtAutotags(Plugin):
     """Sync extension, allowing you to commit and optionally push"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtAutotags, self).__init__(app)
 
     def init_app(self, app):
         pass

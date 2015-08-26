@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 from flask import current_app, g
-
+from yawtext.base import Plugin
 
 GIT = '/usr/bin/git'
 
@@ -170,14 +170,12 @@ def git_latest_changes():
     return extract_changed_files(diff_tree_out)
 
 
-class YawtGit(object):
+class YawtGit(Plugin):
     """The YAWT Git plugin class"""
 
     def __init__(self, app=None):
+        super(YawtGit, self).__init__(app)
         self.meta = {}
-        self.app = app
-        if app is not None:
-            self.init_app(app)
 
     def init_app(self, app):
         app.config.setdefault('YAWT_GIT_FOLLOW_RENAMES', False)

@@ -7,6 +7,7 @@ import yaml
 from flask import current_app
 import frontmatter
 from yawt.utils import save_file, find_new_renames
+from yawtext.base import Plugin
 
 
 class ExplicitDumper(yaml.SafeDumper):
@@ -42,12 +43,10 @@ def _fix_dates(root_dir, changed):
             _fix_dates_for_article(os.path.join(root_dir, changed_file))
 
 
-class YawtAutodates(object):
+class YawtAutodates(Plugin):
     """Sync extension, allowing you to commit and optionally push"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtAutodates, self).__init__(app)
 
     def init_app(self, app):
         pass

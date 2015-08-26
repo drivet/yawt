@@ -13,6 +13,8 @@ from yawt.view import render
 from yawt.article import Article
 from jinja2 import TemplatesNotFound
 from yawtext.indexer import search
+from yawtext.base import Plugin
+
 
 collectionsbp = Blueprint('paging', __name__)
 
@@ -38,12 +40,10 @@ def _before_request():
         g.pagelen = current_app.config['YAWT_COLLECTIONS_DEFAULT_PAGELEN']
 
 
-class YawtCollections(object):
+class YawtCollections(Plugin):
     """YAWT Collection extension class"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtCollections, self).__init__(app)
 
     def init_app(self, app):
         """Register Blueprint and set default values"""

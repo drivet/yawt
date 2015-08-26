@@ -5,7 +5,7 @@ that will provide displayable breadcrumbs template list variable
 """
 from __future__ import absolute_import
 from flask import request, Blueprint
-
+from yawtext.base import Plugin
 
 breadcrumbsbp = Blueprint('breadcrumbs', __name__)
 
@@ -27,12 +27,10 @@ def _breadcrumbs(path):
     return breadcrumbs
 
 
-class YawtBreadcrumbs(object):
+class YawtBreadcrumbs(Plugin):
     """The actual YAWT breadcrumbs extension class"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtBreadcrumbs, self).__init__(app)
 
     def init_app(self, app):
         """register the extension on the app"""

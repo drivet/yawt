@@ -7,6 +7,8 @@ from flask_script import Command, Option
 from yawtext.git import git_push, git_commit, \
     git_add, git_status, extract_indexed_status_files
 from yawt.utils import call_plugins
+from yawtext.base import Plugin
+
 
 GIT = '/usr/bin/git'
 
@@ -61,12 +63,10 @@ class Sync(Command):
         _sync(strict, addnew, push, message)
 
 
-class YawtSync(object):
+class YawtSync(Plugin):
     """Sync extension, allowing you to commit and optionally push"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtSync, self).__init__(app)
 
     def init_app(self, app):
         pass

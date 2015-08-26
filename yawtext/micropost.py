@@ -7,7 +7,7 @@ from flask import g, current_app
 from flask_script import Command, Option
 
 from yawt.utils import call_plugins, ensure_path, load_file, write_post
-
+from yawtext.base import Plugin
 
 def _cfg(key):
     return current_app.config[key]
@@ -92,12 +92,10 @@ class Micropost(Command):
         call_plugins('on_micropost')
 
 
-class YawtMicropost(object):
+class YawtMicropost(Plugin):
     """Micropost extension, allowing you to post on Facebook"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtMicropost, self).__init__(app)
 
     def init_app(self, app):
         app.config.setdefault('YAWT_MICROPOST_CATEGORY', 'microposts')

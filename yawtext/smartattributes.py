@@ -7,13 +7,13 @@ markdown metadata to override git data.
 from __future__ import absolute_import
 
 from flask import current_app
+from yawtext.base import Plugin
 
-class YawtSmartAttributes(object):
+
+class YawtSmartAttributes(Plugin):
     """The actual YAWT smart attributes plugin class"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtSmartAttributes, self).__init__(app)
 
     def init_app(self, app):
         """By default, there are no smart attributes"""

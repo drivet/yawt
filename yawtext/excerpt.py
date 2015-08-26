@@ -3,15 +3,14 @@ from __future__ import absolute_import
 
 from flask import current_app, Markup
 from BeautifulSoup import BeautifulSoup
+from yawtext.base import Plugin
 
 
-class YawtExcerpt(object):
+class YawtExcerpt(Plugin):
     """YAWT excerpt extension.  Sets an excerpt into the article summary
     attribute, based on the configured word count"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtExcerpt, self).__init__(app)
 
     def init_app(self, app):
         """Set up the default word count"""

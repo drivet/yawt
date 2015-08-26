@@ -7,6 +7,7 @@ from __future__ import absolute_import
 
 import markdown
 from flask import Markup, current_app
+from yawtext.base import Plugin
 
 
 def _load_markdown(file_contents):
@@ -16,13 +17,11 @@ def _load_markdown(file_contents):
     return markup
 
 
-class YawtMarkdown(object):
+class YawtMarkdown(Plugin):
     """The YAWT Markdown plugin"""
 
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtMarkdown, self).__init__(app)
 
     def init_app(self, app):
         """Sets some defaule values"""

@@ -17,6 +17,7 @@ from yawtext.collections import CollectionView
 from yawtext.indexer import schema
 from yawt.utils import save_file, load_file, fullname, normalize_renames
 from yawtext.hierarchy_counter import HierarchyCount
+from yawtext.base import Plugin
 
 
 categoriesbp = Blueprint('categories', __name__)
@@ -79,12 +80,10 @@ class CategoryView(CollectionView):
         return flav in current_app.config['YAWT_CATEGORY_FULL_ARTICLE_FLAVOURS']
 
 
-class YawtCategories(object):
+class YawtCategories(Plugin):
     """YAWT category extension class"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtCategories, self).__init__(app)
         self.category_counts = HierarchyCount()
 
     def init_app(self, app):

@@ -16,7 +16,7 @@ from yawtext.collections import CollectionView
 from yawtext.indexer import schema
 from yawt.view import render
 from yawtext.hierarchy_counter import HierarchyCount
-
+from yawtext.base import Plugin
 
 archivesbp = Blueprint('archives', __name__)
 
@@ -122,12 +122,10 @@ class PermalinkView(View):
         return current_app.config['YAWT_PERMALINK_TEMPLATE']
 
 
-class YawtArchives(object):
+class YawtArchives(Plugin):
     """The YAWT archive plugin class itself"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtArchives, self).__init__(app)
         self.archive_counts_map = {}
 
     def init_app(self, app):

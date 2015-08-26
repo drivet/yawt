@@ -5,6 +5,7 @@ import socket
 from flask import current_app
 from yawtext.micropost import post_social
 from yawt.utils import fullname, find_new_renames
+from yawtext.base import Plugin
 
 
 def _cfg(key):
@@ -49,12 +50,10 @@ def notify_new_files(added, renamed):
                 _post_notification(added)
 
 
-class YawtNotify(object):
+class YawtNotify(Plugin):
     """Notify extension, allowing you to post updates on social networks"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtNotify, self).__init__(app)
 
     def init_app(self, app):
         app.config.setdefault('YAWT_NOTIFY_CATEGORIES', [''])

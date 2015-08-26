@@ -11,7 +11,7 @@ from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT, DATETIME
 import jsonpickle
 
 from yawt.utils import fullname, normalize_renames
-
+from yawtext.base import Plugin
 
 def _config(key):
     return current_app.config[key]
@@ -108,14 +108,12 @@ class BadFieldType(Exception):
         return repr(self.field_type)
 
 
-class YawtWhoosh(object):
+class YawtWhoosh(Plugin):
     """YAWT Whoosh extension class.  IMplement the walk and on_file_changed
     protocol.
     """
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtWhoosh, self).__init__(app)
 
     def init_app(self, app):
         """Set up default config values.  By default we index content"""

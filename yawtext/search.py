@@ -8,6 +8,8 @@ from flask import current_app, request, g, Blueprint
 from whoosh.qparser import QueryParser
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
+from yawtext.base import Plugin
+
 
 searchbp = Blueprint('search', __name__)
 
@@ -31,13 +33,11 @@ class SearchView(CollectionView):
         return current_app.config['YAWT_SEARCH_TEMPLATE']
 
 
-class YawtSearch(object):
+class YawtSearch(Plugin):
     """The actual YAWT search plugin class"""
 
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtSearch, self).__init__(app)
 
     def init_app(self, app):
         """Set some config default and register blueprint"""

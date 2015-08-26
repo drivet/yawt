@@ -36,6 +36,8 @@ import jsonpickle
 from yawt.utils import save_file, load_file, fullname, normalize_renames
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
+from yawtext.base import Plugin
+
 
 taggingbp = Blueprint('tagging', __name__)
 
@@ -93,12 +95,10 @@ class TaggingView(CollectionView):
         return flav in current_app.config['YAWT_TAGGING_FULL_ARTICLE_FLAVOURS']
 
 
-class YawtTagging(object):
+class YawtTagging(Plugin):
     """The YAWT tagging plugin class itself"""
     def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
+        super(YawtTagging, self).__init__(app)
         self.tagcountmap = {}
 
     def init_app(self, app):
