@@ -4,7 +4,7 @@ import os.path
 import socket
 from flask import current_app
 from yawtext.micropost import post_social
-from yawt.utils import fullname
+from yawt.utils import fullname, find_new_renames
 
 
 def _cfg(key):
@@ -32,7 +32,7 @@ def _post_notification(added):
 #    print "notify with msg = '"+msg + "' and file = "+added
 
 
-def notify_new_files(files_added, files_renamed):
+def notify_new_files(added, renamed):
     """Sends out a notification about new blog files to social networks"""
 
     if _cfg('YAWT_NOTIFY_HOSTS') and \
@@ -43,14 +43,7 @@ def notify_new_files(files_added, files_renamed):
     for cat in _cfg('YAWT_NOTIFY_CATEGORIES'):
         cat_paths.append(os.path.join(_content_folder(), cat))
 
-    new_renames = []
-    for old, new in files_renamed.iteritems():
-        old_not_content = not old.startswith(_content_folder())
-        new_is_content = new.startswith(_content_folder())
-        if old_not_content and new_is_content:
-            new_renames.append(new)
-
-    for added in files_added + new_renames:
+    for added in added + find_new_renames(renamed):
         for cpath in cat_paths:
             if added.startswith(cpath):
                 _post_notification(added)
