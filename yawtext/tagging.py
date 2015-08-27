@@ -150,10 +150,8 @@ class YawtTagging(Plugin):
                         if tag in self.tagcountmap[base]:
                             self.tagcountmap[base][tag] -= 1
 
-        for f in changed.modified + changed.added:
-            article = g.site.fetch_article_by_repofile(f)
-            if article:
-                self.on_visit_article(article)
+        map(self.on_visit_article,
+            g.site.fetch_articles_by_repofiles(changed.modified + changed.added))
 
         self._delete_unused_tags()
 

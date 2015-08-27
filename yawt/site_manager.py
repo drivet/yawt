@@ -44,6 +44,12 @@ class YawtSiteManager(object):
             return None
         return self._on_article_fetch(article)
 
+    def fetch_articles_by_repofiles(self, repofiles):
+        """Fetches list of articles, calling plugins"""
+        return [article for article in
+                [self.fetch_article_by_repofile(rfile)
+                 for rfile in repofiles] if article]
+
     def walk(self):
         """Perform a walk (i.e. visit each article in the store) and run the
         plugins to process the articles.

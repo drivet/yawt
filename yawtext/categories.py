@@ -154,9 +154,7 @@ class YawtCategories(Plugin):
                 category = _slice_base_off_category(category, countbase)
                 self.category_counts.remove_hierarchy(category)
 
-        for f in changed.modified + changed.added:
-            article = g.site.fetch_article_by_repofile(f)
-            if article:
-                self.on_visit_article(article)
+        map(self.on_visit_article,
+            g.site.fetch_articles_by_repofiles(changed.modified + changed.added))
 
         self.on_post_walk()
