@@ -8,7 +8,7 @@ import frontmatter
 import pytz
 
 import yawt.default_templates
-from yawt.utils import ensure_path, save_file, base_and_ext
+from yawt.utils import ensure_path, save_file, base_and_ext, joinfile
 from datetime import datetime
 
 
@@ -197,10 +197,10 @@ class FileBasedSiteManager(object):
         return extension in self.file_extensions and base != 'index'
 
     def _fullname_ext2file(self, fullname, ext):
-        return os.path.join(self._content_root(), fullname + "." + ext)
+        return joinfile(self._content_root(), fullname, ext)
 
     def _template_ext2file(self, templatename, ext):
-        return os.path.join(self._template_root(), templatename + "." + ext)
+        return joinfile(self._template_root(), templatename, ext)
 
     def _save_template(self, name, flavour, contents):
         save_file(self._template_ext2file(name, flavour), contents)

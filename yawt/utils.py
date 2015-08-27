@@ -125,3 +125,7 @@ def is_content_file(repofile, cfolder=None):
     """Return True if repofile is a content file,
     i.e. lives in the content folder"""
     return repofile.startswith(cfolder or content_folder())
+
+
+def joinfile(rootdir, name, ext):
+    return os.path.join(rootdir, name + "." + ext)
