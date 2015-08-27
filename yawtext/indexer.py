@@ -40,22 +40,21 @@ def schema():
 
 
 def _field_values(article):
-    sch = schema()
     values = {}
-    for field_name in cfg('YAWT_WHOOSH_ARTICLE_FIELDS'):
-        if hasattr(article, field_name):
-            values[field_name] = _value(getattr(article, field_name),
-                                        sch[field_name])
-    info = article.info
-    for field_name in cfg('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'):
-        if hasattr(info, field_name):
-            values[field_name] = _value(getattr(info, field_name),
-                                        sch[field_name])
-
+    _set_values_from_fields(article, cfg('YAWT_WHOOSH_ARTICLE_FIELDS'), values)
+    _set_values_from_fields(article.info, cfg('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'), values)
     article.info.indexed = True
     values['fullname'] = article.info.fullname
     values['article_info_json'] = jsonpickle.encode(article.info)
     return values
+
+
+def _set_values_from_fields(obj, fields, values):
+    sch = schema()
+    for field_name in fields:
+        if hasattr(obj, field_name):
+            values[field_name] = _value(getattr(obj, field_name),
+                                        sch[field_name])
 
 
 def _value(field_value, field_type):
