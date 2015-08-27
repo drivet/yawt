@@ -33,7 +33,7 @@ from flask import current_app, Blueprint, g
 from whoosh.qparser import QueryParser
 import jsonpickle
 
-from yawt.utils import save_file, load_file, fullname
+from yawt.utils import save_file, load_file, fullname, cfg
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
 from yawtext.base import Plugin
@@ -118,19 +118,13 @@ class YawtTagging(Plugin):
     def on_visit_article(self, article):
         """Count the tags for this article"""
         if hasattr(article.info, 'tags'):
-            for base in self._get_bases(article):
+            for base in [b for b in cfg('YAWT_TAGGING_BASE')
+                         if article.info.under(b)]:
                 for tag in article.info.tags:
                     if tag in self.tagcountmap[base]:
                         self.tagcountmap[base][tag] += 1
                     else:
                         self.tagcountmap[base][tag] = 1
-
-    def _get_bases(self, article):
-        bases = []
-        for base in current_app.config['YAWT_TAGGING_BASE']:
-            if article.info.fullname.startswith(base):
-                bases.append(base)
-        return bases
 
     def on_post_walk(self):
         """Save the tag counts to disk"""

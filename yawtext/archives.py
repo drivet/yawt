@@ -11,7 +11,7 @@ from whoosh.qparser import QueryParser
 from flask.views import View
 import jsonpickle
 
-from yawt.utils import save_file, load_file, fullname
+from yawt.utils import save_file, load_file, fullname, cfg
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema, search
 from yawt.view import render
@@ -145,18 +145,12 @@ class YawtArchives(Plugin):
 
     def on_visit_article(self, article):
         """Count and register for this article"""
-        for base in self._get_bases(article):
+        for base in [b for b in cfg('YAWT_ARCHIVE_BASE')
+                     if article.info.under(b)]:
             datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
             date = getattr(article.info, datefield)
             datestring = _date_hierarchy(date)
             self.archive_counts_map[base].count_hierarchy(datestring)
-
-    def _get_bases(self, article):
-        bases = []
-        for base in current_app.config['YAWT_ARCHIVE_BASE']:
-            if article.info.fullname.startswith(base):
-                bases.append(base)
-        return bases
 
     def on_post_walk(self):
         """Save the archive counts to disk"""

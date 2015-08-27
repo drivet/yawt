@@ -78,6 +78,10 @@ class ArticleInfo(object):
         self.create_time = create_time
         self.modified_time = modified_time
 
+    def under(self, base):
+        """Return True if the article is filed under base"""
+        return self.fullname.startswith(base)
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
