@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 from flask import current_app, g
+from yawt.utils import content_folder, is_content_file
 from yawtext.base import Plugin
 
 GIT = '/usr/bin/git'
@@ -15,24 +16,62 @@ GIT = '/usr/bin/git'
 
 class ChangedFiles(object):
     """Structure to represent a summary of changed files in a git changeset"""
-    def __init__(self):
-        self.added = []
-        self.modified = []
-        self.deleted = []
-        self.renamed = {}
+    def __init__(self, **kwargs):
+        self.added = kwargs.get('added', [])
+        self.modified = kwargs.get('modified', [])
+        self.deleted = kwargs.get('deleted', [])
+        self.renamed = kwargs.get('renamed', {})
+        self._content_folder = kwargs.get('content_folder', None)
 
+    def normalize(self):
+        """Return a new ChangedFiles instance with the rename attribute merged
+        into the added and deleted attributes"""
+        added = list(self.added)
+        modified = list(self.modified)
+        deleted = list(self.deleted)
+        for old, new in self.renamed.items():
+            deleted.append(old)
+            added.append(new)
+        return ChangedFiles(added=added,
+                            modified=modified,
+                            deleted=deleted)
 
-def _config(key):
-    return current_app.config[key]
+    def content_changes(self, content_folder=None):
+        """Return a new ChangedFiles instance such that the non-content files
+        are removed from the adde, modified and deleted attributes.  For the
+        renamed attribute, we do the following:
+        - remove all renames that are entirely non-content related
+        - remove all renames with a non-content source and a content
+          destination, and add the destinatuon to the added attribute.
+        - keep the renames that are entire within the content folder.
+        """
+        added = [a for a in self.added if is_content_file(a, content_folder)]
+        modified = [m for m in self.modified if is_content_file(m, content_folder)]
+        deleted = [d for d in self.deleted if is_content_file(d, content_folder)]
 
+        renamed = {}
+        for old, new in self.renamed.items():
+            old_is_content = is_content_file(old, content_folder)
+            new_is_content = is_content_file(new, content_folder)
+            if old_is_content and new_is_content:
+                renamed[old] = new
+            elif not old_is_content and new_is_content:
+                added.append(new)
+        return ChangedFiles(added=added,
+                            modified=modified,
+                            deleted=deleted,
+                            renamed=renamed)
 
-def _content_folder():
-    return _config('YAWT_CONTENT_FOLDER')
+    def __eq__(self, other):
+        return self.added == other.added and \
+            self.modified == other.modified and \
+            self.deleted == other.deleted and \
+            self.renamed == other.renamed
 
 
 def _abs_filename(fullname, ext):
     root_dir = g.site.root_dir
-    abs_path = os.path.join(root_dir, _content_folder(), fullname + '.' + ext)
+    abs_path = os.path.join(root_dir, content_folder(), fullname + '.' + ext)
     return abs_path
 
 
@@ -70,11 +109,10 @@ def extract_diff_tree_files(diff_tree_out):
             renamed_files[old] = new
         else:
             print "unknown git status: " + status
-    changed = ChangedFiles()
-    changed.added = added_files
-    changed.modified = modified_files
-    changed.deleted = deleted_files
-    changed.renamed = renamed_files
+    changed = ChangedFiles(added=added_files,
+                           modified=modified_files,
+                           deleted=deleted_files,
+                           renamed=renamed_files)
     return changed
 
 
@@ -101,13 +139,11 @@ def extract_indexed_status_files(status_out):
             renamed_files[old] = new
         else:
             print "Skipping unknown status: "+status
-    changed = ChangedFiles()
-    changed.added = added_files
-    changed.modified = modified_files
-    changed.deleted = deleted_files
-    changed.renamed = renamed_files
+    changed = ChangedFiles(added=added_files,
+                           modified=modified_files,
+                           deleted=deleted_files,
+                           renamed=renamed_files)
     return changed
-
 
 def git_diff_tree(git, repo_path, tree1, tree2=None):
     """Execute a git diff-tree and return the output"""

@@ -33,7 +33,7 @@ from flask import current_app, Blueprint, g
 from whoosh.qparser import QueryParser
 import jsonpickle
 
-from yawt.utils import save_file, load_file, fullname, normalize_renames
+from yawt.utils import save_file, load_file, fullname
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
 from yawtext.base import Plugin
@@ -139,17 +139,16 @@ class YawtTagging(Plugin):
             pickled_info = jsonpickle.encode(tagcounts)
             save_file(_abs_tagcount_file(base), pickled_info)
 
-    def on_files_changed(self, added, modified, deleted, renamed):
+    def on_files_changed(self, changed):
         """pass in three lists of files, modified, added, removed, all
         relative to the *repo* root, not the content root (so these are
         not absolute filenames)
         """
-        added, modified, deleted = \
-            normalize_renames(added, modified, deleted, renamed)
+        changed = changed.content_changes().normalize()
         for base in current_app.config['YAWT_TAGGING_BASE']:
             pickled_info = load_file(_abs_tagcount_file(base))
             self.tagcountmap[base] = jsonpickle.decode(pickled_info)
-            for f in deleted + modified:
+            for f in changed.deleted + changed.modified:
                 name = fullname(f)
                 if name:
                     tags_to_remove = self._tags_for_name(name)
@@ -157,7 +156,7 @@ class YawtTagging(Plugin):
                         if tag in self.tagcountmap[base]:
                             self.tagcountmap[base][tag] -= 1
 
-        for f in modified + added:
+        for f in changed.modified + changed.added:
             article = g.site.fetch_article_by_repofile(f)
             if article:
                 self.on_visit_article(article)

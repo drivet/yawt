@@ -10,11 +10,8 @@ from flask import current_app, g
 from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT, DATETIME
 import jsonpickle
 
-from yawt.utils import fullname, normalize_renames
+from yawt.utils import fullname, cfg
 from yawtext.base import Plugin
-
-def _config(key):
-    return current_app.config[key]
 
 
 def _whoosh():
@@ -35,8 +32,8 @@ def search(query, sortedby, page, pagelen, reverse=False):
 def schema():
     """returns whoosh schema for yawt articles"""
     fields = {}
-    fields.update(_config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'))
-    fields.update(_config('YAWT_WHOOSH_ARTICLE_FIELDS'))
+    fields.update(cfg('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'))
+    fields.update(cfg('YAWT_WHOOSH_ARTICLE_FIELDS'))
     fields['article_info_json'] = STORED()
     fields['fullname'] = ID()  # add (or override) whatever is in config
     return fields
@@ -45,12 +42,12 @@ def schema():
 def _field_values(article):
     sch = schema()
     values = {}
-    for field_name in _config('YAWT_WHOOSH_ARTICLE_FIELDS'):
+    for field_name in cfg('YAWT_WHOOSH_ARTICLE_FIELDS'):
         if hasattr(article, field_name):
             values[field_name] = _value(getattr(article, field_name),
                                         sch[field_name])
     info = article.info
-    for field_name in _config('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'):
+    for field_name in cfg('YAWT_WHOOSH_ARTICLE_INFO_FIELDS'):
         if hasattr(info, field_name):
             values[field_name] = _value(getattr(info, field_name),
                                         sch[field_name])
@@ -137,7 +134,6 @@ class YawtWhoosh(Plugin):
         """Commit the index"""
         _whoosh().writer.commit()
 
-    def on_files_changed(self, added, modified, deleted, renamed):
-        added, modified, deleted = \
-            normalize_renames(added, modified, deleted, renamed)
-        update_index(added, modified, deleted)
+    def on_files_changed(self, changed):
+        changed = changed.content_changes().normalize()
+        update_index(changed.added, changed.modified, changed.deleted)

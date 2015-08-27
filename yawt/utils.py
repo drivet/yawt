@@ -111,29 +111,6 @@ def run_in_context(repo_path, func, *args, **kwargs):
         func(*args, **kwargs)
 
 
-def normalize_renames(added, modified, deleted, renamed):
-    """incorporate renames into the added and deleted lists"""
-    new_added = list(added)
-    new_modified = list(modified)
-    new_deleted = list(deleted)
-    for old, new in renamed.iteritems():
-        new_deleted.append(old)
-        new_added.append(new)
-    return new_added, new_modified, new_deleted
-
-
-def find_new_renames(renamed):
-    """Given a dictionary of renamed files, find the ones that correspond
-    to new entries on the content folder"""
-    new_renames = []
-    for old, new in renamed.items():
-        old_not_content = not old.startswith(content_folder())
-        new_is_content = new.startswith(content_folder())
-        if old_not_content and new_is_content:
-            new_renames.append(new)
-    return new_renames
-
-
 def cfg(key):
     """Easy way to get access to the config object"""
     return current_app.config[key]
@@ -142,3 +119,9 @@ def cfg(key):
 def content_folder():
     """"Easy way to get access to the content folder"""
     return cfg('YAWT_CONTENT_FOLDER')
+
+
+def is_content_file(repofile, cfolder=None):
+    """Return True if repofile is a content file,
+    i.e. lives in the content folder"""
+    return repofile.startswith(cfolder or content_folder())

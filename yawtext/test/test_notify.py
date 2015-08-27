@@ -8,7 +8,7 @@ import yawtext.notify
 from yawt import create_app
 from flask import g
 import shutil
-
+from yawtext.git import ChangedFiles
 
 class Config(object):
     YAWT_NOTIFY_CATEGORIES = ['cat1']
@@ -25,10 +25,10 @@ class TestNotify(unittest.TestCase):
         self.app = create_app(self.tempdir)
         self.notify = yawtext.notify.YawtNotify(self.app)
         with self.app.test_request_context():
-            self.notify.on_files_changed(['content/cat1/a.txt', 'content/cat2/b.txt'],
-                                         ['content/cat3/c.txt','content/cat4/d.txt'],
-                                         ['content/cat5/e.txt', 'content/cat6/f.txt'],
-                                         {})
+            changed = ChangedFiles(added=['content/cat1/a.txt', 'content/cat2/b.txt'],
+                                   modified=['content/cat3/c.txt','content/cat4/d.txt'],
+                                   deleted=['content/cat5/e.txt', 'content/cat6/f.txt'])
+            self.notify.on_files_changed(changed)
         args_list = yawtext.notify.post_social.call_args_list
         call = args_list[0]
         msg = call[0][0]
@@ -43,10 +43,10 @@ class TestNotify(unittest.TestCase):
         self.app = create_app(self.tempdir, config=Config())
         self.notify = yawtext.notify.YawtNotify(self.app)
         with self.app.test_request_context():
-            self.notify.on_files_changed(['content/cat1/a.txt', 'content/cat2/b.txt'],
-                                         ['content/cat3/c.txt', 'content/cat4/d.txt'],
-                                         ['content/cat5/e.txt', 'content/cat6/f.txt'], 
-                                         {})
+            changed = ChangedFiles(added=['content/cat1/a.txt', 'content/cat2/b.txt'],
+                                   modified=['content/cat3/c.txt', 'content/cat4/d.txt'],
+                                   deleted=['content/cat5/e.txt', 'content/cat6/f.txt'])
+            self.notify.on_files_changed(changed)
         args_list = yawtext.notify.post_social.call_args_list
         self.assertEquals(1, len(args_list))
         call = args_list[0]

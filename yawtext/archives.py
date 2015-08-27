@@ -11,9 +11,9 @@ from whoosh.qparser import QueryParser
 from flask.views import View
 import jsonpickle
 
-from yawt.utils import save_file, load_file, fullname, normalize_renames
+from yawt.utils import save_file, load_file, fullname
 from yawtext.collections import CollectionView
-from yawtext.indexer import schema
+from yawtext.indexer import schema, search
 from yawt.view import render
 from yawtext.hierarchy_counter import HierarchyCount
 from yawtext.base import Plugin
@@ -106,10 +106,10 @@ class PermalinkView(View):
     def dispatch_request(self, category=None, year=None, month=None, day=None,
                          slug=None, flav=None):
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-        ainfos, total = _yawtwhoosh().search(_query(category, year, month, day),
-                                             datefield,
-                                             g.page, g.pagelen,
-                                             True)
+        ainfos, _ = search(_query(category, year, month, day),
+                           datefield,
+                           g.page, g.pagelen,
+                           True)
         article = None
         for info in ainfos:
             if info.slug == slug:
@@ -166,17 +166,16 @@ class YawtArchives(Plugin):
             pickled_info = jsonpickle.encode(archive_counts)
             save_file(_abs_archivecount_file(base), pickled_info)
 
-    def on_files_changed(self, added, modified, deleted, renamed):
+    def on_files_changed(self, changed):
         """pass in three lists of files, modified, added, removed, all
         relative to the *repo* root, not the content root (so these are not
         absolute filenames)
         """
-        added, modified, deleted = \
-            normalize_renames(added, modified, deleted, renamed)
+        changed = changed.content_changes().normalize()
         for base in current_app.config['YAWT_ARCHIVE_BASE']:
             pickled_info = load_file(_abs_archivecount_file(base))
             self.archive_counts_map[base] = jsonpickle.decode(pickled_info)
-            for f in deleted + modified:
+            for f in changed.deleted + changed.modified:
                 name = fullname(f)
                 if name:
                     create_time = _fetch_date_for_name(name)
@@ -184,7 +183,7 @@ class YawtArchives(Plugin):
                         datestring = _date_hierarchy(create_time)
                         self.archive_counts_map[base].remove_hierarchy(datestring)
 
-        for f in modified + added:
+        for f in changed.modified + changed.added:
             article = g.site.fetch_article_by_repofile(f)
             if article:
                 self.on_visit_article(article)

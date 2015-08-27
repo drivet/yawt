@@ -6,7 +6,7 @@ import os
 import yaml
 from flask import current_app
 import frontmatter
-from yawt.utils import save_file, find_new_renames
+from yawt.utils import save_file
 from yawtext.base import Plugin
 
 
@@ -37,10 +37,9 @@ def _fix_dates_for_article(abs_article_file):
 
 def _fix_dates(root_dir, changed):
     """Add timestamps to files mentioned in the index"""
-    files = changed.added + changed.modified + find_new_renames(changed.renamed)
-    for changed_file in files:
-        if changed_file.startswith(_content_folder()):
-            _fix_dates_for_article(os.path.join(root_dir, changed_file))
+    changed = changed.content_changes()
+    for changed_file in changed.added + changed.modified:
+        _fix_dates_for_article(os.path.join(root_dir, changed_file))
 
 
 class YawtAutodates(Plugin):

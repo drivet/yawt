@@ -13,6 +13,7 @@ from yawt.article import ArticleInfo, Article
 import jsonpickle
 from yawt.test.siteutils import TempSite
 from yawtext.test.utils import generate_collection_template
+from yawtext.git import ChangedFiles
 
 class TestConfig(object):
     def __init__(self, site):
@@ -162,8 +163,10 @@ class TestYawtTagging(unittest.TestCase):
 
         with self.app.test_request_context():
             self.app.preprocess_request()
-            call_plugins('on_files_changed',
-                         added, modified, removed, {})
+            changed = ChangedFiles(added=added,
+                                   modified=modified,
+                                   deleted=removed)
+            call_plugins('on_files_changed',changed)
 
         tagcountfile = self.abs_tagcount_file()
         self.assertTrue(os.path.exists(tagcountfile))

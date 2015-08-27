@@ -15,6 +15,7 @@ from datetime import datetime
 from yawt.utils import save_file, call_plugins
 from yawt.article import ArticleInfo
 import jsonpickle
+from yawtext.git import ChangedFiles
 
 class TestYawtWhoosh(unittest.TestCase):
     def setUp(self):
@@ -134,11 +135,10 @@ class TestYawtWhoosh(unittest.TestCase):
 
         with self.app.test_request_context():
             self.app.preprocess_request()
-            call_plugins('on_files_changed',
-                         ['content/article5.txt', 'content/article6.txt'],
-                         ['content/article1.txt', 'content/article2.txt'],
-                         ['content/article3.txt', 'content/article4.txt'],
-                         {})
+            changed = ChangedFiles(added=['content/article5.txt', 'content/article6.txt'],
+                                   modified=['content/article1.txt', 'content/article2.txt'],
+                                   deleted=['content/article3.txt', 'content/article4.txt'])
+            call_plugins('on_files_changed', changed)
 
         qp = QueryParser('fullname', schema=schema)
         with idx.searcher() as searcher:

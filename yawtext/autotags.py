@@ -5,8 +5,7 @@ from flask import current_app, g
 from flask_script import Command, Option
 
 import frontmatter
-from yawt.utils import save_file, \
-    find_new_renames, content_folder, fullname
+from yawt.utils import save_file, content_folder, fullname
 from yawtext.base import Plugin
 
 
@@ -29,10 +28,8 @@ def _add_tags_for_article(abs_article_file, searcher):
 
 def _add_tags(root_dir, changed):
     searcher = _whoosh().searcher
-    files = changed.added + find_new_renames(changed.renamed)
-    for new_file in files:
-        if new_file.startswith(content_folder()):
-            _add_tags_for_article(os.path.join(root_dir, new_file), searcher)
+    for new_file in changed.content_changes().added:
+        _add_tags_for_article(os.path.join(root_dir, new_file), searcher)
 
 
 def _add_tags_for_indexed_article(root_dir, indexed_file, edit):

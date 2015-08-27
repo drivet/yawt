@@ -15,7 +15,7 @@ from whoosh.query.qcore import Every
 
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
-from yawt.utils import save_file, load_file, fullname, normalize_renames
+from yawt.utils import save_file, load_file, fullname
 from yawtext.hierarchy_counter import HierarchyCount
 from yawtext.base import Plugin
 
@@ -140,14 +140,13 @@ class YawtCategories(Plugin):
         pickled_counts = jsonpickle.encode(self.category_counts)
         save_file(_abs_category_count_file(), pickled_counts)
 
-    def on_files_changed(self, added, modified, deleted, renamed):
+    def on_files_changed(self, changed):
         """Register changed files against HierarchyCounts"""
-        added, modified, deleted = \
-            normalize_renames(added, modified, deleted, renamed)
+        changed = changed.content_changes().normalize()
         pickled_counts = load_file(_abs_category_count_file())
         self.category_counts = jsonpickle.decode(pickled_counts)
 
-        for f in deleted + modified:
+        for f in changed.deleted + changed.modified:
             name = fullname(f)
             if name:
                 countbase = _adjust_base_for_category()  # blech
@@ -155,7 +154,7 @@ class YawtCategories(Plugin):
                 category = _slice_base_off_category(category, countbase)
                 self.category_counts.remove_hierarchy(category)
 
-        for f in modified + added:
+        for f in changed.modified + changed.added:
             article = g.site.fetch_article_by_repofile(f)
             if article:
                 self.on_visit_article(article)

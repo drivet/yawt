@@ -12,6 +12,7 @@ from yawt.article import ArticleInfo, Article
 import jsonpickle
 from yawt.test.siteutils import TempSite
 from yawtext.test.utils import generate_collection_template
+from yawtext.git import ChangedFiles
 from datetime import datetime
 
 def dt(year, month, day):
@@ -295,8 +296,10 @@ class TestYawtCategories(unittest.TestCase):
 
         with self.app.test_request_context():
             self.app.preprocess_request()
-            call_plugins('on_files_changed',
-                         added, modified, removed, {})
+            changed = ChangedFiles(added=added,
+                                   modified=modified,
+                                   deleted=removed)
+            call_plugins('on_files_changed',changed)
 
         countfile = self.abs_category_count_file()
         self.assertTrue(os.path.exists(countfile))
