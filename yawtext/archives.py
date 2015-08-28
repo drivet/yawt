@@ -3,7 +3,7 @@
 Provides archive and permalink views and categorized archive routes.
 """
 from __future__ import absolute_import
-import os
+
 from datetime import datetime
 
 from flask import current_app, g, Blueprint
@@ -11,12 +11,14 @@ from whoosh.qparser import QueryParser
 from flask.views import View
 import jsonpickle
 
-from yawt.utils import save_file, load_file, fullname, cfg
+from yawt.utils import save_file, load_file, fullname, cfg, abs_state_folder
+from yawtext.base_state_files import StateFiles, state_context_processor
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema, search
 from yawt.view import render
 from yawtext.hierarchy_counter import HierarchyCount
 from yawtext.base import Plugin
+
 
 archivesbp = Blueprint('archives', __name__)
 
@@ -46,23 +48,9 @@ def _find_base(name):
 
 @archivesbp.app_context_processor
 def _archive_counts_cp():
-    archivecountmap = {}
-    for base in current_app.config['YAWT_ARCHIVE_BASE']:
-        archivecountfile = _abs_archivecount_file(base)
-        if os.path.isfile(archivecountfile):
-            archivecounts = jsonpickle.decode(load_file(archivecountfile))
-            archivecountmap[base] = archivecounts
-    tvars = {}
-    if len(archivecountmap) > 0:
-        tvars['archivecounts'] = archivecountmap
-    return tvars
-
-
-def _abs_archivecount_file(base):
-    root = current_app.yawt_root_dir
-    archivecountfile = current_app.config['YAWT_ARCHIVE_COUNT_FILE']
-    state_folder = current_app.config['YAWT_STATE_FOLDER']
-    return os.path.join(root, state_folder, base, archivecountfile)
+    return state_context_processor('YAWT_ARCHIVE_COUNT_FILE',
+                                   'YAWT_ARCHIVE_BASE',
+                                   'archivecounts')
 
 
 def _datestr(year, month=None, day=None):
@@ -154,11 +142,12 @@ class YawtArchives(Plugin):
 
     def on_post_walk(self):
         """Save the archive counts to disk"""
+        statefiles = StateFiles(abs_state_folder(), cfg('YAWT_ARCHIVE_COUNT_FILE'))
         for base in self.archive_counts_map:
             archive_counts = self.archive_counts_map[base]
             archive_counts.sort_children(reverse=True)
             pickled_info = jsonpickle.encode(archive_counts)
-            save_file(_abs_archivecount_file(base), pickled_info)
+            save_file(statefiles.abs_state_file(base), pickled_info)
 
     def on_files_changed(self, changed):
         """pass in three lists of files, modified, added, removed, all
@@ -166,8 +155,9 @@ class YawtArchives(Plugin):
         absolute filenames)
         """
         changed = changed.content_changes().normalize()
+        statefiles = StateFiles(abs_state_folder(), cfg('YAWT_ARCHIVE_COUNT_FILE'))
         for base in current_app.config['YAWT_ARCHIVE_BASE']:
-            pickled_info = load_file(_abs_archivecount_file(base))
+            pickled_info = load_file(statefiles.abs_state_file(base))
             self.archive_counts_map[base] = jsonpickle.decode(pickled_info)
             for f in changed.deleted + changed.modified:
                 name = fullname(f)

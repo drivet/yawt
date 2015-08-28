@@ -121,6 +121,16 @@ def content_folder():
     return cfg('YAWT_CONTENT_FOLDER')
 
 
+def state_folder():
+    """"Easy way to get access to the state folder"""
+    return cfg('YAWT_STATE_FOLDER')
+
+
+def abs_state_folder():
+    """"Easy way to get access to the state folder"""
+    return os.path.join(current_app.yawt_root_dir, state_folder())
+
+
 def is_content_file(repofile, cfolder=None):
     """Return True if repofile is a content file,
     i.e. lives in the content folder"""
@@ -128,4 +138,10 @@ def is_content_file(repofile, cfolder=None):
 
 
 def joinfile(rootdir, name, ext):
+    """Join together rootdir name and ext"""
     return os.path.join(rootdir, name + "." + ext)
+
+
+def single_dict_var(varname, obj):
+    """Return a dict with the single entry passed in, if it's Truthy"""
+    return {k: v for (k, v) in [(varname, obj)] if obj}

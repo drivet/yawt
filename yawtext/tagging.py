@@ -27,13 +27,13 @@ tagcounts template variable, which is a map of bases mapped to tag counts maps.
 """
 from __future__ import absolute_import
 
-import os
-
 from flask import current_app, Blueprint, g
 from whoosh.qparser import QueryParser
 import jsonpickle
 
-from yawt.utils import save_file, load_file, fullname, cfg
+from yawt.utils import save_file, load_file, fullname,\
+    cfg, abs_state_folder
+from yawtext.base_state_files import StateFiles, state_context_processor
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
 from yawtext.base import Plugin
@@ -46,25 +46,11 @@ def _whoosh():
     return current_app.extension_info[0]['flask_whoosh.Whoosh']
 
 
-def _abs_tagcount_file(base):
-    root = current_app.yawt_root_dir
-    tagcountfile = current_app.config['YAWT_TAGGING_COUNT_FILE']
-    state_folder = current_app.config['YAWT_STATE_FOLDER']
-    return os.path.join(root, state_folder, base, tagcountfile)
-
-
 @taggingbp.app_context_processor
 def _tagcounts_cp():
-    tagcountmap = {}
-    for base in current_app.config['YAWT_TAGGING_BASE']:
-        tagcountfile = _abs_tagcount_file(base)
-        if os.path.isfile(tagcountfile):
-            tagcounts = jsonpickle.decode(load_file(tagcountfile))
-            tagcountmap[base] = tagcounts
-    tvars = {}
-    if len(tagcountmap) > 0:
-        tvars['tagcounts'] = tagcountmap
-    return tvars
+    return state_context_processor('YAWT_TAGGING_COUNT_FILE',
+                                   'YAWT_TAGGING_BASE',
+                                   'tagcounts')
 
 
 @taggingbp.context_processor
@@ -128,10 +114,11 @@ class YawtTagging(Plugin):
 
     def on_post_walk(self):
         """Save the tag counts to disk"""
+        statefiles = StateFiles(abs_state_folder(), cfg('YAWT_TAGGING_COUNT_FILE'))
         for base in self.tagcountmap:
             tagcounts = self.tagcountmap[base]
             pickled_info = jsonpickle.encode(tagcounts)
-            save_file(_abs_tagcount_file(base), pickled_info)
+            save_file(statefiles.abs_state_file(base), pickled_info)
 
     def on_files_changed(self, changed):
         """pass in three lists of files, modified, added, removed, all
@@ -139,8 +126,9 @@ class YawtTagging(Plugin):
         not absolute filenames)
         """
         changed = changed.content_changes().normalize()
+        statefiles = StateFiles(abs_state_folder(), cfg('YAWT_TAGGING_COUNT_FILE'))
         for base in current_app.config['YAWT_TAGGING_BASE']:
-            pickled_info = load_file(_abs_tagcount_file(base))
+            pickled_info = load_file(statefiles.abs_state_file(base))
             self.tagcountmap[base] = jsonpickle.decode(pickled_info)
             for f in changed.deleted + changed.modified:
                 name = fullname(f)

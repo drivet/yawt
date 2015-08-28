@@ -22,6 +22,8 @@ class TestConfig(object):
             {'create_time': DATETIME(sortable=True), 'tags': KEYWORD(commas=True)}
         self.YAWT_ARTICLE_EXTENSIONS = ['md']
         self.YAWT_META_TYPES = {'tags': 'list'}
+        self.YAWT_STATE_FOLDER = '_state'
+
 
 class TestYawtTagging(unittest.TestCase):
     def setUp(self):
@@ -30,7 +32,7 @@ class TestYawtTagging(unittest.TestCase):
 
         self.plugin = YawtTagging()
 
-        self.app = create_app(self.site.site_root, 
+        self.app = create_app(self.site.site_root,
                               config = TestConfig(self.site),
                               extension_info = extension_info(self.plugin))
         self.app.testing = True
@@ -54,7 +56,6 @@ class TestYawtTagging(unittest.TestCase):
         tagcountfile = self.abs_tagcount_file()
         self.assertTrue(os.path.exists(tagcountfile))
         tagcounts = jsonpickle.decode(load_file(tagcountfile))
-        print "tagcounts: "+str(tagcounts)
         self.assertEquals(2, tagcounts['tag1'])
         self.assertEquals(2, tagcounts['tag2'])
         self.assertEquals(2, tagcounts['tag3'])
