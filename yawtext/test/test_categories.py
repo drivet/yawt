@@ -49,9 +49,9 @@ class TestYawtCategories(unittest.TestCase):
             info.category = 'cooking/indian'
             article = Article()
             article.info = info
-            article = g.site._on_article_fetch(article)
+            article = self.plugin.on_article_fetch(article)
         self.assertEqual(['cooking/indian', 'cooking'], article.info.categories)
-  
+
     def test_on_404_skips_rendering_if_fullname_is_not_index_file(self): 
         with self.app.test_request_context():
             self.app.preprocess_request()
@@ -70,19 +70,19 @@ class TestYawtCategories(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('article1', '', 'article1', 'txt', dt(2004, 11, 03) )
+        info1 = ArticleInfo(fullname='article1', slug='article1', extension='txt', create_time=dt(2004, 11, 03) )
         writer.add_document(fullname=u'article1', create_time=datetime.fromtimestamp(dt(2004, 11, 04)), 
                             content=u'stuff1', 
                             article_info_json=jsonpickle.encode(info1))
-        info2 = ArticleInfo('article2', '', 'article2', 'txt', dt(2004, 11, 05))
+        info2 = ArticleInfo(fullname='article2', slug='article2',  extension='txt', create_time=dt(2004, 11, 05))
         writer.add_document(fullname=u'article2', create_time=datetime.fromtimestamp(dt(2004, 11, 05)), 
                             content=u'stuff2', 
                             article_info_json=jsonpickle.encode(info2))
-        info3 = ArticleInfo('article3', '', 'article3', 'txt', dt(2004, 11, 04))
+        info3 = ArticleInfo(fullname='article3', slug='article3', extension= 'txt', create_time=dt(2004, 11, 04))
         writer.add_document(fullname=u'article3', create_time=datetime.fromtimestamp(dt(2004, 11, 04)), 
                             content=u'stuff3',
                             article_info_json=jsonpickle.encode(info3))
-        info4 = ArticleInfo('article4', '', 'article4', 'txt', dt(2004, 11, 02))
+        info4 = ArticleInfo(fullname='article4', slug='article4',  extension='txt', create_time=dt(2004, 11, 02))
         writer.add_document(fullname=u'article4', create_time=datetime.fromtimestamp(dt(2004, 11, 02)), 
                             content=u'stuff4',
                             article_info_json=jsonpickle.encode(info4))
@@ -104,28 +104,28 @@ class TestYawtCategories(unittest.TestCase):
         self.site.save_content('bar/article2.txt', u'stuff2')
         self.site.save_content('foo/article3.txt', u'stuff3')
         self.site.save_content('bar/article4.txt', u'stuff4')
-        
+
         fields = self._schema()
         schema = Schema(**fields)
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('foo/article1', 'foo', 'article1', 'txt',dt(2004, 11, 03) )
+        info1 = ArticleInfo(fullname='foo/article1', category='foo', slug='article1', extension='txt',create_time=dt(2004, 11, 03) )
         writer.add_document(fullname=u'foo/article1', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff1', 
                             article_info_json=jsonpickle.encode(info1), categories=u"foo")
-        info2 = ArticleInfo('bar/article2', 'bar', 'article2', 'txt', dt(2004, 11, 05))
+        info2 = ArticleInfo(fullname='bar/article2', category='bar', slug='article2', extension='txt', create_time=dt(2004, 11, 05))
         writer.add_document(fullname=u'bar/article2', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 05)),
                             content=u'stuff2', 
                             article_info_json=jsonpickle.encode(info2), categories=u"bar" )
-        info3 = ArticleInfo('foo/article3', 'foo', 'article3', 'txt', dt(2004, 11, 04))
+        info3 = ArticleInfo(fullname='foo/article3', category='foo', slug='article3', extension='txt', create_time=dt(2004, 11, 04))
         writer.add_document(fullname=u'foo/article3', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff3',
                             article_info_json=jsonpickle.encode(info3), categories=u"foo")
-        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', dt(2004, 11, 02))
+        info4 = ArticleInfo(fullname='bar/article4', category='bar', slug='article4', extension='txt', create_time=dt(2004, 11, 02))
         writer.add_document(fullname=u'bar/article4', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 02)),
                             content=u'stuff4',
@@ -138,7 +138,7 @@ class TestYawtCategories(unittest.TestCase):
             assert 'article3' in rv.data
             assert 'article2' not in rv.data
             assert 'article4' not in rv.data
-            
+
 
     def test_on_404_renders_if_fullname_is_nested_categorized_index_file(self):
         template = generate_collection_template('a', 'articles', ['info.fullname'])
@@ -158,22 +158,22 @@ class TestYawtCategories(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('foo/har/article1', 'foo/har', 'article1', 'txt',dt(2004, 11, 03) )
+        info1 = ArticleInfo(fullname='foo/har/article1', category='foo/har', slug='article1', extension='txt',create_time=dt(2004, 11, 03) )
         writer.add_document(fullname=u'foo/har/article1', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff1', 
                             article_info_json=jsonpickle.encode(info1), categories=u"foo,foo/har")
-        info2 = ArticleInfo('bar/article2', 'bar', 'article2', 'txt', dt(2004, 11, 05))
+        info2 = ArticleInfo(fullname='bar/article2', category='bar', slug='article2', extension='txt', create_time=dt(2004, 11, 05))
         writer.add_document(fullname=u'bar/article2', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 05)),
                             content=u'stuff2', 
                             article_info_json=jsonpickle.encode(info2), categories=u"bar" )
-        info3 = ArticleInfo('foo/gad/article3', 'foo/gad', 'article3', 'txt', dt(2004, 11, 04))
+        info3 = ArticleInfo(fullname='foo/gad/article3', category='foo/gad', slug='article3', extension='txt', create_time=dt(2004, 11, 04))
         writer.add_document(fullname=u'foo/gad/article3', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff3',
                             article_info_json=jsonpickle.encode(info3), categories=u"foo,foo/gad")
-        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', dt(2004, 11, 02))
+        info4 = ArticleInfo(fullname='bar/article4', category='bar', slug='article4', extension='txt', create_time=dt(2004, 11, 02))
         writer.add_document(fullname=u'bar/article4', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 02)),
                             content=u'stuff4',
@@ -186,17 +186,17 @@ class TestYawtCategories(unittest.TestCase):
             assert 'article1' in rv.data
             assert 'article2' not in rv.data
             assert 'article4' not in rv.data
-            
+
             rv = c.get('/foo/har/index.html')
             assert 'article1' in rv.data
             assert 'article2' not in rv.data 
             assert 'article3' not in rv.data
             assert 'article4' not in rv.data
- 
+
     def test_walking_produces_readable_categorycount_file(self):
         self.site.mk_content_category('foo')
         self.site.mk_content_category('bar')
-        
+
         self.site.save_content('foo/article1.txt', u'stuff1')
         self.site.save_content('foo/article2.txt', u'stuff2')
         self.site.save_content('foo/article3.txt', u'stuff3')
@@ -236,28 +236,28 @@ class TestYawtCategories(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('foo/article1', 'foo', 'article1', 'txt', dt(2004, 11, 03) )
+        info1 = ArticleInfo(fullname='foo/article1', category='foo', slug='article1', extension='txt', create_time=dt(2004, 11, 03) )
         info1.categories = ['foo']
         writer.add_document(fullname=u'foo/article1', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 04)),
                             content=u'stuff1',
                             article_info_json=jsonpickle.encode(info1))
 
-        info2 = ArticleInfo('foo/article2', 'foo', 'article2', 'txt', dt(2004, 11, 05))
+        info2 = ArticleInfo(fullname='foo/article2', category='foo', slug='article2', extension='txt', create_time=dt(2004, 11, 05))
         info2.categories = ['foo']
         writer.add_document(fullname=u'foo/article2', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 05)), 
                             content=u'stuff2',
                             article_info_json=jsonpickle.encode(info2))
 
-        info3 = ArticleInfo('foo/article3', 'foo', 'article3', 'txt', dt(2004, 11, 04))
+        info3 = ArticleInfo(fullname='foo/article3', category='foo', slug='article3', extension='txt', create_time=dt(2004, 11, 04))
         info3.categories = ['foo']
         writer.add_document(fullname=u'foo/article3',
                             create_time=datetime.fromtimestamp(dt(2004, 11, 04)), 
                             content=u'stuff3', 
                             article_info_json=jsonpickle.encode(info3))
 
-        info4 = ArticleInfo('bar/article4', 'bar', 'article4', 'txt', dt(2004, 11, 02))
+        info4 = ArticleInfo(fullname='bar/article4', category='bar', slug='article4', extension='txt', create_time=dt(2004, 11, 02))
         info4.categories = ['bar']
         writer.add_document(fullname=u'bar/article4', 
                             create_time=datetime.fromtimestamp(dt(2004, 11, 02)),

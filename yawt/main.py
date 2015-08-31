@@ -10,8 +10,7 @@ from flask import current_app, g, Blueprint, url_for, request, \
     redirect, abort, render_template
 from jinja2 import TemplatesNotFound
 
-from yawt.article import FileBasedSiteManager
-from yawt.site_manager import YawtSiteManager
+from yawt.site_manager import YawtSiteManager, ArticleNotFoundError
 from yawt.utils import has_method
 from yawt.view import render
 
@@ -77,14 +76,12 @@ def static(filename):
 @yawtbp.before_app_request
 def _before_request():
     config = current_app.config
-    g.store = FileBasedSiteManager(current_app.yawt_root_dir,
-                                   config['YAWT_DRAFT_FOLDER'],
-                                   config['YAWT_CONTENT_FOLDER'],
-                                   config['YAWT_TEMPLATE_FOLDER'],
-                                   config['YAWT_ARTICLE_EXTENSIONS'],
-                                   config['YAWT_META_TYPES'])
-
-    g.site = YawtSiteManager(g.store)
+    g.site = YawtSiteManager(root_dir=current_app.yawt_root_dir,
+                             draft_folder=config['YAWT_DRAFT_FOLDER'],
+                             content_folder=config['YAWT_CONTENT_FOLDER'],
+                             template_folder=config['YAWT_TEMPLATE_FOLDER'],
+                             file_extensions=config['YAWT_ARTICLE_EXTENSIONS'],
+                             meta_types=config['YAWT_META_TYPES'])
 
 
 def _handle_path(path):
@@ -111,15 +108,17 @@ def _handle_path(path):
             # requesting a file with particular flavour
             fullname = match.group(1)
             flavour = match.group(2)
-        elif g.store.is_category(path):
+        elif g.site.is_category(path):
             return redirect('/' + path + '/')
         else:
             fullname = path
 
     current_app.logger.debug('fullname requested: ' + fullname)
     current_app.logger.debug('flavour requested: ' + flavour)
-    article = g.site.fetch_article(fullname)
-    if article is None:
+
+    try:
+        article = g.site.fetch_article(fullname)
+    except ArticleNotFoundError:
         current_app.logger.debug('no article found at ' + fullname +
                                  ', handling the 404')
         result = _handle_404(fullname, flavour)

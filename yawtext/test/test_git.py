@@ -21,7 +21,7 @@ class TestYawtGitNewSite(unittest.TestCase):
         self.assertFalse(os.path.isfile(os.path.join(self.root_dir, '.gitignore')))
         with self.app.test_request_context():
             self.app.preprocess_request()
-            g.site.new_site()
+            g.site.initialize()
         self.assertTrue(os.path.isfile(os.path.join(self.root_dir, '.gitignore')))
 
     def tearDown(self):

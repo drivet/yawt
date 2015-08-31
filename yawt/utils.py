@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import os
 import re
+from datetime import date, datetime, time
 from flask import current_app
 import yawt
 
@@ -93,6 +94,16 @@ def call_plugins(method, *args, **kw):
             getattr(ext, method)(*args, **kw)
 
 
+def call_plugins_arg(method, arg):
+    """Go through all known extensions and call the supplied method with the
+    single arg, and pass the result along
+    """
+    for ext in extensions():
+        if has_method(ext, method):
+            arg = getattr(ext, method)(arg)
+    return arg
+
+
 def write_post(metadata, content, filename):
     """Quick and easy way to save a post with metadata"""
     with open(filename, 'w') as f:
@@ -138,10 +149,43 @@ def is_content_file(repofile, cfolder=None):
 
 
 def joinfile(rootdir, name, ext):
-    """Join together rootdir name and ext"""
+    """Join together rootdir, name and ext"""
     return os.path.join(rootdir, name + "." + ext)
 
 
 def single_dict_var(varname, obj):
     """Return a dict with the single entry passed in, if it's Truthy"""
     return {k: v for (k, v) in [(varname, obj)] if obj}
+
+
+def get_attributes(obj):
+    """Fetch public, non-callable attributes on an object"""
+    attributes = [(a, getattr(obj, a))
+                  for a in set(dir(obj)).difference(dir(object))
+                  if a[0] != "_"]
+    return {a[0]: a[1] for a in attributes if not callable(a[1])}
+
+
+def format_value(val):
+    """format a value, using its __repr__"""
+    if isinstance(val, (basestring, date, time, datetime)):
+        val = "'%s'" % val
+        return val.encode("utf-8", errors="ignore")
+    else:
+        return val
+
+class ReprMixin(object):
+    """Provide a standard __repr__ implementation that formats __dict__
+    based classes."""
+    def __repr__(self):
+        attrstr =", ".join("%s=%s" % (k[0], format_value(k[1])) for k in get_attributes(self).items())
+        return "%s(%s)" % (type(self).__name__, attrstr)
+
+
+class EqMixin(object):
+    """Provode a standard __eq__ for dict based classes"""
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False

@@ -52,7 +52,6 @@ def _tagcounts_cp():
                                    'YAWT_TAGGING_BASE',
                                    'tagcounts')
 
-
 @taggingbp.context_processor
 def _collection_title():
     return {'collection_title':

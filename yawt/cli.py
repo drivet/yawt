@@ -26,7 +26,7 @@ class NewSite(Command):
     """
     def run(self):
         current_app.preprocess_request()
-        g.site.new_site()
+        g.site.initialize()
 
 
 class Walk(Command):

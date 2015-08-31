@@ -74,28 +74,28 @@ class TestYawtTagging(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('article1', '', 'article1', 'md', datetime(2004, 11, 03) )
+        info1 = ArticleInfo(fullname='article1', slug='article1', extension='md', create_time=datetime(2004, 11, 03) )
         info1.tags = ['tag1','tag2']
         writer.add_document(fullname=u'article1', create_time=datetime(2004, 11, 04),
                             tags=u'tag1,tag2',
                             content=u'tags: tag1,tag2\n\nstuff1',
                             article_info_json=jsonpickle.encode(info1))
 
-        info2 = ArticleInfo('article2', '', 'article2', 'md', datetime(2004, 11, 05))
+        info2 = ArticleInfo(fullname='article2', slug='article2', extension='md', create_time=datetime(2004, 11, 05))
         info2.tags = ['tag3','tag4']
         writer.add_document(fullname=u'article2', create_time=datetime(2004, 11, 05), 
                             tags=u'tag3,tag4',
                             content=u'tags: tag3,tag4\n\nstuff2',
                             article_info_json=jsonpickle.encode(info2))
 
-        info3 = ArticleInfo('article3', '', 'article3', 'md', datetime(2004, 11, 04))
+        info3 = ArticleInfo(fullname='article3', slug='article3', extension='md', create_time=datetime(2004, 11, 04))
         info3.tags = ['tag3','tag1']
         writer.add_document(fullname=u'article3', create_time=datetime(2004, 11, 04), 
                             content=u'tags: tag3,tag1\n\nstuff3', 
                             tags=u'tag3,tag1',
                             article_info_json=jsonpickle.encode(info3))
 
-        info4 = ArticleInfo('article4', '', 'article4', 'md', datetime(2004, 11, 02))
+        info4 = ArticleInfo(fullname='article4',slug='article4', extension='md', create_time=datetime(2004, 11, 02))
         info4.tags = ['tag2','tag4']
         writer.add_document(fullname=u'article4', create_time=datetime(2004, 11, 02), 
                             tags=u'tag2,tag4',
@@ -120,28 +120,28 @@ class TestYawtTagging(unittest.TestCase):
         idx = create_in(self.index_root(), schema = schema)
         writer = idx.writer()
 
-        info1 = ArticleInfo('article1', '', 'article1', 'md', datetime(2004, 11, 03) )
+        info1 = ArticleInfo(fullname='article1', slug='article1', extension='md', create_time=datetime(2004, 11, 03) )
         info1.tags = ['tag1','tag2']
         writer.add_document(fullname=u'article1', create_time=datetime(2004, 11, 04),
                             tags=u'tag1,tag2',
                             content=u'---\ntags: tag1,tag2\n---\n\nstuff1',
                             article_info_json=jsonpickle.encode(info1))
 
-        info2 = ArticleInfo('article2', '', 'article2', 'md', datetime(2004, 11, 05))
+        info2 = ArticleInfo(fullname='article2', slug='article2', extension='md', create_time=datetime(2004, 11, 05))
         info2.tags = ['tag3','tag4']
         writer.add_document(fullname=u'article2', create_time=datetime(2004, 11, 05), 
                             tags=u'tag3,tag4',
                             content=u'---\ntags: tag3,tag4\n---\n\nstuff2',
                             article_info_json=jsonpickle.encode(info2))
 
-        info3 = ArticleInfo('article3', '', 'article3', 'md', datetime(2004, 11, 04))
+        info3 = ArticleInfo(fullname='article3', slug='article3', extension='md', create_time=datetime(2004, 11, 04))
         info3.tags = ['tag3','tag1']
         writer.add_document(fullname=u'article3', create_time=datetime(2004, 11, 04), 
                             content=u'---\ntags: tag3,tag1\n---\n\nstuff3', 
                             tags=u'tag3,tag1',
                             article_info_json=jsonpickle.encode(info3))
 
-        info4 = ArticleInfo('article4', '', 'article4', 'md', datetime(2004, 11, 02))
+        info4 = ArticleInfo(fullname='article4', slug='article4', extension='md', create_time=datetime(2004, 11, 02))
         info4.tags = ['tag2','tag4']
         writer.add_document(fullname=u'article4', create_time=datetime(2004, 11, 02), 
                             tags=u'tag2,tag4',

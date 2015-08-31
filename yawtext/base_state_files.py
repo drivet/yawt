@@ -17,6 +17,7 @@ class StateFiles(object):
             if os.path.isfile(abs_state_file):
                 stateobj = jsonpickle.decode(load_file(abs_state_file))
                 statemap[base] = stateobj
+        return statemap
 
     def abs_state_file(self, base):
         return os.path.join(self.root_dir, base, self.statefile)

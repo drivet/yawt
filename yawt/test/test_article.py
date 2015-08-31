@@ -1,25 +1,31 @@
 #pylint: skip-file
 
 import unittest
-from yawt.article import FileBasedSiteManager, SiteExistsError
+from yawt.site_manager import YawtSiteManager, SiteExistsError, ArticleNotFoundError
 import os.path
 import shutil
 from yawt.test.siteutils import TempSite
+from yawt import create_app
 
-class TestFileBasedArticleStoreInitialization(unittest.TestCase):
+
+class TestYawtArticleStoreInitialization(unittest.TestCase):
     def setUp(self):
         self.root_dir = '/tmp/root_dir'
         self.draft_folder = 'drafts'
         self.template_folder = 'templates'
         self.content_folder = 'content'
-        self.extensions = ['html'] 
+        self.extensions = ['html']
         self.meta_types = {}
-        self.store = FileBasedSiteManager( root_dir = self.root_dir, 
-                                           draft_folder = self.draft_folder,
-                                           content_folder = self.content_folder, 
-                                           template_folder = self.template_folder,
-                                           file_extensions = self.extensions,
-                                           meta_types = self.meta_types)
+        self.store = YawtSiteManager(root_dir=self.root_dir,
+                                     draft_folder=self.draft_folder,
+                                     content_folder=self.content_folder,
+                                     template_folder=self.template_folder,
+                                     file_extensions=self.extensions,
+                                     meta_types=self.meta_types)
+
+        self.app = create_app('/tmp')
+        self.app_context = self.app.app_context()
+        self.app_context.push()
 
     def test_initialize_fails_if_root_folder_exists(self):
         os.mkdir(self.root_dir)
@@ -38,58 +44,53 @@ class TestFileBasedArticleStoreInitialization(unittest.TestCase):
         assert self.root_dir.startswith('/tmp/')
         if os.path.exists(self.root_dir):
             shutil.rmtree(self.root_dir)
+        self.app_context.pop()
 
 
-class TestFileBasedArticleStore(unittest.TestCase):
+class TestYawtSiteManager(unittest.TestCase):
     def setUp(self):
         self.site = TempSite()
         self.site.initialize()
 
         self.extensions = ['html']
         self.meta_types = {}
-        self.store = FileBasedSiteManager( root_dir = self.site.site_root, 
-                                           draft_folder = self.site.draft_root,
-                                           content_folder = self.site.content_root,
-                                           template_folder = self.site.template_root,
-                                           file_extensions = self.extensions,
-                                           meta_types = self.meta_types)
+        self.store = YawtSiteManager(root_dir=self.site.site_root,
+                                     draft_folder=self.site.draft_root,
+                                     content_folder=self.site.content_root,
+                                     template_folder=self.site.template_root,
+                                     file_extensions=self.extensions,
+                                     meta_types=self.meta_types)
+        self.app = create_app('/tmp')
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+
 
     def test_fetch_article_by_fullname_loads_metadata(self):
         fullname = 'category01/slug01'
         self._create_content_file(fullname)
-        article = self.store.fetch_article_by_fullname(fullname)
+        article = self.store.fetch_article(fullname)
         self.assertEquals(article.info.stuff, 'foo')
-
-    def test_fetch_article_by_category_and_slug(self):
-        self._create_content_file('cat01/entry03')
-        article = self.store.fetch_article_by_category_and_slug('cat01', 'entry03')
-        self._assert_article(article, 'cat01/entry03', 'cat01', 'entry03')
-
-    def test_fetch_article_by_non_existent_category_and_slug(self):
-        article = self.store.fetch_article_by_category_and_slug('cat01', 'entry03')
-        assert article is None
 
     def test_fetch_non_existent_article_by_fullname(self):
         fullname = 'category01/category02/slug01'
-        article = self.store.fetch_article_by_fullname(fullname)
-        assert article is None
+        self.assertRaises(ArticleNotFoundError, self.store.fetch_article, fullname)
 
     def test_fetch_article_by_fullname_with_subcategory(self):
         fullname = 'category01/category02/slug01'
         self._create_content_file(fullname)
-        article = self.store.fetch_article_by_fullname(fullname)
+        article = self.store.fetch_article(fullname)
         self._assert_article(article, fullname, 'category01/category02', 'slug01')
 
     def test_fetch_article_by_fullname_with_category(self):
         fullname = 'category01/slug01'
         self._create_content_file(fullname)
-        article = self.store.fetch_article_by_fullname(fullname)
+        article = self.store.fetch_article(fullname)
         self._assert_article(article, fullname, 'category01', 'slug01')
 
     def test_fetch_article_by_fullname_at_root(self):
         fullname = 'slug01'
         self._create_content_file(fullname)
-        article = self.store.fetch_article_by_fullname(fullname)
+        article = self.store.fetch_article(fullname)
         self._assert_article(article, fullname, '', 'slug01')
 
     def test_article_exists(self):
@@ -102,7 +103,7 @@ class TestFileBasedArticleStore(unittest.TestCase):
 
     def test_loaded_article_has_content_and_info(self):
         self._create_content_file('entry01', mtime=1000, contents='line 1\nline2\nstuff\n')
-        article = self.store.fetch_article_by_fullname('entry01')
+        article = self.store.fetch_article('entry01')
         self.assertEqual(article.info.fullname, 'entry01')
         self.assertEqual(article.info.category, '')
         self.assertEqual(article.info.slug, 'entry01')
@@ -113,7 +114,7 @@ class TestFileBasedArticleStore(unittest.TestCase):
 
     def test_loaded_empty_article_has_no_content(self):
         self._create_content_file('entry01', contents='')
-        article = self.store.fetch_article_by_fullname('entry01')
+        article = self.store.fetch_article('entry01')
         self.assertEqual(article.content, '')
 
     def test_walk_articles(self):
@@ -129,7 +130,7 @@ class TestFileBasedArticleStore(unittest.TestCase):
         self._create_content_file('cat03/entry10')
         self._create_content_file('cat03/entry11')
 
-        # extraneous files that should be ignored  
+        # extraneous files that should be ignored
         os.makedirs(os.path.join(self.site.site_root, 'cat01'))
         os.makedirs(os.path.join(self.site.site_root, 'cat03'))
         self.site.save_file('stupid01.png', 'blah')
@@ -137,7 +138,7 @@ class TestFileBasedArticleStore(unittest.TestCase):
         self.site.save_file('cat01/stupid02.png', 'blah')
         self.site.save_file('cat03/stupid03.png', 'blah')
 
-        names = [a for a in self.store.walk()]
+        names = [a for a in self.store._walk()]
         # articles aren't guaranteed to be in any particular order
         assert 'cat01/cat02/entry06' in names
         assert 'cat01/cat02/entry07' in names
@@ -157,6 +158,7 @@ class TestFileBasedArticleStore(unittest.TestCase):
 
     def tearDown(self):
         self.site.remove()
+        self.app_context.pop()
 
     def _create_content_file(self, fullname, mtime=None,
                              contents='---\nstuff: foo\n---\n\nblah',

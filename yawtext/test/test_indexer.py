@@ -24,18 +24,18 @@ class TestYawtWhoosh(unittest.TestCase):
         self.app = create_app(self.site_root, extension_info = extension_info(self.plugin))
         self.index_root = os.path.join(self.site_root, self.app.config['YAWT_STATE_FOLDER'], 'whoosh')
         self.app.config['WHOOSH_INDEX_ROOT'] = self.index_root
- 
+
     def test_default_article_fields(self):
         self.assertEqual({'content': TEXT}, self.app.config['YAWT_WHOOSH_ARTICLE_FIELDS'])
- 
+
     def test_index_initialized_on_new_site(self):
         self.assertFalse(os.path.exists(self.index_root))
-        with self.app.test_request_context(): 
+        with self.app.test_request_context():
             self.app.preprocess_request()
-            g.site.new_site()
+            g.site.initialize()
             self.assertTrue(os.path.exists(self.index_root))
             self.assertTrue(glob.glob(os.path.join(self.index_root, '*.toc')))
- 
+
     def test_walk_clears_index_and_reindexes_all_articles(self):
         content_root = os.path.join(self.site_root, self.app.config['YAWT_CONTENT_FOLDER'])
         os.makedirs(content_root)
@@ -117,7 +117,7 @@ class TestYawtWhoosh(unittest.TestCase):
         writer.add_document(fullname=u'article3', create_time=now, content=u'stuff3')
         writer.add_document(fullname=u'article4', create_time=now, content=u'stuff4')
         writer.commit()
-        
+
         qp = QueryParser('fullname', schema=schema)
         with idx.searcher() as searcher:
             results = searcher.search(qp.parse(u"article1"))
@@ -169,16 +169,16 @@ class TestYawtWhoosh(unittest.TestCase):
         writer = idx.writer()
         now = datetime(2004, 11, 02)
 
-        info1 = jsonpickle.encode(ArticleInfo('article1', '', 'article1', 'txt', now))
+        info1 = jsonpickle.encode(ArticleInfo(fullname='article1', slug='article1', extension='txt', create_time=now))
         writer.add_document(fullname=u'article1', create_time=now, content=u'stuff1', 
                             article_info_json=info1)
-        info2 = jsonpickle.encode(ArticleInfo('article2', '', 'article2', 'txt', now))
+        info2 = jsonpickle.encode(ArticleInfo(fullname='article2', slug='article2', extension='txt', create_time=now))
         writer.add_document(fullname=u'article2', create_time=now, content=u'stuff2', 
                             article_info_json=info2)
-        info3 = jsonpickle.encode(ArticleInfo('article3', '', 'article3', 'txt', now))
+        info3 = jsonpickle.encode(ArticleInfo(fullname='article3', slug='article3', extension='txt', create_time=now))
         writer.add_document(fullname=u'article3', create_time=now, content=u'stuff3',
                             article_info_json=info3)
-        info4 = jsonpickle.encode(ArticleInfo('article4', '', 'article4', 'txt', now))
+        info4 = jsonpickle.encode(ArticleInfo(fullname='article4', slug='article4', extension='txt', create_time=now))
         writer.add_document(fullname=u'article4', create_time=now, content=u'stuff4',
                             article_info_json=info4)
         writer.commit()
@@ -189,7 +189,7 @@ class TestYawtWhoosh(unittest.TestCase):
             infos, total = search(qp.parse(u"article1"), 'create_time', 1, 10)
         self.assertEquals(1, len(infos))
         self.assertEquals('article1', infos[0].fullname)
-        
+
         qp = QueryParser('create_time', schema=schema)
         qp.add_plugin(DateParserPlugin())
         with self.app.test_request_context():

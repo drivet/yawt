@@ -170,7 +170,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         assert 'Article not found' in rv.data
         self.assertEqual(rv.status_code, 404)
 
-    def test_missing_category_page_results_in_404(self): 
+    def test_missing_category_page_results_in_404(self):
         self._setup_client()
         rv = self.client.get("random/blah")
         assert 'Article not found' in rv.data
@@ -193,8 +193,8 @@ class YawtSystemLevelTests(unittest.TestCase):
         rv = self.client.get("/")
         assert 'hello everyone' in rv.data
         assert 'INDEX' in rv.data
- 
-    def test_page_is_accessible_with_page_specific_template(self): 
+
+    def test_page_is_accessible_with_page_specific_template(self):
         self._setup_client()
         self._save_template('cooking/madras.html', madras_tmpl)
         # shadowed by the specific template
@@ -205,7 +205,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         assert 'this is very spicy' in rv.data
         assert 'MADRAS' in rv.data
 
-    def test_page_is_accessible_with_category_specific_template(self): 
+    def test_page_is_accessible_with_category_specific_template(self):
         self._setup_client()
         self._save_template('cooking/article.html', article_tmpl)
         self._save_content('cooking/madras.txt', 'this is very spicy')

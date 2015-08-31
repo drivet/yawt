@@ -6,10 +6,11 @@ from yawt.article import Article, ArticleInfo
 from yawt import create_app
 from flask import g
 
+
 class TestYawtMarkdown(unittest.TestCase):
     def setUp(self):
         self.plugin = YawtMarkdown()
-        self.app = create_app('/tmp', extension_info = extension_info(self.plugin))
+        self.app = create_app('/tmp', extension_info=extension_info(self.plugin))
 
     def test_default_extensions_are_set(self):
         self.assertEquals(['md'], self.app.config['YAWT_MULTIMARKDOWN_FILE_EXTENSIONS'])
@@ -23,7 +24,7 @@ class TestYawtMarkdown(unittest.TestCase):
             article = Article()
             article.info = info
             article.content = '*stuff*'
-            article = g.site._on_article_fetch(article)
+            article = self.plugin.on_article_fetch(article)
             self.assertEqual('*stuff*', article.content)
 
     def test_plugin_processes_content_of_markdown_articles(self):
@@ -35,7 +36,7 @@ class TestYawtMarkdown(unittest.TestCase):
             article = Article()
             article.info = info
             article.content = '*stuff*'
-            article = g.site._on_article_fetch(article)
+            article = self.plugin.on_article_fetch(article)
             self.assertEqual('<p><em>stuff</em></p>', article.content)
 
     def tearDown(self):

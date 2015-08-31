@@ -25,7 +25,7 @@ class TestYawtExcerpt(unittest.TestCase):
             article.info = info
             article.content = 'stuff blah hello dude the east market'
             self.app.config['YAWT_EXCERPT_WORDCOUNT'] = 5
-            article = g.site._on_article_fetch(article)
+            article = self.plugin.on_article_fetch(article)
         self.assertEqual('stuff blah hello dude the [...]', article.info.summary)
 
  
@@ -39,7 +39,7 @@ class TestYawtExcerpt(unittest.TestCase):
             article.info = info
             article.content = '<p>stuff</p><p>blah hello</p><p>dude the</p><p>east market</p>'
             self.app.config['YAWT_EXCERPT_WORDCOUNT'] = 5
-            article = g.site._on_article_fetch(article)
+            article = self.plugin.on_article_fetch(article)
         self.assertEqual(Markup('<p>stuff</p><p>blah hello</p><p>dude the</p>'), article.info.summary)
 
 
