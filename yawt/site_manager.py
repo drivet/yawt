@@ -42,7 +42,7 @@ class YawtSiteManager(object):
         filename = os.path.join(self.root_dir, repofile)
         fullname = self._file2name(filename)
         if not self.exists(fullname):
-            raise ArticleDoesNotExistError(fullname)
+            raise ArticleNotFoundError(fullname)
         article = make_article(fullname, filename, self.meta_types)
         return call_plugins_arg('on_article_fetch', article)
 
@@ -54,7 +54,7 @@ class YawtSiteManager(object):
 
     def fetch_article_by_info(self, article_info):
         """Fetches an article, calling all the plugins"""
-        article = self._fetch_by_fullname(article_info.info.fullname)
+        article = self._fetch_by_fullname(article_info.fullname)
         article.info = article_info
         return call_plugins_arg('on_article_fetch', article)
 
