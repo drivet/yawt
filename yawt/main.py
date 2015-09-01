@@ -15,10 +15,6 @@ from yawt.utils import has_method
 from yawt.view import render
 
 
-def _config(key):
-    return current_app.config[key]
-
-
 def _handle_404(fullname, flavour):
     extensions = []
     if current_app.extension_info:
