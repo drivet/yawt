@@ -91,6 +91,7 @@ def _configure(root_dir, app, config, extension_info):
     _load_extensions(app, extension_info)
     sys.path = old_path
 
+
 def create_app(root_dir,
                template_folder='templates',
                static_folder='static',

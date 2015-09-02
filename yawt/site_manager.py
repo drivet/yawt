@@ -8,6 +8,7 @@ from yawt.utils import call_plugins, call_plugins_arg, save_file, \
     joinfile, ensure_path, base_and_ext, ReprMixin
 from yawt.article import make_article
 
+
 class YawtSiteManager(object):
     """The default article store. Stores articles on disk. No plugins."""
     def __init__(self, **kwargs):

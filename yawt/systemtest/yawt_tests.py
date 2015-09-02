@@ -110,22 +110,23 @@ extension_info_plugin1_2 = ({'plugin1': plugin1, 'plugin2': plugin2},
                             [plugin1, plugin2],
                             plugin1_2_init_app())
 
+
 class YawtSystemLevelTests(unittest.TestCase):
     """
     YAWT system level tests
     """
-    def setUp(self):  
+    def setUp(self):
         self.app = None
         self.client = None
-        
+
         self.root_dir = tempfile.mkdtemp()
         assert self.root_dir.startswith('/tmp/')
-            
+
         # copy templates over
         self.template_dir = os.path.join(self.root_dir, 'templates')
         os.makedirs(self.template_dir)
         self._save_file(os.path.join(self.template_dir, '404.html'), not_found_tmpl)
-        
+
         self.content_dir = os.path.join(self.root_dir, 'content')
         os.makedirs(self.content_dir)
 
@@ -141,7 +142,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         self.assertEquals('article', self.app.config['YAWT_ARTICLE_TEMPLATE'])
         self.assertEquals('html', self.app.config['YAWT_DEFAULT_FLAVOUR'])
         self.assertEquals('index', self.app.config['YAWT_INDEX_FILE'])
-        self.assertEquals(['txt'], self.app.config['YAWT_ARTICLE_EXTENSIONS'])        
+        self.assertEquals(['txt'], self.app.config['YAWT_ARTICLE_EXTENSIONS'])
         self.assertEquals('templates', self.app.yawt_template_folder)
         self.assertEquals('static', self.app.yawt_static_folder)
         self.assertEquals(self.root_dir, self.app.yawt_root_dir)
@@ -214,7 +215,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         assert 'this is very spicy' in rv.data
         assert 'ARTICLE' in rv.data
 
-    def test_page_is_accessible_with_root_template(self): 
+    def test_page_is_accessible_with_root_template(self):
         self._setup_client()
         self._save_template('article.html', article_tmpl)
         self._save_content('cooking/madras.txt', 'this is very spicy')
@@ -223,7 +224,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         assert 'this is very spicy' in rv.data
         assert 'ARTICLE' in rv.data
 
-    def test_category_page_with_no_index_article_gives_404(self): 
+    def test_category_page_with_no_index_article_gives_404(self):
         self._setup_client()
         self._save_template('article.html', article_tmpl)
         self._save_content('cooking/madras.txt', 'this is very spicy')
@@ -240,7 +241,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         assert 'Location' in rv.headers
         self.assertEquals( '/cooking/', urlparse(rv.headers['Location']).path )
 
-    def test_category_page_with_index_article_is_accessible(self): 
+    def test_category_page_with_index_article_is_accessible(self):
         self._setup_client()
         self._save_template('article.html', article_tmpl)
         self._save_content('cooking/index.txt', 'this is all about cooking')
@@ -248,7 +249,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         assert 'this is all about cooking' in rv.data
         assert 'ARTICLE' in rv.data
 
-    def test_page_is_accessible_with_flavoured_root_template(self): 
+    def test_page_is_accessible_with_flavoured_root_template(self):
         self._setup_client()
         self._save_template('article.flav1', article_tmpl)
         self._save_content('cooking/madras.txt', 'this is very spicy')
@@ -257,7 +258,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         assert 'this is very spicy' in rv.data
         assert 'ARTICLE' in rv.data
 
-    def test_request_for_non_existent_flavour_gives_404(self): 
+    def test_request_for_non_existent_flavour_gives_404(self):
         self._setup_client()
         self._save_template('article.html', madras_tmpl)
         self._save_content('cooking/madras.txt', 'this is very spicy')
@@ -276,7 +277,7 @@ class YawtSystemLevelTests(unittest.TestCase):
         rv = self.client.get('/cooking/madras.flav1')
         assert 'Content-Type' in rv.headers
         self.assertEquals( 'text/x-markdown', rv.headers['Content-Type'] )
- 
+
     def test_article_info_is_loaded(self):
         self._setup_client()
         self._save_template('article.html', article_tmpl)
@@ -290,29 +291,12 @@ class YawtSystemLevelTests(unittest.TestCase):
         self.assertRegexpMatches(rv.data, 'create_time: .+')
         self.assertRegexpMatches(rv.data, 'modified_time: .+')
 
-    def test_plugin_run_when_article_fetched(self):
-        self.app = yawt.create_app(self.root_dir, extension_info=extension_info_plugin1)
-        self.app.config['DEBUG'] = True
-        self.client = self.app.test_client()
-        self._save_template('article.html', foo_article_tmpl)
-        self._save_content('cooking/madras.txt', 'this is very spicy')
-        rv = self.client.get('/cooking/madras')
-        assert 'foo: 1' in rv.data
- 
-    def test_last_plugin_wins_when_article_fetched(self):
-        self.app = yawt.create_app(self.root_dir, extension_info=extension_info_plugin1_2)
-        self.app.config['DEBUG'] = True
-        self.client = self.app.test_client()
-        self._save_template('article.html', foo_article_tmpl)
-        self._save_content('cooking/madras.txt', 'this is very spicy')
-        rv = self.client.get('/cooking/madras')
-        assert 'foo: 2' in rv.data
 
     def _save_file(self, filename, contents):
         f = open(filename, 'w')
         f.write(contents)
         f.close()
- 
+
     def _save_relative_file(self, root_dir, relative_path, content):
         abspath = os.path.join( root_dir, relative_path)
         category_dir = os.path.split(abspath)[0]
@@ -325,15 +309,15 @@ class YawtSystemLevelTests(unittest.TestCase):
 
     def _save_template(self, relative_path, content):
         self._save_relative_file(self.template_dir, relative_path, content)
- 
+
     def _save_category(self, category_dir):
         abspath = os.path.join(self.content_dir, category_dir)
         if not os.path.isdir(abspath):
             os.makedirs(abspath)
 
-    def tearDown(self):  
+    def tearDown(self):
         assert self.root_dir.startswith('/tmp/')
         shutil.rmtree(self.root_dir)
-        
+
 if __name__ == '__main__':
     unittest.main()

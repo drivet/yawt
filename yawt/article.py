@@ -21,8 +21,6 @@ def _set_attributes(article_info, meta, meta_types):
 def _convert(mtype, value):
     if mtype == 'list':
         return [unicode(x.strip()) for x in value.split(',')]
-    elif mtype == 'long':
-        return long(value)
     elif mtype == 'iso8601':
         epoch = datetime(1970, 1, 1, tzinfo=pytz.utc)
         return int((value-epoch).total_seconds())
@@ -46,7 +44,10 @@ def _fetch_file_metadata(filename):
     return {'create_time': ctime, 'modified_time': mtime}
 
 
-def make_article(fullname, filename, meta_types):
+def make_article(fullname, filename, meta_types=None):
+    """Construct an Article instance.  Fullname and filename are
+    self-evident.  Metatypes directs how to convert certain pieces
+    of metadata"""
     info = ArticleInfo()
     info.fullname = unicode(fullname)
     info.category = unicode(os.path.dirname(fullname))
@@ -59,7 +60,7 @@ def make_article(fullname, filename, meta_types):
 
     article = Article()
     article.info = info
-    _load_post(filename, article, meta_types)
+    _load_post(filename, article, meta_types or {})
     return article
 
 
