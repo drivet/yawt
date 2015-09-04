@@ -8,7 +8,7 @@ from yawt.utils import save_file, load_file, remove_file
 
 # Manages a YAWT site in the /tmp folder
 class TempSite(object):
-   
+
     def __init__(self, content_root = 'content', 
                  template_root='templates',
                  draft_root='drafts',
@@ -25,7 +25,7 @@ class TempSite(object):
         os.makedirs(self.abs_template_root())
         os.makedirs(self.abs_draft_root())
         os.makedirs(self.abs_state_root())
-        
+
     def abs_content_root(self):
         return os.path.join(self.site_root, self.content_root)
 

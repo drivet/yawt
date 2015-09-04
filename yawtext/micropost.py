@@ -8,8 +8,18 @@ from flask import g, current_app
 from flask_script import Command, Option
 
 from yawt.utils import call_plugins, ensure_path, load_file,\
-    write_post, cfg, content_folder
+    cfg, content_folder
 from yawtext.base import Plugin
+
+
+def write_post(metadata, content, filename):
+    """Quick and easy way to save a post with metadata"""
+    with open(filename, 'w') as f:
+        f.write(u'---\n')
+        for key in metadata:
+            f.write(u'%s: %s\n' % (key, metadata[key]))
+        f.write(u'---\n')
+        f.write(unicode(content))
 
 
 def _get_twitter_api():

@@ -13,11 +13,11 @@ class YawtSiteManager(object):
     """The default article store. Stores articles on disk. No plugins."""
     def __init__(self, **kwargs):
         self.root_dir = kwargs.pop('root_dir')
-        self.content_folder = kwargs.pop('content_folder', 'content')
-        self.draft_folder = kwargs.pop('draft_folder', 'drafts')
-        self.template_folder = kwargs.pop('template_folder', 'templates')
-        self.file_extensions = kwargs.pop('file_extensions')
-        self.meta_types = kwargs.pop('meta_types')
+        self.content_folder = kwargs.get('content_folder', 'content')
+        self.draft_folder = kwargs.get('draft_folder', 'drafts')
+        self.template_folder = kwargs.get('template_folder', 'templates')
+        self.file_extensions = kwargs.get('file_extensions')
+        self.meta_types = kwargs.get('meta_types')
 
     def initialize(self):
         """Set up an empty blog folder"""
@@ -64,18 +64,13 @@ class YawtSiteManager(object):
         article = self._fetch_by_fullname(fullname)
         return call_plugins_arg('on_article_fetch', article)
 
-    def _fetch_by_fullname(self, fullname):
-        filename = self._fullname2file(fullname)
-        if filename is None:
-            raise ArticleNotFoundError(fullname)
-        return make_article(fullname, filename, self.meta_types)
-
     def exists(self, fullname):
         """Return True if article exists"""
         return self._fullname2file(fullname) is not None
 
-    def is_category(self, fullname):
-        """Return True if fullname refers to category on disk"""
+    def category_exists(self, fullname):
+        """Return True if fullname refers to real, existing,
+        category on disk"""
         return os.path.isdir(os.path.join(self._content_root(), fullname))
 
     def is_article(self, repofile):
@@ -94,6 +89,12 @@ class YawtSiteManager(object):
             article = self.fetch_article(fullname)
             call_plugins('on_visit_article', article)
         call_plugins('on_post_walk')
+
+    def _fetch_by_fullname(self, fullname):
+        filename = self._fullname2file(fullname)
+        if filename is None:
+            raise ArticleNotFoundError(fullname)
+        return make_article(fullname, filename, self.meta_types)
 
     def _walk(self, category=""):
         """Yields fullnames"""

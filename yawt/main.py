@@ -104,7 +104,7 @@ def _handle_path(path):
             # requesting a file with particular flavour
             fullname = match.group(1)
             flavour = match.group(2)
-        elif g.site.is_category(path):
+        elif g.site.category_exists(path):
             return redirect('/' + path + '/')
         else:
             fullname = path

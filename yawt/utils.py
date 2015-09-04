@@ -28,19 +28,6 @@ def remove_file(filename):
     os.remove(filename)
 
 
-def copy_file(oldfile, newfile):
-    """Copy file over to new file location"""
-    with open(oldfile, 'r') as f:
-        contents = f.read()
-    with open(newfile, 'w') as f:
-        f.write(contents)
-
-
-def move_file(oldfile, newfile):
-    """Move file to new file location"""
-    os.rename(oldfile, newfile)
-
-
 def ensure_path(path):
     """Make sure the path exists, creating it if need be"""
     if not os.path.exists(path):
@@ -104,16 +91,6 @@ def call_plugins_arg(method, arg):
     return arg
 
 
-def write_post(metadata, content, filename):
-    """Quick and easy way to save a post with metadata"""
-    with open(filename, 'w') as f:
-        f.write(u'---\n')
-        for key in metadata:
-            f.write(u'%s: %s\n' % (key, metadata[key]))
-        f.write(u'---\n')
-        f.write(unicode(content))
-
-
 def run_in_context(repo_path, func, *args, **kwargs):
     """run the function in a YAWT/Flask request context"""
     app = yawt.create_app(repo_path)
@@ -173,6 +150,7 @@ def format_value(val):
         return val.encode("utf-8", errors="ignore")
     else:
         return val
+
 
 class ReprMixin(object):
     """Provide a standard __repr__ implementation that formats __dict__

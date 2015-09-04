@@ -3,7 +3,7 @@
 import unittest
 import os.path
 import shutil
-from yawt.article import make_article
+from yawt.article import make_article, ArticleInfo
 from yawt.utils import save_file
 
 
@@ -17,6 +17,16 @@ class TestArticle(unittest.TestCase):
         self.assertEquals('article_file', article.info.slug)
         self.assertEquals('txt', article.info.extension)
         self.assertEquals('blah', article.content)
+
+    def test_make_article_has_no_content_when_file_is_empty(self):
+        save_file('/tmp/stuff/article_file.txt', '')
+        article = make_article('stuff/article_file',
+                               '/tmp/stuff/article_file.txt')
+        self.assertEquals('stuff/article_file', article.info.fullname)
+        self.assertEquals('stuff', article.info.category)
+        self.assertEquals('article_file', article.info.slug)
+        self.assertEquals('txt', article.info.extension)
+        self.assertEquals('', article.content)
 
     def test_make_article_loads_file_metadata(self):
         save_file('/tmp/stuff/article_file.txt', 'blah')
@@ -66,3 +76,15 @@ blah
                                '/tmp/stuff/article_file.txt',
                                meta_types={'date': 'iso8601'})
         self.assertTrue(isinstance(article.info.date, int))
+
+    def test_under_returns_true_if_article_is_in_folder(self):
+        info = ArticleInfo(fullname='cooking/madras',
+                           category='cooking',
+                           slug='madras',
+                           extension='txt')
+        self.assertTrue(info.under('cooking'))
+        self.assertFalse(info.under('reading'))
+
+    def tearDown(self):
+        if os.path.exists('/tmp/stuff'):
+            shutil.rmtree('/tmp/stuff')

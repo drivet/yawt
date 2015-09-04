@@ -13,15 +13,15 @@ import jinja2
 
 # default configuration
 YAWT_BASE_URL = 'http://www.awesome.net/blog'
+YAWT_LOG_LEVEL = logging.INFO
 YAWT_CONTENT_FOLDER = 'content'
 YAWT_DRAFT_FOLDER = 'drafts'
 YAWT_TEMPLATE_FOLDER = 'templates'
+YAWT_STATE_FOLDER = '_state'
 YAWT_DEFAULT_FLAVOUR = 'html'
 YAWT_INDEX_FILE = 'index'
 YAWT_ARTICLE_TEMPLATE = 'article'
 YAWT_ARTICLE_EXTENSIONS = ['txt']
-YAWT_DEFAULT_EXTENSION = 'txt'
-YAWT_STATE_FOLDER = '_state'
 YAWT_EXTENSIONS = []
 YAWT_META_TYPES = {}
 
@@ -92,13 +92,17 @@ def _configure(root_dir, app, config, extension_info):
     sys.path = old_path
 
 
+def _setup_templates(root_dir, app):
+    template_folder = app.config['YAWT_TEMPLATE_FOLDER']
+    path_to_templates = os.path.join(root_dir, template_folder)
+    app.jinja_loader = jinja2.FileSystemLoader(path_to_templates)
+
+
 def create_app(root_dir,
-               template_folder='templates',
                static_folder='static',
                static_url_path='/static',
                config=None,
-               extension_info=None,
-               log_level=logging.INFO):
+               extension_info=None):
     """The main YAWT Flask app factory"""
     app = Flask(__name__,
                 static_folder=os.path.join(root_dir, static_folder),
@@ -107,16 +111,11 @@ def create_app(root_dir,
                 instance_relative_config=True)
 
     app.yawt_root_dir = root_dir
-    app.yawt_template_folder = template_folder
     app.yawt_static_folder = static_folder
-    app.yawt_static_url_path = static_url_path
-
-    app.logger.setLevel(log_level)
-
-    path_to_templates = os.path.join(root_dir, template_folder)
-    app.jinja_loader = jinja2.FileSystemLoader(path_to_templates)
 
     _configure(root_dir, app, config, extension_info)
+    app.logger.setLevel(app.config['YAWT_LOG_LEVEL'])
+    _setup_templates(root_dir, app)
 
     from yawt.main import yawtbp
     app.register_blueprint(yawtbp)

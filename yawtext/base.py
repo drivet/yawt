@@ -6,4 +6,4 @@ class Plugin(object):
             self.init_app(app)
 
     def init_app(self, app):
-        raise NotImplementedError()
+        pass
