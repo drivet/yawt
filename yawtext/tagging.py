@@ -33,10 +33,9 @@ import jsonpickle
 
 from yawt.utils import save_file, load_file, fullname,\
     cfg, abs_state_folder
-from yawtext.base_state_files import StateFiles, state_context_processor
+from yawtext import StateFiles, state_context_processor, Plugin
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
-from yawtext import Plugin
 
 
 taggingbp = Blueprint('tagging', __name__)

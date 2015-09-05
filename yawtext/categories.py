@@ -16,8 +16,7 @@ from whoosh.query.qcore import Every
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
 from yawt.utils import save_file, load_file, fullname
-from yawtext.hierarchy_counter import HierarchyCount
-from yawtext import Plugin
+from yawtext import HierarchyCount, Plugin
 
 
 categoriesbp = Blueprint('categories', __name__)
@@ -133,7 +132,7 @@ class YawtCategories(Plugin):
         countbase = _adjust_base_for_category()  # blech
         if category == countbase or category.startswith(countbase):
             category = _slice_base_off_category(category, countbase)
-            self.category_counts.count_hierarchy(category)
+            self.category_counts.add(category)
 
     def on_post_walk(self):
         """Save HierarchyCounts to disk"""
@@ -152,7 +151,7 @@ class YawtCategories(Plugin):
                 countbase = _adjust_base_for_category()  # blech
                 category = unicode(os.path.dirname(name))
                 category = _slice_base_off_category(category, countbase)
-                self.category_counts.remove_hierarchy(category)
+                self.category_counts.remove(category)
 
         map(self.on_visit_article,
             g.site.fetch_articles_by_repofiles(changed.modified + changed.added))

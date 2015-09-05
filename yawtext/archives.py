@@ -12,12 +12,10 @@ from flask.views import View
 import jsonpickle
 
 from yawt.utils import save_file, load_file, fullname, cfg, abs_state_folder
-from yawtext.base_state_files import StateFiles, state_context_processor
+from yawtext import StateFiles, state_context_processor, HierarchyCount, Plugin
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema, search
 from yawt.view import render
-from yawtext.hierarchy_counter import HierarchyCount
-from yawtext import Plugin
 
 
 archivesbp = Blueprint('archives', __name__)
@@ -138,14 +136,14 @@ class YawtArchives(Plugin):
             datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
             date = getattr(article.info, datefield)
             datestring = _date_hierarchy(date)
-            self.archive_counts_map[base].count_hierarchy(datestring)
+            self.archive_counts_map[base].add(datestring)
 
     def on_post_walk(self):
         """Save the archive counts to disk"""
         statefiles = StateFiles(abs_state_folder(), cfg('YAWT_ARCHIVE_COUNT_FILE'))
         for base in self.archive_counts_map:
             archive_counts = self.archive_counts_map[base]
-            archive_counts.sort_children(reverse=True)
+            archive_counts.sort(reverse=True)
             pickled_info = jsonpickle.encode(archive_counts)
             save_file(statefiles.abs_state_file(base), pickled_info)
 
@@ -165,7 +163,7 @@ class YawtArchives(Plugin):
                     create_time = _fetch_date_for_name(name)
                     if create_time:
                         datestring = _date_hierarchy(create_time)
-                        self.archive_counts_map[base].remove_hierarchy(datestring)
+                        self.archive_counts_map[base].remove(datestring)
 
         map(self.on_visit_article,
             g.site.fetch_articles_by_repofiles(changed.modified + changed.added))

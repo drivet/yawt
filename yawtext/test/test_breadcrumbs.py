@@ -3,6 +3,7 @@
 import unittest
 from yawtext.breadcrumbs import YawtBreadcrumbs, _breadcrumbs
 
+
 class TestYawtBreadcrumbs(unittest.TestCase):
     def setUp(self):
         self.plugin = YawtBreadcrumbs()
