@@ -8,13 +8,14 @@ import subprocess
 import sys
 
 from flask import current_app, g
-from yawt.utils import content_folder, is_content_file
+from yawt.utils import content_folder, is_content_file, run_in_context,\
+    call_plugins, EqMixin
 from yawtext import Plugin
 
 GIT = '/usr/bin/git'
 
 
-class ChangedFiles(object):
+class ChangedFiles(EqMixin):
     """Structure to represent a summary of changed files in a git changeset"""
     def __init__(self, **kwargs):
         self.added = kwargs.get('added', [])
@@ -62,12 +63,6 @@ class ChangedFiles(object):
                             deleted=deleted,
                             renamed=renamed)
 
-    def __eq__(self, other):
-        return self.added == other.added and \
-            self.modified == other.modified and \
-            self.deleted == other.deleted and \
-            self.renamed == other.renamed
-
 
 def _abs_filename(fullname, ext):
     root_dir = g.site.root_dir
@@ -85,6 +80,20 @@ def _git_cmd(root_dir, args):
     git_dir = root_dir + '/.git'
     return [GIT, '--git-dir='+git_dir,
             '--work-tree='+root_dir] + args
+
+
+def post_merge(repo_path):
+    """Entry point for a vc merge operation"""
+    diff_tree_out = git_diff_tree(GIT, repo_path, 'ORIG_HEAD', 'HEAD')
+    changed = extract_diff_tree_files(diff_tree_out)
+    run_in_context(repo_path, call_plugins, 'on_files_changed', changed)
+
+
+def post_commit(repo_path):
+    """Entry point for a vc commit operation"""
+    diff_tree_out = git_diff_tree(GIT, repo_path, 'HEAD')
+    changed = extract_diff_tree_files(diff_tree_out)
+    run_in_context(repo_path, call_plugins, 'on_files_changed', changed)
 
 
 def extract_diff_tree_files(diff_tree_out):
@@ -145,6 +154,7 @@ def extract_indexed_status_files(status_out):
                            renamed=renamed_files)
     return changed
 
+
 def git_diff_tree(git, repo_path, tree1, tree2=None):
     """Execute a git diff-tree and return the output"""
     try:
@@ -194,14 +204,6 @@ def git_push(root_dir):
     args = ['push']
 #    print _git_cmd(root_dir, args)
     subprocess.check_call(_git_cmd(root_dir, args))
-
-
-def git_latest_changes():
-    """return a string with the latest git commit changes.  First column is the
-    change, second column is the file
-    """
-    diff_tree_out = git_diff_tree(GIT, g.site.root_dir, 'HEAD')
-    return extract_changed_files(diff_tree_out)
 
 
 class YawtGit(Plugin):
