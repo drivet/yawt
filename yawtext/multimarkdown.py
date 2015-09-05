@@ -7,7 +7,7 @@ from __future__ import absolute_import
 
 import markdown
 from flask import Markup, current_app
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 def _load_markdown(file_contents):

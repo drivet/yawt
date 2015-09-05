@@ -13,7 +13,7 @@ from yawt.view import render
 from yawt.article import Article
 from jinja2 import TemplatesNotFound
 from yawtext.indexer import search
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 collectionsbp = Blueprint('paging', __name__)

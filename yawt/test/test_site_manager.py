@@ -12,7 +12,7 @@ from flask.ext.testing import TestCase
 from yawt.test.siteutils import TempSite
 from yawt.test import TempFolder
 from yawt import create_app
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 class TestYawtSiteManagerInitialization(TestCase):

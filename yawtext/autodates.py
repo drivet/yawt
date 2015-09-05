@@ -7,7 +7,7 @@ import yaml
 from flask import current_app
 import frontmatter
 from yawt.utils import save_file
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 class ExplicitDumper(yaml.SafeDumper):

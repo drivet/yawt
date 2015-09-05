@@ -9,7 +9,7 @@ import sys
 
 from flask import current_app, g
 from yawt.utils import content_folder, is_content_file
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 GIT = '/usr/bin/git'
 

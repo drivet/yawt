@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from flask import current_app, Markup
 from BeautifulSoup import BeautifulSoup
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 class YawtExcerpt(Plugin):

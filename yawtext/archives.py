@@ -17,7 +17,7 @@ from yawtext.collections import CollectionView
 from yawtext.indexer import schema, search
 from yawt.view import render
 from yawtext.hierarchy_counter import HierarchyCount
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 archivesbp = Blueprint('archives', __name__)

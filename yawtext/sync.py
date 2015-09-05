@@ -7,7 +7,7 @@ from flask_script import Command, Option
 from yawtext.git import git_push, git_commit, \
     git_add, git_status, extract_indexed_status_files
 from yawt.utils import call_plugins
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 GIT = '/usr/bin/git'

@@ -7,7 +7,7 @@ markdown metadata to override git data.
 from __future__ import absolute_import
 
 from flask import current_app
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 class YawtSmartAttributes(Plugin):

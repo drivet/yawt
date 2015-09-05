@@ -4,7 +4,7 @@ import os.path
 import socket
 from yawtext.micropost import post_social
 from yawt.utils import fullname, cfg, content_folder
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 def _notify_message(file_added):

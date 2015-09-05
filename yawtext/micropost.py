@@ -9,7 +9,7 @@ from flask_script import Command, Option
 
 from yawt.utils import call_plugins, ensure_path, load_file,\
     cfg, content_folder
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 def write_post(metadata, content, filename):

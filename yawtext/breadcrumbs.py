@@ -5,7 +5,7 @@ that will provide displayable breadcrumbs template list variable
 """
 from __future__ import absolute_import
 from flask import request, Blueprint
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 breadcrumbsbp = Blueprint('breadcrumbs', __name__)
 

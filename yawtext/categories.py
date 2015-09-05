@@ -17,7 +17,7 @@ from yawtext.collections import CollectionView
 from yawtext.indexer import schema
 from yawt.utils import save_file, load_file, fullname
 from yawtext.hierarchy_counter import HierarchyCount
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 categoriesbp = Blueprint('categories', __name__)

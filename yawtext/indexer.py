@@ -11,7 +11,7 @@ from whoosh.fields import STORED, KEYWORD, IDLIST, ID, TEXT, DATETIME
 import jsonpickle
 
 from yawt.utils import fullname, cfg
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 def _whoosh():

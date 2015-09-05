@@ -6,7 +6,7 @@ from flask_script import Command, Option
 
 import frontmatter
 from yawt.utils import save_file, content_folder, fullname
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 def _whoosh():

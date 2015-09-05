@@ -8,7 +8,7 @@ from flask import current_app, request, g, Blueprint
 from whoosh.qparser import QueryParser
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema
-from yawtext.base import Plugin
+from yawtext import Plugin
 
 
 searchbp = Blueprint('search', __name__)
