@@ -5,18 +5,18 @@ article counts for all the categories (folders), on the system.
 """
 from __future__ import absolute_import
 
-import re
 import os
+import re
 
 import jsonpickle
 from flask import current_app, g, Blueprint
 from whoosh.qparser import QueryParser
 from whoosh.query.qcore import Every
 
-from yawtext.collections import CollectionView
-from yawtext.indexer import schema
 from yawt.utils import save_file, load_file, fullname
 from yawtext import HierarchyCount, Plugin
+from yawtext.collections import CollectionView
+from yawtext.indexer import schema
 
 
 categoriesbp = Blueprint('categories', __name__)

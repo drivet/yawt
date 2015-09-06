@@ -1,9 +1,10 @@
 #pylint: skip-file
-
-import tempfile
 import os
 import shutil
+import tempfile
+
 from yawt.utils import save_file, remove_file, load_file
+
 
 POST_TEMPLATE = """\
 ---

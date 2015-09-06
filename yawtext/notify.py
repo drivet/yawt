@@ -2,9 +2,10 @@ from __future__ import absolute_import
 
 import os.path
 import socket
-from yawtext.micropost import post_social
+
 from yawt.utils import fullname, cfg, content_folder
 from yawtext import Plugin
+from yawtext.micropost import post_social
 
 
 def _notify_message(file_added):

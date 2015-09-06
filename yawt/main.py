@@ -1,11 +1,10 @@
 """ The main YAWT module, mostly implemented as a Blueprint.
 """
-
 from __future__ import absolute_import
 
 import re
-from datetime import datetime
 
+from datetime import datetime
 from flask import current_app, g, Blueprint, url_for, request, \
     redirect, abort, render_template
 from jinja2 import TemplatesNotFound

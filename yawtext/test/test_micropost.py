@@ -1,13 +1,12 @@
 #pylint: skip-file
-
-import unittest
+import shutil
 import tempfile
+import unittest
+
 from mock import Mock
 
 import yawtext.micropost
 from yawt import create_app
-from flask import g
-import shutil
 
 
 class Config(object):

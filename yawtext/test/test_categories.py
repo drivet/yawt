@@ -1,19 +1,21 @@
 #pylint: skip-file
-
+import os
 import unittest
-from yawtext.categories import YawtCategories, HierarchyCount
+
+import jsonpickle
+from datetime import datetime
+from flask import g
 from whoosh.fields import DATETIME, STORED, ID, KEYWORD, Schema
 from whoosh.index import create_in
+
 from yawt import create_app
-from flask import g
-import os
-from yawt.utils import load_file, call_plugins
 from yawt.article import ArticleInfo, Article
-import jsonpickle
 from yawt.test.siteutils import TempSite
+from yawt.utils import load_file, call_plugins
+from yawtext.categories import YawtCategories, HierarchyCount
 from yawtext.test.utils import generate_collection_template
 from yawtext.vc import ChangedFiles
-from datetime import datetime
+
 
 def dt(year, month, day):
     dtime = datetime(year, month, day, 0, 0, 0)

@@ -1,10 +1,11 @@
 from __future__ import absolute_import
 
 import os
+
+import frontmatter
 from flask import current_app, g
 from flask_script import Command, Option
 
-import frontmatter
 from yawt.utils import save_file, content_folder, fullname
 from yawtext import Plugin
 

@@ -1,7 +1,8 @@
 #pylint: skip-file
-
 import unittest
+
 from yawtext import HierarchyCount
+
 
 class TestHierarchyCounter(unittest.TestCase):
     def test_adding_creates_counting_tree(self):

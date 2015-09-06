@@ -1,5 +1,4 @@
 #pylint: skip-file
-
 import subprocess
 
 from yawt.test import TempFolder

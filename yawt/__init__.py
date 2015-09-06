@@ -1,14 +1,13 @@
 """Initialization code for YAWT"""
-
 from __future__ import absolute_import
 
-import re
-import os
 import importlib
 import logging
+import os
+import re
 
-from flask import Flask
 import jinja2
+from flask import Flask
 
 
 # default configuration

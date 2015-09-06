@@ -1,10 +1,11 @@
 #pylint: skip-file
-
 import unittest
-from yawtext.excerpt import YawtExcerpt
-from yawt.article import Article, ArticleInfo
+
+from flask import Markup
+
 from yawt import create_app
-from flask import g, Markup
+from yawt.article import Article, ArticleInfo
+from yawtext.excerpt import YawtExcerpt
 
 
 class TestYawtExcerpt(unittest.TestCase):

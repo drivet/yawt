@@ -1,5 +1,4 @@
 #pylint: skip-file
-
 import os
 import shutil
 import subprocess
@@ -9,10 +8,9 @@ from flask.ext.testing import TestCase
 
 import yawt
 from yawt import create_app
-from yawtext.test import TempGitFolder
-from yawt.utils import save_file, remove_file, load_file
 from yawtext import Plugin
 from yawtext.git import _git_cmd
+from yawtext.test import TempGitFolder
 from yawtext.vc import vc_status, vc_add_tracked, vc_add_tracked_and_new,\
     vc_commit, post_commit, ChangedFiles
 

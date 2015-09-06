@@ -5,9 +5,9 @@ import os
 
 import frontmatter
 import pytz
+from datetime import datetime
 
 from yawt.utils import base_and_ext, ReprMixin, EqMixin
-from datetime import datetime
 
 
 def _set_attributes(article_info, meta, meta_types):

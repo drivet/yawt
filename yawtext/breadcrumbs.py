@@ -4,8 +4,11 @@ This extension registers a blueprint which provides a context processor
 that will provide displayable breadcrumbs template list variable
 """
 from __future__ import absolute_import
+
 from flask import request, Blueprint
+
 from yawtext import Plugin
+
 
 breadcrumbsbp = Blueprint('breadcrumbs', __name__)
 

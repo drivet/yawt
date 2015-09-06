@@ -1,9 +1,10 @@
 #pylint: skip-file
-
 import unittest
+
 import jsonpickle
-from yawtext import StateFiles
+
 from yawt.utils import save_file
+from yawtext import StateFiles
 
 
 class TestStateFiles(unittest.TestCase):

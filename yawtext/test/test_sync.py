@@ -1,21 +1,14 @@
 #pylint: skip-file
-
-import shutil
-import tempfile
-import unittest
-
-from mock import Mock
 from flask.ext.testing import TestCase
+from mock import Mock
 
-import yawtext
 import yawt
-from yawtext.sync import Sync
-from yawt import create_app
-from yawt.utils import save_file
+import yawtext
 from yawt.cli import create_manager
-from yawtext.vc import vc_status, ChangedFiles
-from yawtext.git import _git_cmd
+from yawtext.sync import Sync
 from yawtext.test import TempGitFolder
+from yawtext.vc import ChangedFiles
+
 
 class TestFolder(TempGitFolder):
     def __init__(self):

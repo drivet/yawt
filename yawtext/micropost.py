@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
-import datetime
 import os
 
+import datetime
 import yaml
 from flask import g, current_app
 from flask_script import Command, Option

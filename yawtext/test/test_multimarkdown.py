@@ -1,10 +1,9 @@
 #pylint: skip-file
-
 import unittest
-from yawtext.multimarkdown import YawtMarkdown
-from yawt.article import Article, ArticleInfo
+
 from yawt import create_app
-from flask import g
+from yawt.article import Article, ArticleInfo
+from yawtext.multimarkdown import YawtMarkdown
 
 
 class TestYawtMarkdown(unittest.TestCase):

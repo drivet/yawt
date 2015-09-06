@@ -6,6 +6,7 @@ from __future__ import absolute_import
 import os
 
 from flask import current_app
+
 from yawt.utils import is_content_file, save_file, cfg, EqMixin, ReprMixin
 from yawtext import Plugin
 

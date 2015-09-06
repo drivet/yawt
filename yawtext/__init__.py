@@ -4,7 +4,9 @@ This file contains utility classes in use by various extensions in YAWT
 from __future__ import absolute_import
 
 import os
+
 import jsonpickle
+
 from yawt.utils import load_file, abs_state_folder, cfg, single_dict_var,\
     ReprMixin, EqMixin
 

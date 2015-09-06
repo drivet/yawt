@@ -1,9 +1,8 @@
 """The main Command Line Interface classes for YAWT"""
-
 from __future__ import absolute_import
 
-import os
 import argparse
+import os
 
 from flask import g, current_app
 from flask_script import Command, Manager, Server

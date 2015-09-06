@@ -1,21 +1,18 @@
 #pylint: skip-file
-
 import os
-import sys
-
 import shutil
 import unittest
-from mock import patch
-from mock import Mock
-from flask.ext.testing import TestCase
 
-import yawt
+from flask.ext.testing import TestCase
+from mock import Mock
+
+import yawt.site_manager
 from yawt import create_app
 from yawt.cli import NewSite, Walk, create_manager
 from yawt.test import TempFolder
 
+
 # for mocking purposes
-import yawt.site_manager
 
 path_to_site = "/tmp/testsite"
 

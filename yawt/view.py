@@ -1,5 +1,4 @@
 """Basic rendering code"""
-
 from __future__ import absolute_import
 
 from flask import current_app, make_response, render_template

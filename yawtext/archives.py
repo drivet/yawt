@@ -4,18 +4,17 @@ Provides archive and permalink views and categorized archive routes.
 """
 from __future__ import absolute_import
 
-from datetime import datetime
-
-from flask import current_app, g, Blueprint
-from whoosh.qparser import QueryParser
-from flask.views import View
 import jsonpickle
+from datetime import datetime
+from flask import current_app, g, Blueprint
+from flask.views import View
+from whoosh.qparser import QueryParser
 
 from yawt.utils import save_file, load_file, fullname, cfg, abs_state_folder
+from yawt.view import render
 from yawtext import StateFiles, state_context_processor, HierarchyCount, Plugin
 from yawtext.collections import CollectionView
 from yawtext.indexer import schema, search
-from yawt.view import render
 
 
 archivesbp = Blueprint('archives', __name__)

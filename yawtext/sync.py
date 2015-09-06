@@ -3,10 +3,10 @@ from __future__ import absolute_import
 from flask import g, current_app
 from flask_script import Command, Option
 
-from yawtext.vc import vc_push, vc_commit, vc_add_tracked,\
-    vc_add_tracked_and_new, vc_status
 from yawt.utils import call_plugins
 from yawtext import Plugin
+from yawtext.vc import vc_push, vc_commit, vc_add_tracked,\
+    vc_add_tracked_and_new, vc_status
 
 
 def _sync(strict, addnew, push, message):

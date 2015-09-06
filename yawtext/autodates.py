@@ -1,11 +1,12 @@
 from __future__ import absolute_import
 
-import datetime
 import os
 
+import datetime
+import frontmatter
 import yaml
 from flask import current_app
-import frontmatter
+
 from yawt.utils import save_file
 from yawtext import Plugin
 

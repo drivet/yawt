@@ -9,11 +9,12 @@ from math import ceil
 
 from flask import current_app, g, request, Blueprint, abort
 from flask.views import View
-from yawt.view import render
-from yawt.article import Article
 from jinja2 import TemplatesNotFound
-from yawtext.indexer import search
+
+from yawt.article import Article
+from yawt.view import render
 from yawtext import Plugin
+from yawtext.indexer import search
 
 
 collectionsbp = Blueprint('paging', __name__)

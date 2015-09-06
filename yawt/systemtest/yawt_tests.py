@@ -1,10 +1,11 @@
 #pylint: skip-file
-
 import unittest
-import os
-import yawt
+
 from flask.ext.testing import TestCase
+
+import yawt
 from yawt.test import TempFolder, template
+
 
 config = """
 YAWT_BASE_URL = 'http://www.hereitis.com'

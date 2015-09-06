@@ -3,10 +3,11 @@ from __future__ import absolute_import
 
 import os
 import re
+
 import yawt.default_templates
+from yawt.article import make_article
 from yawt.utils import call_plugins, call_plugins_arg, save_file, \
     joinfile, ensure_path, base_and_ext, ReprMixin
-from yawt.article import make_article
 
 
 class YawtSiteManager(object):
