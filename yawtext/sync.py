@@ -1,24 +1,12 @@
 from __future__ import absolute_import
 
-
 from flask import g, current_app
 from flask_script import Command, Option
 
-from yawtext.git import git_push, git_commit, \
-    git_add, git_status, extract_indexed_status_files
+from yawtext.vc import vc_push, vc_commit, vc_add_tracked,\
+    vc_add_tracked_and_new, vc_status
 from yawt.utils import call_plugins
 from yawtext import Plugin
-
-
-GIT = '/usr/bin/git'
-
-
-def _cfg(key):
-    return current_app.config[key]
-
-
-def _content_folder():
-    return _cfg('YAWT_CONTENT_FOLDER')
 
 
 def _sync(strict, addnew, push, message):
@@ -28,21 +16,21 @@ def _sync(strict, addnew, push, message):
         # to the index.  The -A will do that.  Otheriwse we just do a -u,
         # which will only update the tracked files.
         if addnew:
-            git_add(root_dir, '-A')
+            vc_add_tracked_and_new()
         else:
-            git_add(root_dir, '-u')
+            vc_add_tracked()
 
         # at this point we should have an almost snapshot of what we want
         # to commit in the index.  It's "almost" because we now may want
         # to fix up or add the timestamps.
-        changed = extract_indexed_status_files(git_status(root_dir))
+        changed = vc_status()
         call_plugins('on_pre_sync', root_dir, changed)
 
         # readjust the index with the new timestamp changes
-        git_add(root_dir, '-u')
-    git_commit(root_dir, message)
+        vc_add_tracked()
+    vc_commit(message)
     if push:
-        git_push(root_dir)
+        vc_push()
 
 
 class Sync(Command):

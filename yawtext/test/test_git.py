@@ -4,72 +4,202 @@ import unittest
 import datetime
 import shutil
 import os
-from yawtext.git import YawtGit, ChangedFiles
+import subprocess
+import yawt
+from yawtext.vc import YawtVersionControl
 from yawt.article import Article, ArticleInfo
+from yawt.utils import save_file, remove_file, load_file
+from yawt.test import TempFolder
 from yawt import create_app
-from flask import g
+from flask import g, current_app
+from flask.ext.testing import TestCase
 
-class TestYawtGitNewSite(unittest.TestCase):
-    def setUp(self):
+from yawtext.vc import vc_status, vc_add_tracked,\
+    vc_add_tracked_and_new, vc_commit, post_commit, ChangedFiles
+from yawtext.git import _git_cmd
+from yawtext import Plugin
+
+
+class TestYawtGitNewSite(TestCase):
+    YAWT_EXTENSIONS = ['yawtext.vc.YawtVersionControl']
+    YAWT_VERSION_CONTROL_IFC = 'yawtext.git'
+
+    def create_app(self):
         self.root_dir = '/tmp/blah'
-        self.plugin = YawtGit()
-        self.app = create_app(self.root_dir, extension_info = extension_info(self.plugin))
-        self.app.config['GIT_REPOPATH'] = self.root_dir
-        self.app.config['GIT_SEARCH_PATH'] = self.root_dir
+        return create_app(self.root_dir, config=self)
+
+    def setUp(self):
+        self.app.preprocess_request()
 
     def test_git_saves_ignore_file(self):
-        self.assertFalse(os.path.isfile(os.path.join(self.root_dir, '.gitignore')))
-        with self.app.test_request_context():
-            self.app.preprocess_request()
-            g.site.initialize()
-        self.assertTrue(os.path.isfile(os.path.join(self.root_dir, '.gitignore')))
+        self.assertFalse(os.path.isfile(os.path.join(self.root_dir,
+                                                     '.gitignore')))
+        g.site.initialize()
+        self.assertTrue(os.path.isfile(os.path.join(self.root_dir,
+                                                    '.gitignore')))
 
     def tearDown(self):
         shutil.rmtree(self.root_dir)
 
 
-class TestChangedFiles(unittest.TestCase):
-    def test_normalize_copies_added_modified_and_deleted(self):
-        changed = ChangedFiles(added=['file1', 'file2'],
-                               modified=['file3', 'file4'],
-                               deleted=['file5', 'file6'])
-        normalized = changed.normalize()
-        self.assertEquals(changed, normalized)
-        self.assertTrue(changed.added is not normalized.added)
-        self.assertTrue(changed.modified is not normalized.modified)
-        self.assertTrue(changed.deleted is not normalized.deleted)
+class TempGitFolder(TempFolder):
+    def __init__(self):
+        super(TempGitFolder, self).__init__()
+        self.files = {
+            'content/index.txt': 'index text',
+            'content/entry.txt': 'entry text',
+            'content/random.txt': 'random text',
+            'content/food.txt': 'blabs',
+        }
 
-    def test_normalize_moves_renames_into_added_and_deleted(self):
-        changed = ChangedFiles(added=['file1', 'file2'],
-                               modified=['file3', 'file4'],
-                               deleted=['file5', 'file6'],
-                               renamed={'file7': 'file8'})
-        normalized = changed.normalize()
-        self.assertEqual(normalized.added, ['file1', 'file2', 'file8'])
-        self.assertEqual(normalized.modified, ['file3', 'file4'])
-        self.assertEqual(normalized.deleted, ['file5', 'file6', 'file7'])
-        self.assertEqual(normalized.renamed, {})
-
-    def test_filters_non_content_files_from_added_modified_and_deleted(self):
-        changed = ChangedFiles(added=['the_content/file1', 'file2'],
-                               modified=['file3', 'the_content/file4'],
-                               deleted=['the_content/file5', 'file6'])
-        contents = changed.content_changes('the_content')
-        self.assertEquals(contents.added, ['the_content/file1'])
-        self.assertEquals(contents.modified, ['the_content/file4'])
-        self.assertEquals(contents.deleted, ['the_content/file5'])
-
-    def test_filters_non_content_renames(self):
-        changed = ChangedFiles(renamed={'file1': 'the_content/file2',
-                                        'the_content/file3': 'the_content/file4',
-                                        'file4': 'file6'})
-        contents = changed.content_changes('the_content')
-        self.assertEquals(contents.added, ['the_content/file2'])
-        self.assertEquals(contents.modified, [])
-        self.assertEquals(contents.deleted, [])
-        self.assertEquals(contents.renamed, {'the_content/file3': 'the_content/file4'})
+    def initialize_git(self):
+        cmd = _git_cmd(['init'])
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        cmd = _git_cmd(['add', '-A'])
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        cmd = _git_cmd(['commit', '-m', '"init"'])
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
 
-def extension_info(plugin):
-    return ({'yawtext.git.YawtGit': plugin},
-            [plugin])
+class TestGitPlugin(TestCase):
+    YAWT_EXTENSIONS = ['yawtext.vc.YawtVersionControl']
+    YAWT_VERSION_CONTROL_IFC = 'yawtext.git'
+
+    def create_app(self):
+        self.site = TempGitFolder()
+        self.site.initialize()
+        return yawt.create_app(self.site.site_root, config=self)
+
+    def setUp(self):
+        self.app.preprocess_request()
+        self.site.initialize_git()
+
+    def test_status_gives_changed_files(self):
+        # modify one file
+        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
+                  'different stuff')
+
+        # add another new file
+        save_file(os.path.join(self.site.site_root, 'content/newfile.txt'),
+                  'blah')
+
+        # remove yet another
+        remove_file(os.path.join(self.site.site_root, 'content/random.txt'))
+
+        # move a file
+        filename1 = os.path.join(self.site.site_root, 'content/food.txt')
+        filename2 = os.path.join(self.site.site_root, 'content/newfood.txt')
+        save_file(filename2, load_file(filename1))
+        remove_file(filename1)
+
+        # add all changes to index
+        cmd = _git_cmd(['add', '-A'])
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+
+        changed = vc_status()
+        expected = ChangedFiles(added=['content/newfile.txt'],
+                                modified=['content/index.txt'],
+                                deleted=['content/random.txt'],
+                                renamed={'content/food.txt':
+                                         'content/newfood.txt'})
+        self.assertEquals(expected, changed)
+
+    def test_add_tracked(self):
+        # modify one file
+        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
+                  'different stuff')
+
+        # add another new file
+        save_file(os.path.join(self.site.site_root, 'content/newfile.txt'),
+                  'blah')
+
+        vc_add_tracked()
+        changed = vc_status()
+        expected = ChangedFiles(modified=['content/index.txt'])
+        self.assertEquals(expected, changed)
+
+    def test_add_tracked_and_new(self):
+        # modify one file
+        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
+                  'different stuff')
+
+        # add another new file
+        save_file(os.path.join(self.site.site_root, 'content/newfile.txt'),
+                  'blah')
+
+        vc_add_tracked_and_new()
+        changed = vc_status()
+        expected = ChangedFiles(added=['content/newfile.txt'],
+                                modified=['content/index.txt'])
+        self.assertEquals(expected, changed)
+
+    def test_commit(self):
+        # modify one file
+        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
+                  'different stuff')
+        vc_add_tracked()
+        vc_commit('hello')
+        changed = vc_status()
+        expected = ChangedFiles()
+        self.assertEquals(expected, changed)
+
+    def tearDown(self):
+        self.site.remove()
+
+
+class TestPlugin(Plugin):
+    def __init__(self):
+        self.changed = None
+
+    def on_files_changed(self, changed):
+        self.changed = changed
+
+
+class TestGitHooks(TestCase):
+    YAWT_EXTENSIONS = ['yawtext.vc.YawtVersionControl',
+                       'yawtext.test.test_git.TestPlugin']
+    YAWT_VERSION_CONTROL_IFC = 'yawtext.git'
+
+    def create_app(self):
+        self.site = TempGitFolder()
+        self.site.initialize()
+        return yawt.create_app(self.site.site_root, config=self)
+
+    def setUp(self):
+        self.app.preprocess_request()
+        self.site.initialize_git()
+
+    def test_post_commit(self):
+        # modify one file
+        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
+                  'different stuff')
+
+        # add another new file
+        save_file(os.path.join(self.site.site_root, 'content/newfile.txt'),
+                  'blah')
+
+        # remove yet another
+        remove_file(os.path.join(self.site.site_root, 'content/random.txt'))
+
+        # move a file
+        filename1 = os.path.join(self.site.site_root, 'content/food.txt')
+        filename2 = os.path.join(self.site.site_root, 'content/newfood.txt')
+        save_file(filename2, load_file(filename1))
+        remove_file(filename1)
+
+        # add all changes to index
+        vc_add_tracked_and_new()
+        vc_commit('hello')
+        post_commit(self.site.site_root, self.app)
+        expected = ChangedFiles(added=['content/newfile.txt'],
+                                modified=['content/index.txt'],
+                                deleted=['content/random.txt'],
+                                renamed={'content/food.txt':
+                                         'content/newfood.txt'})
+
+        test_plugin_name = 'yawtext.test.test_git.TestPlugin'
+        plugin = self.app.extension_info[0][test_plugin_name]
+        self.assertEquals(expected, plugin.changed)
+
+    def tearDown(self):
+        self.site.remove()

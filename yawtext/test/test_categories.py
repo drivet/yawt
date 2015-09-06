@@ -12,7 +12,7 @@ from yawt.article import ArticleInfo, Article
 import jsonpickle
 from yawt.test.siteutils import TempSite
 from yawtext.test.utils import generate_collection_template
-from yawtext.git import ChangedFiles
+from yawtext.vc import ChangedFiles
 from datetime import datetime
 
 def dt(year, month, day):

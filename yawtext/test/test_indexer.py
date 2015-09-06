@@ -15,7 +15,8 @@ from datetime import datetime
 from yawt.utils import save_file, call_plugins
 from yawt.article import ArticleInfo
 import jsonpickle
-from yawtext.git import ChangedFiles
+from yawtext.vc import ChangedFiles
+
 
 class TestYawtWhoosh(unittest.TestCase):
     def setUp(self):

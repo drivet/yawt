@@ -8,7 +8,7 @@ import yawtext.notify
 from yawt import create_app
 from flask import g
 import shutil
-from yawtext.git import ChangedFiles
+from yawtext.vc import ChangedFiles
 
 class Config(object):
     YAWT_NOTIFY_CATEGORIES = ['cat1']
