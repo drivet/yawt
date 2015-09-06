@@ -61,9 +61,9 @@ class TempGitFolder(TempFolder):
         try:
             subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            print "return code: "+e.returncode
-            print "cmd: "+e.cmd
-            print "output: "+e.output
+            print "return code: "+str(e.returncode)
+            print "cmd: "+str(e.cmd)
+            print "output: "+str(e.output)
 
 
 class TestGitPlugin(TestCase):
