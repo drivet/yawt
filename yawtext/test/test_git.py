@@ -54,20 +54,15 @@ class TempGitFolder(TempFolder):
 
     def initialize_git(self):
         cmd = _git_cmd(['init'])
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         cmd = _git_cmd(['add', '-A'])
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         cmd = _git_cmd(['config', 'user.email', 'user@example.com'])
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         cmd = _git_cmd(['config', 'user.name', 'Dude User'])
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         cmd = _git_cmd(['commit', '-m', 'initialcommit'])
-        try:
-            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            print "return code: "+str(e.returncode)
-            print "cmd: "+str(e.cmd)
-            print "output: "+str(e.output)
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
 
 class TestGitPlugin(TestCase):
