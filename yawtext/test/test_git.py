@@ -57,6 +57,10 @@ class TempGitFolder(TempFolder):
         out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         cmd = _git_cmd(['add', '-A'])
         out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        cmd = _git_cmd(['config', 'user.email', 'user@example.com'])
+        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        cmd = _git_cmd(['config', 'user.name', 'Dude User'])
+        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         cmd = _git_cmd(['commit', '-m', 'initialcommit'])
         try:
             subprocess.check_output(cmd, stderr=subprocess.STDOUT)
