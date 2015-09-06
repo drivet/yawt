@@ -55,16 +55,16 @@ class TempGitFolder(TempFolder):
     def initialize_git(self):
         cmd = _git_cmd(['init'])
         out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        if out:
-            print "git init output: " +out
         cmd = _git_cmd(['add', '-A'])
         out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        if out:
-            print "git add output: " +out
-        cmd = _git_cmd(['commit', '-m', 'init'])
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        if out:
-            print "git commit output: " +out
+        cmd = _git_cmd(['commit', '-m', 'initialcommit'])
+        try:
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            print "return code: "+e.returncode
+            print "cmd: "+e.cmd
+            print "output: "+e.output
+
 
 class TestGitPlugin(TestCase):
     YAWT_EXTENSIONS = ['yawtext.vc.YawtVersionControl']
