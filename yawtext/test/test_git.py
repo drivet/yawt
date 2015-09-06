@@ -1,23 +1,20 @@
 #pylint: skip-file
 
-import unittest
-import datetime
-import shutil
 import os
+import shutil
 import subprocess
-import yawt
-from yawtext.vc import YawtVersionControl
-from yawt.article import Article, ArticleInfo
-from yawt.utils import save_file, remove_file, load_file
-from yawt.test import TempFolder
-from yawt import create_app
-from flask import g, current_app
+
+from flask import g
 from flask.ext.testing import TestCase
 
-from yawtext.vc import vc_status, vc_add_tracked,\
-    vc_add_tracked_and_new, vc_commit, post_commit, ChangedFiles
-from yawtext.git import _git_cmd
+import yawt
+from yawt import create_app
+from yawtext.test import TempGitFolder
+from yawt.utils import save_file, remove_file, load_file
 from yawtext import Plugin
+from yawtext.git import _git_cmd
+from yawtext.vc import vc_status, vc_add_tracked, vc_add_tracked_and_new,\
+    vc_commit, post_commit, ChangedFiles
 
 
 class TestYawtGitNewSite(TestCase):
@@ -42,27 +39,15 @@ class TestYawtGitNewSite(TestCase):
         shutil.rmtree(self.root_dir)
 
 
-class TempGitFolder(TempFolder):
+class TestFolder(TempGitFolder):
     def __init__(self):
-        super(TempGitFolder, self).__init__()
+        super(TestFolder, self).__init__()
         self.files = {
             'content/index.txt': 'index text',
             'content/entry.txt': 'entry text',
             'content/random.txt': 'random text',
-            'content/food.txt': 'blabs',
+            'content/food.txt': 'random food text, let us make this longer',
         }
-
-    def initialize_git(self):
-        cmd = _git_cmd(['init'])
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        cmd = _git_cmd(['add', '-A'])
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        cmd = _git_cmd(['config', 'user.email', 'user@example.com'])
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        cmd = _git_cmd(['config', 'user.name', 'Dude User'])
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        cmd = _git_cmd(['commit', '-m', 'initialcommit'])
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
 
 class TestGitPlugin(TestCase):
@@ -70,7 +55,7 @@ class TestGitPlugin(TestCase):
     YAWT_VERSION_CONTROL_IFC = 'yawtext.git'
 
     def create_app(self):
-        self.site = TempGitFolder()
+        self.site = TestFolder()
         self.site.initialize()
         return yawt.create_app(self.site.site_root, config=self)
 
@@ -80,21 +65,19 @@ class TestGitPlugin(TestCase):
 
     def test_status_gives_changed_files(self):
         # modify one file
-        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
-                  'different stuff')
+        self.site.save_file('content/index.txt', 'different stuff')
 
         # add another new file
-        save_file(os.path.join(self.site.site_root, 'content/newfile.txt'),
-                  'blah')
+        self.site.save_file('content/newfile.txt', 'blah')
 
         # remove yet another
-        remove_file(os.path.join(self.site.site_root, 'content/random.txt'))
+        self.site.delete_file('content/random.txt')
 
         # move a file
-        filename1 = os.path.join(self.site.site_root, 'content/food.txt')
-        filename2 = os.path.join(self.site.site_root, 'content/newfood.txt')
-        save_file(filename2, load_file(filename1))
-        remove_file(filename1)
+        filename1 = 'content/food.txt'
+        filename2 = 'content/newfood.txt'
+        self.site.save_file(filename2, self.site.load_file(filename1))
+        self.site.delete_file(filename1)
 
         # add all changes to index
         cmd = _git_cmd(['add', '-A'])
@@ -110,12 +93,10 @@ class TestGitPlugin(TestCase):
 
     def test_add_tracked(self):
         # modify one file
-        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
-                  'different stuff')
+        self.site.save_file('content/index.txt', 'different stuff')
 
         # add another new file
-        save_file(os.path.join(self.site.site_root, 'content/newfile.txt'),
-                  'blah')
+        self.site.save_file('content/newfile.txt', 'blah')
 
         vc_add_tracked()
         changed = vc_status()
@@ -124,12 +105,10 @@ class TestGitPlugin(TestCase):
 
     def test_add_tracked_and_new(self):
         # modify one file
-        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
-                  'different stuff')
+        self.site.save_file('content/index.txt', 'different stuff')
 
         # add another new file
-        save_file(os.path.join(self.site.site_root, 'content/newfile.txt'),
-                  'blah')
+        self.site.save_file('content/newfile.txt', 'blah')
 
         vc_add_tracked_and_new()
         changed = vc_status()
@@ -139,8 +118,8 @@ class TestGitPlugin(TestCase):
 
     def test_commit(self):
         # modify one file
-        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
-                  'different stuff')
+        self.site.save_file('content/index.txt', 'different stuff')
+
         vc_add_tracked()
         vc_commit('hello')
         changed = vc_status()
@@ -165,7 +144,7 @@ class TestGitHooks(TestCase):
     YAWT_VERSION_CONTROL_IFC = 'yawtext.git'
 
     def create_app(self):
-        self.site = TempGitFolder()
+        self.site = TestFolder()
         self.site.initialize()
         return yawt.create_app(self.site.site_root, config=self)
 
@@ -175,21 +154,19 @@ class TestGitHooks(TestCase):
 
     def test_post_commit(self):
         # modify one file
-        save_file(os.path.join(self.site.site_root, 'content/index.txt'),
-                  'different stuff')
+        self.site.save_file('content/index.txt', 'different stuff')
 
         # add another new file
-        save_file(os.path.join(self.site.site_root, 'content/newfile.txt'),
-                  'blah')
+        self.site.save_file('content/newfile.txt', 'blah')
 
         # remove yet another
-        remove_file(os.path.join(self.site.site_root, 'content/random.txt'))
+        self.site.delete_file('content/random.txt')
 
         # move a file
-        filename1 = os.path.join(self.site.site_root, 'content/food.txt')
-        filename2 = os.path.join(self.site.site_root, 'content/newfood.txt')
-        save_file(filename2, load_file(filename1))
-        remove_file(filename1)
+        filename1 = 'content/food.txt'
+        filename2 = 'content/newfood.txt'
+        self.site.save_file(filename2, self.site.load_file(filename1))
+        self.site.delete_file(filename1)
 
         # add all changes to index
         vc_add_tracked_and_new()

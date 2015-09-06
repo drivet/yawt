@@ -85,7 +85,6 @@ def vc_status():
 #    print _git_cmd(root_dir, args)
     status_out = subprocess.check_output(_git_cmd(cmd_args),
                                          stderr=subprocess.STDOUT)
-
     added_files = []
     modified_files = []
     deleted_files = []

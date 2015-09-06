@@ -46,12 +46,12 @@ def _root_dir():
     return args_and_rest[0].root_dir
 
 
-def create_manager():
+def create_manager(app=None):
     """Create the command line manager"""
-
-    # we create the app here instead of passing in an app factory so we can
-    # properly run the on_cli_init calls under a request context
-    app = yawt.create_app(_root_dir())
+    app_supplied = True
+    if not app:
+        app = yawt.create_app(_root_dir())
+        app_supplied = False
     manager = Manager(app)
 
     # specify root_dir which will be consumed but ignored since we have an app
@@ -65,8 +65,15 @@ def create_manager():
     manager.add_command('newsite', NewSite())
     manager.add_command('walk', Walk())
 
-    with app.test_request_context():
-        current_app.preprocess_request()
-        call_plugins('on_cli_init', manager)
+    if app_supplied:
+        _handle_cli_init(manager)
+    else:
+        with app.test_request_context():
+            _handle_cli_init(manager)
 
     return manager
+
+
+def _handle_cli_init(manager):
+    current_app.preprocess_request()
+    call_plugins('on_cli_init', manager)

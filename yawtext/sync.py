@@ -23,10 +23,10 @@ def _sync(strict, addnew, push, message):
         # at this point we should have an almost snapshot of what we want
         # to commit in the index.  It's "almost" because we now may want
         # to fix up or add the timestamps.
-        changed = vc_status()
-        call_plugins('on_pre_sync', root_dir, changed)
+        call_plugins('on_pre_sync', root_dir, vc_status())
 
-        # readjust the index with the new timestamp changes
+        # readjust the index with whatever changes were made by
+        # the pre_sync plugins
         vc_add_tracked()
     vc_commit(message)
     if push:

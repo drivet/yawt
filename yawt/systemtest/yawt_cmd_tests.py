@@ -95,7 +95,6 @@ class TestSite(TempFolder):
     def __init__(self):
         super(TestSite, self).__init__()
         self.files = {
-            # entries
             'content/entry1.txt': 'entry text',
             'content/entry2.txt': 'entry text',
         }

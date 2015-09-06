@@ -3,7 +3,7 @@
 import tempfile
 import os
 import shutil
-from yawt.utils import save_file
+from yawt.utils import save_file, remove_file, load_file
 
 POST_TEMPLATE = """\
 ---
@@ -44,6 +44,15 @@ class TempFolder(object):
                 save_file(abs_filename, dump_post(content[0], content[1]))
             else:
                 save_file(abs_filename, content)
+
+    def save_file(self, repofile, contents):
+        save_file(os.path.join(self.site_root, repofile), contents)
+
+    def delete_file(self, repofile):
+        remove_file(os.path.join(self.site_root, repofile))
+
+    def load_file(self, repofile):
+        return load_file(os.path.join(self.site_root, repofile))
 
     def remove(self):
         assert self.site_root.startswith('/tmp/')
