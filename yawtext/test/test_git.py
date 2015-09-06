@@ -57,7 +57,7 @@ class TempGitFolder(TempFolder):
         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         cmd = _git_cmd(['add', '-A'])
         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        cmd = _git_cmd(['commit', '-m', '"init"'])
+        cmd = _git_cmd(['commit', '-m', 'init'])
         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
 

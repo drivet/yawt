@@ -68,7 +68,7 @@ class YawtVersionControl(Plugin):
 
     def init_app(self, app):
         app.config.setdefault('YAWT_VERSION_CONTROL_IFC', 'yawtext.git')
-        app.config.setdefault('YAWT_VERSION_CONTROL_GIT_EXE', 'git')
+        app.config.setdefault('YAWT_VERSION_CONTROL_GIT_EXE', '/usr/bin/git')
 
     def on_new_site(self, files):
         """When a new site is created, we'll save a gitignore file so we can

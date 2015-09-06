@@ -2,9 +2,6 @@ language: python
 python:
   - "2.7"
 
-before_install:
-  - sudo apt-get install cmake python-dev libffi-dev
-
 # command to install dependencies
 install:
   - "pip install -r requirements-test.txt" 
