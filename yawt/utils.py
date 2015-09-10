@@ -63,13 +63,18 @@ def fullname(sitefile):
 
 
 def extensions(app=None):
-    """Returns the list of extension known to YAWT"""
+    """Returns the list of extensions known to YAWT"""
     if not app:
         app = current_app
     if app.extension_info:
         return app.extension_info[1]
     else:
         return []
+
+
+def is_loaded(extension):
+    """Return true if extension is loaded"""
+    return extension in current_app.extension_info[0]
 
 
 def call_plugins(method, *args, **kw):

@@ -28,21 +28,21 @@ tagcounts template variable, which is a map of bases mapped to tag counts maps.
 from __future__ import absolute_import
 
 from flask import current_app, Blueprint, g
-from whoosh.qparser import QueryParser
-import jsonpickle
 
-from yawt.utils import save_file, load_file, fullname,\
-    cfg, abs_state_folder
+from yawt.utils import fullname, cfg, abs_state_folder
 from yawtext import StateFiles, state_context_processor, Plugin
 from yawtext.collections import CollectionView
-from yawtext.indexer import schema
+from yawtext.indexer import search
 
 
 taggingbp = Blueprint('tagging', __name__)
 
 
-def _whoosh():
-    return current_app.extension_info[0]['flask_whoosh.Whoosh']
+def _get_bases():
+    if cfg('YAWT_TAGGING_BASE'):
+        return cfg('YAWT_TAGGING_BASE')
+    else:
+        return ['']
 
 
 @taggingbp.app_context_processor
@@ -50,6 +50,7 @@ def _tagcounts_cp():
     return state_context_processor('YAWT_TAGGING_COUNT_FILE',
                                    'YAWT_TAGGING_BASE',
                                    'tagcounts')
+
 
 @taggingbp.context_processor
 def _collection_title():
@@ -69,8 +70,7 @@ class TaggingView(CollectionView):
         query_str = 'tags:' + tag
         if category:
             query_str += ' AND ' + category
-        qparser = QueryParser('categories', schema=schema())
-        return qparser.parse(unicode(query_str))
+        return unicode(query_str)
 
     def get_template_name(self):
         return current_app.config['YAWT_TAGGING_TEMPLATE']
@@ -96,13 +96,13 @@ class YawtTagging(Plugin):
     def on_pre_walk(self):
         """Initialize the tag counts"""
         self.tagcountmap = {}
-        for base in current_app.config['YAWT_TAGGING_BASE']:
+        for base in _get_bases():
             self.tagcountmap[base] = {}
 
     def on_visit_article(self, article):
         """Count the tags for this article"""
         if hasattr(article.info, 'tags'):
-            for base in [b for b in cfg('YAWT_TAGGING_BASE')
+            for base in [b for b in _get_bases()
                          if article.info.under(b)]:
                 for tag in article.info.tags:
                     if tag in self.tagcountmap[base]:
@@ -112,11 +112,9 @@ class YawtTagging(Plugin):
 
     def on_post_walk(self):
         """Save the tag counts to disk"""
-        statefiles = StateFiles(abs_state_folder(), cfg('YAWT_TAGGING_COUNT_FILE'))
-        for base in self.tagcountmap:
-            tagcounts = self.tagcountmap[base]
-            pickled_info = jsonpickle.encode(tagcounts)
-            save_file(statefiles.abs_state_file(base), pickled_info)
+        statefiles = StateFiles(abs_state_folder(),
+                                cfg('YAWT_TAGGING_COUNT_FILE'))
+        statefiles.save_state_files(self.tagcountmap)
 
     def on_files_changed(self, changed):
         """pass in three lists of files, modified, added, removed, all
@@ -124,50 +122,47 @@ class YawtTagging(Plugin):
         not absolute filenames)
         """
         changed = changed.content_changes().normalize()
-        statefiles = StateFiles(abs_state_folder(), cfg('YAWT_TAGGING_COUNT_FILE'))
-        for base in current_app.config['YAWT_TAGGING_BASE']:
-            pickled_info = load_file(statefiles.abs_state_file(base))
-            self.tagcountmap[base] = jsonpickle.decode(pickled_info)
-            for f in changed.deleted + changed.modified:
-                name = fullname(f)
+        statefiles = StateFiles(abs_state_folder(),
+                                cfg('YAWT_TAGGING_COUNT_FILE'))
+        self.tagcountmap = statefiles.load_state_files(_get_bases())
+        for base in _get_bases():
+            for repofile in changed.deleted + changed.modified:
+                name = fullname(repofile)
                 if name:
-                    tags_to_remove = self._tags_for_name(name)
-                    for tag in tags_to_remove:
-                        if tag in self.tagcountmap[base]:
-                            self.tagcountmap[base][tag] -= 1
+                    if name.startswith(base):
+                        tags_to_remove = self._tags_for_name(name)
+                        for tag in tags_to_remove:
+                            if tag in self.tagcountmap[base]:
+                                self.tagcountmap[base][tag] -= 1
 
         map(self.on_visit_article,
-            g.site.fetch_articles_by_repofiles(changed.modified + changed.added))
+            g.site.fetch_articles_by_repofiles(changed.modified +
+                                               changed.added))
 
         self._delete_unused_tags()
 
         self.on_post_walk()
 
     def _tags_for_name(self, name):
-        searcher = _whoosh().searcher
-        qparser = QueryParser('fullname', schema=schema())
-        query = qparser.parse(unicode(name))
-        results = searcher.search(query)
+        infos = search(unicode('fullname:'+name))
         tags = []
-        if len(results) > 0:
-            info = jsonpickle.decode(results[0]['article_info_json'])
-            if hasattr(info, 'tags') and info.tags:
-                tags = info.tags
+        if len(infos) > 0:
+            if hasattr(infos[0], 'tags') and infos[0].tags:
+                tags = infos[0].tags
         return tags
 
     def _delete_unused_tags(self):
         unused_tags = []
-        for base in current_app.config['YAWT_TAGGING_BASE']:
+        for base in _get_bases():
             for tag in self.tagcountmap[base]:
                 if self.tagcountmap[base][tag] == 0 and \
                    tag not in unused_tags:
                     unused_tags.append(tag)
 
         for tag in unused_tags:
-            for base in current_app.config['YAWT_TAGGING_BASE']:
+            for base in _get_bases():
                 if tag in self.tagcountmap[base]:
                     del self.tagcountmap[base][tag]
-
 
 taggingbp.add_url_rule('/tags/<tag>/',
                        view_func=TaggingView.as_view('tag_canonical'))

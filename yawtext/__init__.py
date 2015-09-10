@@ -7,8 +7,8 @@ import os
 
 import jsonpickle
 
-from yawt.utils import load_file, abs_state_folder, cfg, single_dict_var,\
-    ReprMixin, EqMixin
+from yawt.utils import load_file, save_file, abs_state_folder, cfg,\
+    single_dict_var, ReprMixin, EqMixin
 
 
 class Plugin(object):
@@ -23,7 +23,7 @@ class Plugin(object):
         pass
 
 
-class StateFiles(object):
+class StateFiles(ReprMixin):
     """Manages a "state file", which is a json pickled python object stored
     in a file.  The file is named "statefile" and is stored under various
     base folders under root_dir.
@@ -40,7 +40,18 @@ class StateFiles(object):
             if os.path.isfile(abs_state_file):
                 stateobj = jsonpickle.decode(load_file(abs_state_file))
                 statemap[base] = stateobj
-        return statemap
+
+        if len(statemap) == 1 and statemap.keys()[0] == '':
+            return statemap[statemap.keys()[0]]
+        else:
+            return statemap
+
+    def save_state_files(self, statefilemap):
+        """Save statefilemap to disk, distributing among the bases"""
+        for base in statefilemap:
+            stateobj = statefilemap[base]
+            pickled_info = jsonpickle.encode(stateobj)
+            save_file(self.abs_state_file(base), pickled_info)
 
     def abs_state_file(self, base):
         """Return the absolute filename of the statefile at base"""

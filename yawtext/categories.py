@@ -10,26 +10,16 @@ import re
 
 import jsonpickle
 from flask import current_app, g, Blueprint
-from whoosh.qparser import QueryParser
-from whoosh.query.qcore import Every
 
-from yawt.utils import save_file, load_file, fullname
-from yawtext import HierarchyCount, Plugin
+from yawt.utils import load_file, fullname, cfg, abs_state_folder
+from yawtext import HierarchyCount, Plugin, StateFiles, state_context_processor
 from yawtext.collections import CollectionView
-from yawtext.indexer import schema
 
 
 categoriesbp = Blueprint('categories', __name__)
 
 
-def _abs_category_count_file():
-    root = current_app.yawt_root_dir
-    countfile = current_app.config['YAWT_CATEGORY_COUNT_FILE']
-    state_folder = current_app.config['YAWT_STATE_FOLDER']
-    return os.path.join(root, state_folder, countfile)
-
-
-def _slice_base_off_category(category, countbase):
+def _slice_base(category, countbase):
     category = re.sub('^%s' % (countbase), '', category)
     if category.startswith('/'):
         category = category[1:]
@@ -37,26 +27,25 @@ def _slice_base_off_category(category, countbase):
 
 
 # Feels very wrong
-def _adjust_base_for_category():
-    countbase = current_app.config['YAWT_CATEGORY_BASE']
+def _adjust_base_for_category(countbase):
     if countbase.startswith('/'):
         countbase = countbase[1:]
     return countbase
 
 
+def _get_bases():
+    if cfg('YAWT_CATEGORY_BASE'):
+        return cfg('YAWT_CATEGORY_BASE')
+    else:
+        return ['']
+
+
 @categoriesbp.app_context_processor
 def _categorycounts():
-    """Context processor to provide a category counst to a template"""
-    catcountfile = _abs_category_count_file()
-    tvars = {}
-    if os.path.isfile(catcountfile):
-        countbase = current_app.config['YAWT_CATEGORY_BASE']
-        if not countbase.endswith('/'):
-            countbase += '/'
-
-        counts = jsonpickle.decode(load_file(catcountfile))
-        tvars = {'categorycounts': counts, 'categorycountbase': countbase}
-    return tvars
+    """Context processor to provide a category counts to a template"""
+    return state_context_processor('YAWT_CATEGORY_COUNT_FILE',
+                                   'YAWT_CATEGORY_BASE',
+                                   'categorycounts')
 
 
 class CategoryView(CollectionView):
@@ -65,11 +54,7 @@ class CategoryView(CollectionView):
         """Return the Whoosh query to be used for fetching articles in a
         certain category.
         """
-        if category:
-            qparser = QueryParser('categories', schema=schema())
-            return qparser.parse(unicode(category))
-        else:
-            return Every()
+        return unicode(category)
 
     def get_template_name(self):
         """Return the template to be used for category collections"""
@@ -83,13 +68,13 @@ class YawtCategories(Plugin):
     """YAWT category extension class"""
     def __init__(self, app=None):
         super(YawtCategories, self).__init__(app)
-        self.category_counts = HierarchyCount()
+        self.category_counts_map = {}
 
     def init_app(self, app):
         """Register the bluepriont and set some default config"""
         app.config.setdefault('YAWT_CATEGORY_TEMPLATE', 'article_list')
-        app.config.setdefault('YAWT_CATEGORY_BASE', '')
-        app.config.setdefault('YAWT_CATEGORY_COUNT_FILE', '_categorycounts')
+        app.config.setdefault('YAWT_CATEGORY_BASE', [''])
+        app.config.setdefault('YAWT_CATEGORY_COUNT_FILE', 'categorycounts')
         app.config.setdefault('YAWT_CATEGORY_FULL_ARTICLE_FLAVOURS', [])
         app.register_blueprint(categoriesbp)
 
@@ -123,35 +108,41 @@ class YawtCategories(Plugin):
 
     def on_pre_walk(self):
         """Start tracking a new HierarchyCounts instance"""
-        self.category_counts = HierarchyCount()
-        self.category_counts.category = _adjust_base_for_category()
+        self.category_counts_map = {}
+        for base in _get_bases():
+            base = _adjust_base_for_category(base)
+            self.category_counts_map[base] = HierarchyCount()
 
     def on_visit_article(self, article):
         """Register this article against the HierarchyCounts instance"""
-        category = article.info.category
-        countbase = _adjust_base_for_category()  # blech
-        if category == countbase or category.startswith(countbase):
-            category = _slice_base_off_category(category, countbase)
-            self.category_counts.add(category)
+        for base in [b for b in _get_bases() if article.info.under(b)]:
+            category = article.info.category
+            countbase = _adjust_base_for_category(base)  # blech
+            if category == countbase or category.startswith(countbase):
+                category = _slice_base(category, countbase)
+                self.category_counts_map[base].add(category)
 
     def on_post_walk(self):
         """Save HierarchyCounts to disk"""
-        pickled_counts = jsonpickle.encode(self.category_counts)
-        save_file(_abs_category_count_file(), pickled_counts)
+        statefiles = StateFiles(abs_state_folder(),
+                                cfg('YAWT_CATEGORY_COUNT_FILE'))
+        statefiles.save_state_files(self.category_counts_map)
 
     def on_files_changed(self, changed):
         """Register changed files against HierarchyCounts"""
         changed = changed.content_changes().normalize()
-        pickled_counts = load_file(_abs_category_count_file())
-        self.category_counts = jsonpickle.decode(pickled_counts)
-
-        for f in changed.deleted + changed.modified:
-            name = fullname(f)
-            if name:
-                countbase = _adjust_base_for_category()  # blech
-                category = unicode(os.path.dirname(name))
-                category = _slice_base_off_category(category, countbase)
-                self.category_counts.remove(category)
+        statefiles = StateFiles(abs_state_folder(),
+                                cfg('YAWT_CATEGORY_COUNT_FILE'))
+        self.category_counts_map = statefiles.load_state_files(_get_bases())
+        for base in _get_bases():
+            for repofile in changed.deleted + changed.modified:
+                name = fullname(repofile)
+                if name:
+                    category = unicode(os.path.dirname(name))
+                    if category.startswith(base):
+                        countbase = _adjust_base_for_category(base)  # blech
+                        category = _slice_base(category, countbase)
+                        self.category_counts_map[base].remove(category)
 
         map(self.on_visit_article,
             g.site.fetch_articles_by_repofiles(changed.modified + changed.added))

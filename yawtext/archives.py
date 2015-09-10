@@ -4,13 +4,11 @@ Provides archive and permalink views and categorized archive routes.
 """
 from __future__ import absolute_import
 
-import jsonpickle
 from datetime import datetime
 from flask import current_app, g, Blueprint
 from flask.views import View
-from whoosh.qparser import QueryParser
 
-from yawt.utils import save_file, load_file, fullname, cfg, abs_state_folder
+from yawt.utils import fullname, cfg, abs_state_folder
 from yawt.view import render
 from yawtext import StateFiles, state_context_processor, HierarchyCount, Plugin
 from yawtext.collections import CollectionView
@@ -20,9 +18,11 @@ from yawtext.indexer import search, search_page
 archivesbp = Blueprint('archives', __name__)
 
 
-def _whoosh():
-    return current_app.extension_info[0]['flask_whoosh.Whoosh']
-
+def _get_bases():
+    if cfg('YAWT_ARCHIVE_BASE'):
+        return cfg('YAWT_ARCHIVE_BASE')
+    else:
+        return ['']
 
 @archivesbp.app_template_filter('permalink')
 def _permalink(info):
@@ -62,8 +62,8 @@ def _datestr(year, month=None, day=None):
 
 
 def _date_hierarchy(value):
-    v = datetime.fromtimestamp(value)
-    return v.strftime('%Y/%m/%d')
+    value = datetime.fromtimestamp(value)
+    return value.strftime('%Y/%m/%d')
 
 
 def _query(category='', year=None, month=None, day=None):
@@ -71,8 +71,7 @@ def _query(category='', year=None, month=None, day=None):
     query_str = datefield+':' + _datestr(year, month, day)
     if category:
         query_str += ' AND ' + category
-    qparser = QueryParser('categories', schema=schema())
-    return qparser.parse(unicode(query_str))
+    return unicode(query_str)
 
 
 class ArchiveView(CollectionView):
@@ -125,12 +124,12 @@ class YawtArchives(Plugin):
     def on_pre_walk(self):
         """Initialize the archive counts"""
         self.archive_counts_map = {}
-        for base in current_app.config['YAWT_ARCHIVE_BASE']:
+        for base in _get_bases():
             self.archive_counts_map[base] = HierarchyCount()
 
     def on_visit_article(self, article):
         """Count and register for this article"""
-        for base in [b for b in cfg('YAWT_ARCHIVE_BASE')
+        for base in [b for b in _get_bases()
                      if article.info.under(b)]:
             datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
             date = getattr(article.info, datefield)
@@ -139,12 +138,14 @@ class YawtArchives(Plugin):
 
     def on_post_walk(self):
         """Save the archive counts to disk"""
-        statefiles = StateFiles(abs_state_folder(), cfg('YAWT_ARCHIVE_COUNT_FILE'))
         for base in self.archive_counts_map:
             archive_counts = self.archive_counts_map[base]
             archive_counts.sort(reverse=True)
-            pickled_info = jsonpickle.encode(archive_counts)
-            save_file(statefiles.abs_state_file(base), pickled_info)
+            self.archive_counts_map[base] = archive_counts
+
+        statefiles = StateFiles(abs_state_folder(),
+                                cfg('YAWT_ARCHIVE_COUNT_FILE'))
+        statefiles.save_state_files(self.archive_counts_map)
 
     def on_files_changed(self, changed):
         """pass in three lists of files, modified, added, removed, all
@@ -152,17 +153,18 @@ class YawtArchives(Plugin):
         absolute filenames)
         """
         changed = changed.content_changes().normalize()
-        statefiles = StateFiles(abs_state_folder(), cfg('YAWT_ARCHIVE_COUNT_FILE'))
-        for base in current_app.config['YAWT_ARCHIVE_BASE']:
-            pickled_info = load_file(statefiles.abs_state_file(base))
-            self.archive_counts_map[base] = jsonpickle.decode(pickled_info)
-            for f in changed.deleted + changed.modified:
-                name = fullname(f)
+        statefiles = StateFiles(abs_state_folder(),
+                                cfg('YAWT_ARCHIVE_COUNT_FILE'))
+        self.archive_counts_map = statefiles.load_state_files(_get_bases())
+        for base in _get_bases():
+            for repofile in changed.deleted + changed.modified:
+                name = fullname(repofile)
                 if name:
-                    create_time = _fetch_date_for_name(name)
-                    if create_time:
-                        datestring = _date_hierarchy(create_time)
-                        self.archive_counts_map[base].remove(datestring)
+                    if name.startswith(base):
+                        create_time = _fetch_date_for_name(name)
+                        if create_time:
+                            datestring = _date_hierarchy(create_time)
+                            self.archive_counts_map[base].remove(datestring)
 
         map(self.on_visit_article,
             g.site.fetch_articles_by_repofiles(changed.modified + changed.added))
@@ -171,16 +173,11 @@ class YawtArchives(Plugin):
 
 
 def _fetch_date_for_name(name):
-    searcher = _whoosh().searcher
-    qparser = QueryParser('fullname', schema=schema())
-    query = qparser.parse(unicode(name))
-    results = searcher.search(query)
+    infos = search(unicode('fullname:'+name))
     create_time = None
-    if len(results) > 0:
-        info = jsonpickle.decode(results[0]['article_info_json'])
+    if len(infos) > 0:
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-        create_time = getattr(info, datefield)
-
+        create_time = getattr(infos[0], datefield)
     return create_time
 
 

@@ -12,16 +12,13 @@ from flask.views import View
 from jinja2 import TemplatesNotFound
 
 from yawt.article import Article
+from yawt.utils import is_loaded
 from yawt.view import render
 from yawtext import Plugin
-from yawtext.indexer import search
+from yawtext.indexer import search_page
 
 
 collectionsbp = Blueprint('paging', __name__)
-
-
-def _yawtwhoosh():
-    return current_app.extension_info[0]['yawtext.indexer.YawtWhoosh']
 
 
 @collectionsbp.before_app_request
@@ -49,7 +46,7 @@ class YawtCollections(Plugin):
     def init_app(self, app):
         """Register Blueprint and set default values"""
         app.config.setdefault('YAWT_COLLECTIONS_DEFAULT_PAGELEN', 10)
-        app.config.setdefault('YAWT_COLLECTIONS_SORT_FIELD', 'create_time')
+        app.config.setdefault('YAWT_COLLECTIONS_SORT_FIELD', None)
         app.register_blueprint(collectionsbp)
 
 
@@ -60,13 +57,14 @@ class CollectionView(View):
         up pagination variables in the g variables.  Finally render the
         template, or abort with a 404 if you don't find a template.
         """
-        query = self.query(category, *args, **kwargs)
-        sortfield = current_app.config['YAWT_COLLECTIONS_SORT_FIELD']
-
-        ainfos, total = search(query=query,
-                               sortedby=sortfield,
-                               page=g.page, pagelen=g.pagelen,
-                               reverse=True)
+        ainfos, total = [], 0
+        if is_loaded('yawtext.indexer.YawtIndexer'):
+            query = self.query(category, *args, **kwargs)
+            sortfield = current_app.config['YAWT_COLLECTIONS_SORT_FIELD']
+            ainfos, total = search_page(query=query,
+                                        sortedby=sortfield,
+                                        page=g.page, pagelen=g.pagelen,
+                                        reverse=True)
         g.total_results = total
         g.total_pages = int(ceil(float(g.total_results)/g.pagelen))
         g.has_prev_page = g.page > 1
@@ -98,7 +96,7 @@ class CollectionView(View):
         raise NotImplementedError()
 
     def is_load_articles(self, flav):
-        """Return True if article conetnt is meant to be loaded along with
+        """Return True if article content is meant to be loaded along with
         the infos
         """
         return False

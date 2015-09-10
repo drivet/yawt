@@ -5,11 +5,9 @@ Implements full text search using Whoosh.
 from __future__ import absolute_import
 
 from flask import current_app, request, g, Blueprint
-from whoosh.qparser import QueryParser
 
 from yawtext import Plugin
 from yawtext.collections import CollectionView
-from yawtext.indexer import schema
 
 
 searchbp = Blueprint('search', __name__)
@@ -27,8 +25,7 @@ class SearchView(CollectionView):
         query_str = 'content:' + searchtext
         if category:
             query_str += ' AND ' + category
-        qparser = QueryParser('categories', schema=schema())
-        return qparser.parse(unicode(query_str))
+        return unicode(query_str)
 
     def get_template_name(self):
         return current_app.config['YAWT_SEARCH_TEMPLATE']
