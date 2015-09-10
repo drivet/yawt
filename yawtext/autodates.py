@@ -30,9 +30,9 @@ def _content_folder():
 def _fix_dates_for_article(abs_article_file):
     post = frontmatter.load(abs_article_file)
     now = datetime.datetime.utcnow()
-    if 'md_create_time' not in post.metadata:
-        post['md_create_time'] = now
-    post['md_modified_time'] = now
+    if 'create_time' not in post.metadata:
+        post['create_time'] = now
+    post['modified_time'] = now
     save_file(abs_article_file, frontmatter.dumps(post, Dumper=ExplicitDumper))
 
 

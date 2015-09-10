@@ -40,8 +40,8 @@ class TestMicropost(unittest.TestCase):
             self.micropostCmd.run(post='this is a post', network=None)
         args = yawtext.micropost.write_post.call_args
         metadata = args[0][0]
-        self.assertTrue('md_create_time' in metadata)
-        self.assertTrue('md_modified_time'in metadata)
+        self.assertTrue('create_time' in metadata)
+        self.assertTrue('modified_time'in metadata)
 
     def test_micropost_writes_post_with_post_text(self):
         with self.app.test_request_context():

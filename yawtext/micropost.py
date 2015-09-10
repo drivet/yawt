@@ -90,8 +90,8 @@ def post_social(post, networks=None):
 def _post(post, networks):
     metadata = post_social(post, networks)
     now = datetime.datetime.utcnow()
-    metadata.update({'md_create_time': now.isoformat(),
-                     'md_modified_time': now.isoformat()})
+    metadata.update({'create_time': now.isoformat(),
+                     'modified_time': now.isoformat()})
 
     tags = _extract_tags(post)
     if len(tags) > 0:
