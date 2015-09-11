@@ -1,16 +1,14 @@
 #pylint: skip-file
-
 import os
-import jsonpickle
 
+import jsonpickle
 from flask.ext.testing import TestCase
-from whoosh.fields import IDLIST, DATETIME, KEYWORD
+from whoosh.fields import DATETIME, KEYWORD
 
 from yawt import create_app
 from yawt.cli import Walk
 from yawt.test import TempFolder
-from yawt.utils import cfg, abs_state_folder, call_plugins, load_file
-from yawtext import StateFiles
+from yawt.utils import abs_state_folder, call_plugins, load_file
 from yawtext.vc import ChangedFiles
 
 

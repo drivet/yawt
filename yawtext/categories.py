@@ -11,8 +11,7 @@ import re
 from flask import current_app, Blueprint
 
 from yawt.utils import cfg
-from yawtext import HierarchyCount, Plugin, state_context_processor,\
-    BranchedVisitor, SummaryProcessor, SummaryVisitor
+from yawtext import HierarchyCount, Plugin, SummaryProcessor, SummaryVisitor
 from yawtext.collections import CollectionView
 
 
@@ -29,9 +28,9 @@ def _slice_base(category, countbase):
 @categoriesbp.app_context_processor
 def _categorycounts():
     """Context processor to provide a category counts to a template"""
-    return state_context_processor('YAWT_CATEGORY_COUNT_FILE',
-                                   'YAWT_CATEGORY_BASE',
-                                   'categorycounts')
+    return SummaryProcessor.context_processor('YAWT_CATEGORY_COUNT_FILE',
+                                              'YAWT_CATEGORY_BASE',
+                                              'categorycounts')
 
 
 class CategoryView(CollectionView):

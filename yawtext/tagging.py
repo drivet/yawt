@@ -30,8 +30,7 @@ from __future__ import absolute_import
 from flask import current_app, Blueprint, g
 
 from yawt.utils import cfg
-from yawtext import state_context_processor, Plugin,\
-    SummaryProcessor, SummaryVisitor
+from yawtext import Plugin, SummaryProcessor, SummaryVisitor
 from yawtext.collections import CollectionView
 from yawtext.indexer import search
 
@@ -41,9 +40,9 @@ taggingbp = Blueprint('tagging', __name__)
 
 @taggingbp.app_context_processor
 def _tagcounts_cp():
-    return state_context_processor('YAWT_TAGGING_COUNT_FILE',
-                                   'YAWT_TAGGING_BASE',
-                                   'tagcounts')
+    return SummaryProcessor.context_processor('YAWT_TAGGING_COUNT_FILE',
+                                              'YAWT_TAGGING_BASE',
+                                              'tagcounts')
 
 
 @taggingbp.context_processor

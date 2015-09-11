@@ -10,8 +10,7 @@ from flask.views import View
 
 from yawt.utils import cfg
 from yawt.view import render
-from yawtext import state_context_processor, HierarchyCount, Plugin,\
-    SummaryProcessor, SummaryVisitor
+from yawtext import HierarchyCount, Plugin, SummaryProcessor, SummaryVisitor
 from yawtext.collections import CollectionView
 from yawtext.indexer import search, search_page
 
@@ -40,9 +39,9 @@ def _find_base(name):
 
 @archivesbp.app_context_processor
 def _archive_counts_cp():
-    return state_context_processor('YAWT_ARCHIVE_COUNT_FILE',
-                                   'YAWT_ARCHIVE_BASE',
-                                   'archivecounts')
+    return SummaryProcessor.context_processor('YAWT_ARCHIVE_COUNT_FILE',
+                                              'YAWT_ARCHIVE_BASE',
+                                              'archivecounts')
 
 
 def _datestr(year, month=None, day=None):

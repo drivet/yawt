@@ -6,7 +6,7 @@ from __future__ import absolute_import
 import os
 
 import jsonpickle
-from flask import g
+from flask import g, request
 
 from yawt.utils import load_file, save_file, abs_state_folder, cfg,\
     single_dict_var, ReprMixin, EqMixin, fullname, content_folder
@@ -54,7 +54,6 @@ class BranchedVisitor(object):
             self.processors[root].on_post_walk()
 
     def on_files_changed(self, changed):
-        changed = changed.content_changes().normalize()
         split_map = {}
         for root in self.roots:
             path = os.path.join(content_folder(), root)
@@ -68,7 +67,7 @@ class ArticleProcessor(object):
     """A plugin implementing the Walk protocol that will only be expecting
     a subset of the site's articles, matching those under the defined root"""
 
-    def __init__(self, root):
+    def __init__(self, root=None):
         self.root = root
 
     def on_pre_walk(self):
@@ -84,6 +83,7 @@ class ArticleProcessor(object):
         pass
 
     def on_files_changed(self, changed):
+        changed = changed.content_changes().normalize()
         for repofile in changed.deleted + changed.modified:
             name = fullname(repofile)
             if name:
@@ -129,10 +129,23 @@ class SummaryProcessor(ArticleProcessor):
         save_file(self._abs_summary_file(), jsonpickle.encode(self.summary))
 
     def _abs_summary_file(self):
-        return os.path.join(abs_state_folder(),
+        path = os.path.join(abs_state_folder(),
                             self.plugin_name,
                             self.root,
                             self.summary_file)
+        return path
+
+    @staticmethod
+    def context_processor(summaryfile_cfg, bases_cfg, varname):
+        """Return a single value dictionary containing the summary file which
+        currently applies"""
+        summary_file = cfg(summaryfile_cfg)
+        for base in cfg(bases_cfg):
+            if request.path.startswith(base):
+                path = os.path.join(abs_state_folder(), base, summary_file)
+                loaded_file = load_file(path)
+                return single_dict_var(varname, jsonpickle.decode(loaded_file))
+        return {}
 
 
 class SummaryVisitor(Plugin):
@@ -171,49 +184,6 @@ class SummaryVisitor(Plugin):
         """
         self.visitor = self._visitor()
         self.visitor.on_files_changed(changed)
-
-
-class StateFiles(ReprMixin):
-    """Manages a "state file", which is a json pickled python object stored
-    in a file.  The file is named "statefile" and is stored under various
-    base folders under root_dir.
-    """
-    def __init__(self, root_dir, statefile):
-        self.root_dir = root_dir
-        self.statefile = statefile
-
-    def load_state_files(self, bases):
-        """Return a map of base names to loaded statefile objects"""
-        statemap = {}
-        bases = bases or ['']
-        for base in bases:
-            abs_state_file = self.abs_state_file(base)
-            if os.path.isfile(abs_state_file):
-                stateobj = jsonpickle.decode(load_file(abs_state_file))
-                statemap[base] = stateobj
-
-        if len(statemap) == 1 and statemap.keys()[0] == '':
-            return statemap[statemap.keys()[0]]
-        else:
-            return statemap
-
-    def save_state_files(self, statefilemap):
-        """Save statefilemap to disk, distributing among the bases"""
-        for base in statefilemap:
-            stateobj = statefilemap[base]
-            pickled_info = jsonpickle.encode(stateobj)
-            save_file(self.abs_state_file(base), pickled_info)
-
-    def abs_state_file(self, base):
-        """Return the absolute filename of the statefile at base"""
-        return os.path.join(self.root_dir, base, self.statefile)
-
-
-def state_context_processor(statefile_cfg, bases_cfg, varname):
-    """Return a single value dictionary conating all the statefiles loaded"""
-    statefiles = StateFiles(abs_state_folder(), cfg(statefile_cfg))
-    stateobj = statefiles.load_state_files(cfg(bases_cfg))
-    return single_dict_var(varname, stateobj)
 
 
 def _split_category(category):
