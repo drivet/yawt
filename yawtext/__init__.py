@@ -140,8 +140,9 @@ class SummaryProcessor(ArticleProcessor):
         """Return a single value dictionary containing the summary file which
         currently applies"""
         summary_file = cfg(summaryfile_cfg)
-        for base in cfg(bases_cfg):
-            if request.path.startswith(base):
+        bases = cfg(bases_cfg) or ['']
+        for base in bases:
+            if request.path.startswith('/'+base):
                 path = os.path.join(abs_state_folder(), base, summary_file)
                 loaded_file = load_file(path)
                 return single_dict_var(varname, jsonpickle.decode(loaded_file))
