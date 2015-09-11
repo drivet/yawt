@@ -8,21 +8,16 @@ from datetime import datetime
 from flask import current_app, g, Blueprint
 from flask.views import View
 
-from yawt.utils import fullname, cfg, abs_state_folder
+from yawt.utils import cfg
 from yawt.view import render
-from yawtext import StateFiles, state_context_processor, HierarchyCount, Plugin
+from yawtext import state_context_processor, HierarchyCount, Plugin,\
+    SummaryProcessor, SummaryVisitor
 from yawtext.collections import CollectionView
 from yawtext.indexer import search, search_page
 
 
 archivesbp = Blueprint('archives', __name__)
 
-
-def _get_bases():
-    if cfg('YAWT_ARCHIVE_BASE'):
-        return cfg('YAWT_ARCHIVE_BASE')
-    else:
-        return ['']
 
 @archivesbp.app_template_filter('permalink')
 def _permalink(info):
@@ -74,6 +69,15 @@ def _query(category='', year=None, month=None, day=None):
     return unicode(query_str)
 
 
+def _fetch_date_for_name(name):
+    infos = search(unicode('fullname:'+name))
+    create_time = None
+    if len(infos) > 0:
+        datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
+        create_time = getattr(infos[0], datefield)
+    return create_time
+
+
 class ArchiveView(CollectionView):
     def dispatch_request(self, *args, **kwargs):
         return super(ArchiveView, self).dispatch_request(*args, **kwargs)
@@ -106,79 +110,57 @@ class PermalinkView(View):
         return current_app.config['YAWT_PERMALINK_TEMPLATE']
 
 
+class ArchiveProcessor(SummaryProcessor):
+    """Subclass of SummaryProcessor which counts archives under a root"""
+    def __init__(self, root=''):
+        super(ArchiveProcessor, self).__init__(root, '',
+                                               cfg('YAWT_ARCHIVE_COUNT_FILE'))
+
+    def _init_summary(self):
+        self.summary = HierarchyCount()
+
+    def on_visit_article(self, article):
+        datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
+        date = getattr(article.info, datefield)
+        datestring = _date_hierarchy(date)
+        self.summary.add(datestring)
+
+    def unvisit(self, name):
+        create_time = _fetch_date_for_name(name)
+        if create_time:
+            datestring = _date_hierarchy(create_time)
+            self.summary.remove(datestring)
+
+    def on_post_walk(self):
+        self.summary.sort(reverse=True)
+        super(ArchiveProcessor, self).on_post_walk()
+
+
 class YawtArchives(Plugin):
     """The YAWT archive plugin class itself"""
     def __init__(self, app=None):
         super(YawtArchives, self).__init__(app)
-        self.archive_counts_map = {}
+        self.visitor = None
 
     def init_app(self, app):
         """Set up some default config and register the blueprint"""
         app.config.setdefault('YAWT_ARCHIVE_TEMPLATE', 'article_list')
         app.config.setdefault('YAWT_PERMALINK_TEMPLATE', 'article')
-        app.config.setdefault('YAWT_ARCHIVE_BASE', [''])
         app.config.setdefault('YAWT_ARCHIVE_DATEFIELD', 'create_time')
-        app.config.setdefault('YAWT_ARCHIVE_COUNT_FILE', 'archivecounts')
         app.register_blueprint(archivesbp)
 
-    def on_pre_walk(self):
-        """Initialize the archive counts"""
-        self.archive_counts_map = {}
-        for base in _get_bases():
-            self.archive_counts_map[base] = HierarchyCount()
 
-    def on_visit_article(self, article):
-        """Count and register for this article"""
-        for base in [b for b in _get_bases()
-                     if article.info.under(b)]:
-            datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-            date = getattr(article.info, datefield)
-            datestring = _date_hierarchy(date)
-            self.archive_counts_map[base].add(datestring)
+class YawtArchiveCounter(SummaryVisitor):
+    """The Yawt archive counter plugin"""
+    def __init__(self, app=None):
+        super(YawtArchiveCounter, self).__init__('YAWT_ARCHIVE_BASE',
+                                                 ArchiveProcessor,
+                                                 app)
 
-    def on_post_walk(self):
-        """Save the archive counts to disk"""
-        for base in self.archive_counts_map:
-            archive_counts = self.archive_counts_map[base]
-            archive_counts.sort(reverse=True)
-            self.archive_counts_map[base] = archive_counts
-
-        statefiles = StateFiles(abs_state_folder(),
-                                cfg('YAWT_ARCHIVE_COUNT_FILE'))
-        statefiles.save_state_files(self.archive_counts_map)
-
-    def on_files_changed(self, changed):
-        """pass in three lists of files, modified, added, removed, all
-        relative to the *repo* root, not the content root (so these are not
-        absolute filenames)
-        """
-        changed = changed.content_changes().normalize()
-        statefiles = StateFiles(abs_state_folder(),
-                                cfg('YAWT_ARCHIVE_COUNT_FILE'))
-        self.archive_counts_map = statefiles.load_state_files(_get_bases())
-        for base in _get_bases():
-            for repofile in changed.deleted + changed.modified:
-                name = fullname(repofile)
-                if name:
-                    if name.startswith(base):
-                        create_time = _fetch_date_for_name(name)
-                        if create_time:
-                            datestring = _date_hierarchy(create_time)
-                            self.archive_counts_map[base].remove(datestring)
-
-        map(self.on_visit_article,
-            g.site.fetch_articles_by_repofiles(changed.modified + changed.added))
-
-        self.on_post_walk()
-
-
-def _fetch_date_for_name(name):
-    infos = search(unicode('fullname:'+name))
-    create_time = None
-    if len(infos) > 0:
-        datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-        create_time = getattr(infos[0], datefield)
-    return create_time
+    def init_app(self, app):
+        """set some default config"""
+        app.config.setdefault('YAWT_ARCHIVE_BASE', [''])
+        app.config.setdefault('YAWT_ARCHIVE_COUNT_FILE', 'archivecounts')
 
 
 archivesbp.add_url_rule('/<path:category>/<int:year>/',

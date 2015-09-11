@@ -15,7 +15,8 @@ from yawtext.vc import ChangedFiles
 
 
 class TestYawtCategoriesInitialize(TestCase):
-    YAWT_EXTENSIONS = ['yawtext.categories.YawtCategories']
+    YAWT_EXTENSIONS = ['yawtext.categories.YawtCategories',
+                       'yawtext.categories.YawtCategoryCounter']
 
     def create_app(self):
         return create_app('/tmp/blah', config=self)
@@ -40,7 +41,8 @@ class TestFolder(TempFolder):
 
 
 class TestCategoryCounts(TestCase):
-    YAWT_EXTENSIONS = ['yawtext.categories.YawtCategories']
+    YAWT_EXTENSIONS = ['yawtext.categories.YawtCategories',
+                       'yawtext.categories.YawtCategoryCounter']
 
     def create_app(self):
         self.site = TestFolder()
@@ -119,7 +121,8 @@ class TestCategoryPages(TestCase):
     YAWT_EXTENSIONS = ['flask_whoosh.Whoosh',
                        'yawtext.indexer.YawtIndexer',
                        'yawtext.collections.YawtCollections',
-                       'yawtext.categories.YawtCategories']
+                       'yawtext.categories.YawtCategories',
+                       'yawtext.categories.YawtCategoryCounter']
     WHOOSH_INDEX_ROOT = '/home/dcr/blogging/website/_state/index'
     YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'create_time': DATETIME(sortable=True),
                                        'categories': IDLIST()}

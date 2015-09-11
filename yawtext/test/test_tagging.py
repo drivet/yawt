@@ -15,7 +15,8 @@ from yawtext.vc import ChangedFiles
 
 
 class TestYawtTaggingInitialize(TestCase):
-    YAWT_EXTENSIONS = ['yawtext.tagging.YawtTagging']
+    YAWT_EXTENSIONS = ['yawtext.tagging.YawtTagging',
+                       'yawtext.tagging.YawtTagCounter']
 
     def create_app(self):
         return create_app('/tmp/blah', config=self)
@@ -78,6 +79,7 @@ class TestTaggingCounts(TestCase):
     YAWT_META_TYPES = {'tags': 'list'}
     # Tagging plugin MUST comes before indexing plugin
     YAWT_EXTENSIONS = ['yawtext.tagging.YawtTagging',
+                       'yawtext.tagging.YawtTagCounter',
                        'flask_whoosh.Whoosh',
                        'yawtext.indexer.YawtIndexer',
                        'yawtext.collections.YawtCollections']
@@ -157,6 +159,7 @@ class TestTaggingCounts(TestCase):
 class TestTaggingPages(TestCase):
     YAWT_META_TYPES = {'tags': 'list'}
     YAWT_EXTENSIONS = ['yawtext.tagging.YawtTagging',
+                       'yawtext.tagging.YawtTagCounter',
                        'flask_whoosh.Whoosh',
                        'yawtext.indexer.YawtIndexer',
                        'yawtext.collections.YawtCollections']

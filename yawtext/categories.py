@@ -8,11 +8,11 @@ from __future__ import absolute_import
 import os
 import re
 
-import jsonpickle
-from flask import current_app, g, Blueprint
+from flask import current_app, Blueprint
 
-from yawt.utils import load_file, fullname, cfg, abs_state_folder
-from yawtext import HierarchyCount, Plugin, StateFiles, state_context_processor
+from yawt.utils import cfg
+from yawtext import HierarchyCount, Plugin, state_context_processor,\
+    BranchedVisitor, SummaryProcessor, SummaryVisitor
 from yawtext.collections import CollectionView
 
 
@@ -24,20 +24,6 @@ def _slice_base(category, countbase):
     if category.startswith('/'):
         category = category[1:]
     return category
-
-
-# Feels very wrong
-def _adjust_base_for_category(countbase):
-    if countbase.startswith('/'):
-        countbase = countbase[1:]
-    return countbase
-
-
-def _get_bases():
-    if cfg('YAWT_CATEGORY_BASE'):
-        return cfg('YAWT_CATEGORY_BASE')
-    else:
-        return ['']
 
 
 @categoriesbp.app_context_processor
@@ -64,17 +50,37 @@ class CategoryView(CollectionView):
         return flav in current_app.config['YAWT_CATEGORY_FULL_ARTICLE_FLAVOURS']
 
 
+class CategoryProcessor(SummaryProcessor):
+    """Subclass of SummaryProcessor which counts categories under a root"""
+    def __init__(self, root=''):
+        super(CategoryProcessor, self).__init__(root, '',
+                                                cfg('YAWT_CATEGORY_COUNT_FILE'))
+
+    def _init_summary(self):
+        self.summary = HierarchyCount()
+
+    def on_visit_article(self, article):
+        category = article.info.category
+        if category == self.root or category.startswith(self.root):
+            category = _slice_base(category, self.root)
+            self.summary.add(category)
+
+    def unvisit(self, name):
+        category = unicode(os.path.dirname(name))
+        if category.startswith(self.root):
+            category = _slice_base(category, self.root)
+            self.summary.remove(category)
+
+
 class YawtCategories(Plugin):
     """YAWT category extension class"""
     def __init__(self, app=None):
         super(YawtCategories, self).__init__(app)
-        self.category_counts_map = {}
+        self.visitor = None
 
     def init_app(self, app):
         """Register the bluepriont and set some default config"""
         app.config.setdefault('YAWT_CATEGORY_TEMPLATE', 'article_list')
-        app.config.setdefault('YAWT_CATEGORY_BASE', [''])
-        app.config.setdefault('YAWT_CATEGORY_COUNT_FILE', 'categorycounts')
         app.config.setdefault('YAWT_CATEGORY_FULL_ARTICLE_FLAVOURS', [])
         app.register_blueprint(categoriesbp)
 
@@ -106,45 +112,15 @@ class YawtCategories(Plugin):
         view_func = CategoryView.as_view('category_path')
         return view_func(category, flavour)
 
-    def on_pre_walk(self):
-        """Start tracking a new HierarchyCounts instance"""
-        self.category_counts_map = {}
-        for base in _get_bases():
-            base = _adjust_base_for_category(base)
-            self.category_counts_map[base] = HierarchyCount()
 
-    def on_visit_article(self, article):
-        """Register this article against the HierarchyCounts instance"""
-        for base in [b for b in _get_bases() if article.info.under(b)]:
-            category = article.info.category
-            countbase = _adjust_base_for_category(base)  # blech
-            if category == countbase or category.startswith(countbase):
-                category = _slice_base(category, countbase)
-                self.category_counts_map[base].add(category)
+class YawtCategoryCounter(SummaryVisitor):
+    """The Yawt category counter plugin"""
+    def __init__(self, app=None):
+        super(YawtCategoryCounter, self).__init__('YAWT_CATEGORY_BASE',
+                                                  CategoryProcessor,
+                                                  app)
 
-    def on_post_walk(self):
-        """Save HierarchyCounts to disk"""
-        statefiles = StateFiles(abs_state_folder(),
-                                cfg('YAWT_CATEGORY_COUNT_FILE'))
-        statefiles.save_state_files(self.category_counts_map)
-
-    def on_files_changed(self, changed):
-        """Register changed files against HierarchyCounts"""
-        changed = changed.content_changes().normalize()
-        statefiles = StateFiles(abs_state_folder(),
-                                cfg('YAWT_CATEGORY_COUNT_FILE'))
-        self.category_counts_map = statefiles.load_state_files(_get_bases())
-        for base in _get_bases():
-            for repofile in changed.deleted + changed.modified:
-                name = fullname(repofile)
-                if name:
-                    category = unicode(os.path.dirname(name))
-                    if category.startswith(base):
-                        countbase = _adjust_base_for_category(base)  # blech
-                        category = _slice_base(category, countbase)
-                        self.category_counts_map[base].remove(category)
-
-        map(self.on_visit_article,
-            g.site.fetch_articles_by_repofiles(changed.modified + changed.added))
-
-        self.on_post_walk()
+    def init_app(self, app):
+        """set some default config"""
+        app.config.setdefault('YAWT_CATEGORY_BASE', [''])
+        app.config.setdefault('YAWT_CATEGORY_COUNT_FILE', 'categorycounts')

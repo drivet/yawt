@@ -114,6 +114,11 @@ def content_folder():
     return cfg('YAWT_CONTENT_FOLDER')
 
 
+def abs_content_folder():
+    """"Easy way to get access to the content folder"""
+    return os.path.join(current_app.yawt_root_dir, content_folder())
+
+
 def state_folder():
     """"Easy way to get access to the state folder"""
     return cfg('YAWT_STATE_FOLDER')

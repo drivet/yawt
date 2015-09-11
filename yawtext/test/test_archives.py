@@ -15,7 +15,8 @@ from yawtext.vc import ChangedFiles
 
 
 class TestYawtArchivesInitialize(TestCase):
-    YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives']
+    YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives',
+                       'yawtext.archives.YawtArchiveCounter']
 
     def create_app(self):
         return create_app('/tmp/blah', config=self)
@@ -79,6 +80,7 @@ class TestArchiveCounts(TestCase):
                        'modified_time': 'iso8601'}
     # Archive plugin MUST come before indexing plugin
     YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives',
+                       'yawtext.archives.YawtArchiveCounter',
                        'flask_whoosh.Whoosh',
                        'yawtext.indexer.YawtIndexer',
                        'yawtext.collections.YawtCollections']
@@ -167,6 +169,7 @@ class TestArchivePages(TestCase):
                        'modified_time': 'iso8601'}
     # Archive plugin MUST come before indexing plugin
     YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives',
+                       'yawtext.archives.YawtArchiveCounter',
                        'flask_whoosh.Whoosh',
                        'yawtext.indexer.YawtIndexer',
                        'yawtext.collections.YawtCollections']

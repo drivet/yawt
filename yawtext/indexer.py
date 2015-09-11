@@ -5,31 +5,13 @@ The indexing itself is done via the walk phase and the on_files_changed phase.
 """
 from __future__ import absolute_import
 
-from flask import g
 from whoosh.fields import TEXT
 
-from yawt.utils import fullname, cfg
-from yawtext import Plugin
+from yawt.utils import cfg
+from yawtext import Plugin, ArticleProcessor
 
 
-def update_index(added, modified, removed):
-    """Delete all modified and removed files from the index.  Then index
-    all the added files and re-index all the modifed files.
-    """
-    for repofile in removed + modified:
-        name = fullname(repofile)
-        if name:
-            remove_article(name)
-
-    for repofile in modified + added:
-        article = g.site.fetch_article_by_repofile(repofile)
-        if article:
-            add_article(article)
-
-    commit()
-
-
-class YawtIndexer(Plugin):
+class YawtIndexer(Plugin, ArticleProcessor):
     """YAWT Whoosh extension class.  Implement the walk and on_file_changed
     protocol.
     """
@@ -54,13 +36,12 @@ class YawtIndexer(Plugin):
         """Index this article"""
         add_article(article)
 
+    def unvisit(self, name):
+        remove_article(name)
+
     def on_post_walk(self):
         """Commit the index"""
         commit()
-
-    def on_files_changed(self, changed):
-        changed = changed.content_changes().normalize()
-        update_index(changed.added, changed.modified, changed.deleted)
 
 
 # Indexing API starts here

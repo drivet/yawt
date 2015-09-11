@@ -6,9 +6,10 @@ from __future__ import absolute_import
 import os
 
 import jsonpickle
+from flask import g
 
 from yawt.utils import load_file, save_file, abs_state_folder, cfg,\
-    single_dict_var, ReprMixin, EqMixin
+    single_dict_var, ReprMixin, EqMixin, fullname, content_folder
 
 
 class Plugin(object):
@@ -23,6 +24,155 @@ class Plugin(object):
         pass
 
 
+class BranchedVisitor(object):
+    """Visitor plugin which will divide the article space into groups that
+    match the root folders supplied.  It will instantiate a separate visitor
+    for each root folder and make sure that it only gets artidles for the
+    that root"""
+    def __init__(self, roots, processor_factory):
+        self.roots = roots
+        self.processor_factory = processor_factory
+        self.processors = {}
+
+    def on_pre_walk(self):
+        """Lazily create the processor for each root and call on_pre_walk()
+        on them"""
+        for root in self.roots:
+            processor = self.processor_factory(root)
+            self.processors[root] = processor
+            processor.on_pre_walk()
+
+    def on_visit_article(self, article):
+        """call on_visit_article(), but only for those visitors which need to
+        process the article"""
+        for root in [r for r in self.roots if article.info.under(r)]:
+            self.processors[root].on_visit_article(article)
+
+    def on_post_walk(self):
+        """Call on_post_walk() for all visitors"""
+        for root in self.roots:
+            self.processors[root].on_post_walk()
+
+    def on_files_changed(self, changed):
+        changed = changed.content_changes().normalize()
+        split_map = {}
+        for root in self.roots:
+            path = os.path.join(content_folder(), root)
+            split_map[root] = changed.filter(path)
+        for root in split_map.keys():
+            processor = self.processor_factory(root)
+            processor.on_files_changed(split_map[root])
+
+
+class ArticleProcessor(object):
+    """A plugin implementing the Walk protocol that will only be expecting
+    a subset of the site's articles, matching those under the defined root"""
+
+    def __init__(self, root):
+        self.root = root
+
+    def on_pre_walk(self):
+        pass
+
+    def on_visit_article(self, article):
+        pass
+
+    def unvisit(self, name):
+        pass
+
+    def on_post_walk(self):
+        pass
+
+    def on_files_changed(self, changed):
+        for repofile in changed.deleted + changed.modified:
+            name = fullname(repofile)
+            if name:
+                self.unvisit(name)
+
+        map(self.on_visit_article,
+            g.site.fetch_articles_by_repofiles(changed.modified +
+                                               changed.added))
+        self.on_post_walk()
+
+
+class SummaryProcessor(ArticleProcessor):
+    """A special kind of ArticleProcessor which will keep track of a summary
+    file (a jsonpickle'd python object) in a _state subfolder matching the
+    root supplied.
+
+    Subclasses will typically have to implement _init_summary(),
+    on_visit_article() and unvisit().
+    """
+    def __init__(self, root, plugin_name, summary_file):
+        super(SummaryProcessor, self).__init__(root)
+        self.plugin_name = plugin_name
+        self.summary_file = summary_file
+        self.summary = None
+
+    def on_pre_walk(self):
+        self._init_summary()
+
+    def _init_summary(self):
+        raise NotImplementedError()
+
+    def on_post_walk(self):
+        self._save_summary()
+
+    def on_files_changed(self, changed):
+        self._load_summary()
+        super(SummaryProcessor, self).on_files_changed(changed)
+
+    def _load_summary(self):
+        self.summary = jsonpickle.decode(load_file(self._abs_summary_file()))
+
+    def _save_summary(self):
+        save_file(self._abs_summary_file(), jsonpickle.encode(self.summary))
+
+    def _abs_summary_file(self):
+        return os.path.join(abs_state_folder(),
+                            self.plugin_name,
+                            self.root,
+                            self.summary_file)
+
+
+class SummaryVisitor(Plugin):
+    """Base class for summary plugins.  Need to provide the config for the
+    roots and the factory to create the processors"""
+    def __init__(self, roots_cfg, processor_factory, app=None):
+        super(SummaryVisitor, self).__init__(app)
+        self.roots_cfg = roots_cfg
+        self.processor_factory = processor_factory
+        self.visitor = None
+
+    def _visitor(self):
+        roots = cfg(self.roots_cfg)
+        if roots:
+            return BranchedVisitor(roots, self.processor_factory)
+        else:
+            return self.processor_factory()
+
+    def on_pre_walk(self):
+        """Initialize the archive counts"""
+        self.visitor = self._visitor()
+        self.visitor.on_pre_walk()
+
+    def on_visit_article(self, article):
+        """Count the archives for this article"""
+        self.visitor.on_visit_article(article)
+
+    def on_post_walk(self):
+        """Save the archive counts to disk"""
+        self.visitor.on_post_walk()
+
+    def on_files_changed(self, changed):
+        """pass in three lists of files, modified, added, removed, all
+        relative to the *repo* root, not the content root (so these are
+        not absolute filenames)
+        """
+        self.visitor = self._visitor()
+        self.visitor.on_files_changed(changed)
+
+
 class StateFiles(ReprMixin):
     """Manages a "state file", which is a json pickled python object stored
     in a file.  The file is named "statefile" and is stored under various
@@ -35,6 +185,7 @@ class StateFiles(ReprMixin):
     def load_state_files(self, bases):
         """Return a map of base names to loaded statefile objects"""
         statemap = {}
+        bases = bases or ['']
         for base in bases:
             abs_state_file = self.abs_state_file(base)
             if os.path.isfile(abs_state_file):

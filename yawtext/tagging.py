@@ -29,20 +29,14 @@ from __future__ import absolute_import
 
 from flask import current_app, Blueprint, g
 
-from yawt.utils import fullname, cfg, abs_state_folder
-from yawtext import StateFiles, state_context_processor, Plugin
+from yawt.utils import cfg
+from yawtext import state_context_processor, Plugin,\
+    SummaryProcessor, SummaryVisitor
 from yawtext.collections import CollectionView
 from yawtext.indexer import search
 
 
 taggingbp = Blueprint('tagging', __name__)
-
-
-def _get_bases():
-    if cfg('YAWT_TAGGING_BASE'):
-        return cfg('YAWT_TAGGING_BASE')
-    else:
-        return ['']
 
 
 @taggingbp.app_context_processor
@@ -79,69 +73,29 @@ class TaggingView(CollectionView):
         return flav in current_app.config['YAWT_TAGGING_FULL_ARTICLE_FLAVOURS']
 
 
-class YawtTagging(Plugin):
-    """The YAWT tagging plugin class itself"""
-    def __init__(self, app=None):
-        super(YawtTagging, self).__init__(app)
-        self.tagcountmap = {}
+class TagProcessor(SummaryProcessor):
+    """Subclass of SummaryProcessor which counts tags under a root"""
+    def __init__(self, root=''):
+        super(TagProcessor, self).__init__(root, '',
+                                           cfg('YAWT_TAGGING_COUNT_FILE'))
 
-    def init_app(self, app):
-        """Set up some default config and register the blueprint"""
-        app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
-        app.config.setdefault('YAWT_TAGGING_BASE', [''])
-        app.config.setdefault('YAWT_TAGGING_COUNT_FILE', 'tagcounts')
-        app.config.setdefault('YAWT_TAGGING_FULL_ARTICLE_FLAVOURS', [])
-        app.register_blueprint(taggingbp)
-
-    def on_pre_walk(self):
-        """Initialize the tag counts"""
-        self.tagcountmap = {}
-        for base in _get_bases():
-            self.tagcountmap[base] = {}
+    def _init_summary(self):
+        self.summary = {}
 
     def on_visit_article(self, article):
-        """Count the tags for this article"""
         if hasattr(article.info, 'tags'):
-            for base in [b for b in _get_bases()
-                         if article.info.under(b)]:
-                for tag in article.info.tags:
-                    if tag in self.tagcountmap[base]:
-                        self.tagcountmap[base][tag] += 1
-                    else:
-                        self.tagcountmap[base][tag] = 1
+            for tag in article.info.tags:
+                if tag in self.summary:
+                    self.summary[tag] += 1
+                else:
+                    self.summary[tag] = 1
 
-    def on_post_walk(self):
-        """Save the tag counts to disk"""
-        statefiles = StateFiles(abs_state_folder(),
-                                cfg('YAWT_TAGGING_COUNT_FILE'))
-        statefiles.save_state_files(self.tagcountmap)
-
-    def on_files_changed(self, changed):
-        """pass in three lists of files, modified, added, removed, all
-        relative to the *repo* root, not the content root (so these are
-        not absolute filenames)
-        """
-        changed = changed.content_changes().normalize()
-        statefiles = StateFiles(abs_state_folder(),
-                                cfg('YAWT_TAGGING_COUNT_FILE'))
-        self.tagcountmap = statefiles.load_state_files(_get_bases())
-        for base in _get_bases():
-            for repofile in changed.deleted + changed.modified:
-                name = fullname(repofile)
-                if name:
-                    if name.startswith(base):
-                        tags_to_remove = self._tags_for_name(name)
-                        for tag in tags_to_remove:
-                            if tag in self.tagcountmap[base]:
-                                self.tagcountmap[base][tag] -= 1
-
-        map(self.on_visit_article,
-            g.site.fetch_articles_by_repofiles(changed.modified +
-                                               changed.added))
-
+    def unvisit(self, name):
+        tags_to_remove = self._tags_for_name(name)
+        for tag in tags_to_remove:
+            if tag in self.summary:
+                self.summary[tag] -= 1
         self._delete_unused_tags()
-
-        self.on_post_walk()
 
     def _tags_for_name(self, name):
         infos = search(unicode('fullname:'+name))
@@ -153,16 +107,40 @@ class YawtTagging(Plugin):
 
     def _delete_unused_tags(self):
         unused_tags = []
-        for base in _get_bases():
-            for tag in self.tagcountmap[base]:
-                if self.tagcountmap[base][tag] == 0 and \
-                   tag not in unused_tags:
-                    unused_tags.append(tag)
+        for tag in self.summary:
+            if self.summary[tag] == 0 and tag not in unused_tags:
+                unused_tags.append(tag)
 
         for tag in unused_tags:
-            for base in _get_bases():
-                if tag in self.tagcountmap[base]:
-                    del self.tagcountmap[base][tag]
+            if tag in self.summary:
+                del self.summary[tag]
+
+
+class YawtTagging(Plugin):
+    """The YAWT tagging plugin class itself"""
+    def __init__(self, app=None):
+        super(YawtTagging, self).__init__(app)
+        self.visitor = None
+
+    def init_app(self, app):
+        """Set up some default config and register the blueprint"""
+        app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
+        app.config.setdefault('YAWT_TAGGING_FULL_ARTICLE_FLAVOURS', [])
+        app.register_blueprint(taggingbp)
+
+
+class YawtTagCounter(SummaryVisitor):
+    """The Yawt tag counter plugin"""
+    def __init__(self, app=None):
+        super(YawtTagCounter, self).__init__('YAWT_TAGGING_BASE',
+                                             TagProcessor,
+                                             app)
+
+    def init_app(self, app):
+        """set some default config"""
+        app.config.setdefault('YAWT_TAGGING_BASE', [])
+        app.config.setdefault('YAWT_TAGGING_COUNT_FILE', 'tagcounts')
+
 
 taggingbp.add_url_rule('/tags/<tag>/',
                        view_func=TaggingView.as_view('tag_canonical'))
