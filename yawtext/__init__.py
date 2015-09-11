@@ -24,20 +24,24 @@ class Plugin(object):
         pass
 
 
-class BranchedVisitor(object):
+class BranchedVisitor(Plugin):
     """Visitor plugin which will divide the article space into groups that
     match the root folders supplied.  It will instantiate a separate visitor
     for each root folder and make sure that it only gets artidles for the
     that root"""
-    def __init__(self, roots, processor_factory):
-        self.roots = roots
+    def __init__(self, roots_cfg, processor_factory, app=None):
+        super(BranchedVisitor, self).__init__(app)
+        self.roots_cfg = roots_cfg
         self.processor_factory = processor_factory
         self.processors = {}
+
+    def _roots(self):
+        return cfg(self.roots_cfg) or ['']
 
     def on_pre_walk(self):
         """Lazily create the processor for each root and call on_pre_walk()
         on them"""
-        for root in self.roots:
+        for root in self._roots():
             processor = self.processor_factory(root)
             self.processors[root] = processor
             processor.on_pre_walk()
@@ -45,17 +49,17 @@ class BranchedVisitor(object):
     def on_visit_article(self, article):
         """call on_visit_article(), but only for those visitors which need to
         process the article"""
-        for root in [r for r in self.roots if article.info.under(r)]:
+        for root in [r for r in self._roots() if article.info.under(r)]:
             self.processors[root].on_visit_article(article)
 
     def on_post_walk(self):
         """Call on_post_walk() for all visitors"""
-        for root in self.roots:
+        for root in self._roots():
             self.processors[root].on_post_walk()
 
     def on_files_changed(self, changed):
         split_map = {}
-        for root in self.roots:
+        for root in self._roots():
             path = os.path.join(content_folder(), root)
             split_map[root] = changed.filter(path)
         for root in split_map.keys():
@@ -147,44 +151,6 @@ class SummaryProcessor(ArticleProcessor):
                 loaded_file = load_file(path)
                 return single_dict_var(varname, jsonpickle.decode(loaded_file))
         return {}
-
-
-class SummaryVisitor(Plugin):
-    """Base class for summary plugins.  Need to provide the config for the
-    roots and the factory to create the processors"""
-    def __init__(self, roots_cfg, processor_factory, app=None):
-        super(SummaryVisitor, self).__init__(app)
-        self.roots_cfg = roots_cfg
-        self.processor_factory = processor_factory
-        self.visitor = None
-
-    def _visitor(self):
-        roots = cfg(self.roots_cfg)
-        if roots:
-            return BranchedVisitor(roots, self.processor_factory)
-        else:
-            return self.processor_factory()
-
-    def on_pre_walk(self):
-        """Initialize the archive counts"""
-        self.visitor = self._visitor()
-        self.visitor.on_pre_walk()
-
-    def on_visit_article(self, article):
-        """Count the archives for this article"""
-        self.visitor.on_visit_article(article)
-
-    def on_post_walk(self):
-        """Save the archive counts to disk"""
-        self.visitor.on_post_walk()
-
-    def on_files_changed(self, changed):
-        """pass in three lists of files, modified, added, removed, all
-        relative to the *repo* root, not the content root (so these are
-        not absolute filenames)
-        """
-        self.visitor = self._visitor()
-        self.visitor.on_files_changed(changed)
 
 
 def _split_category(category):

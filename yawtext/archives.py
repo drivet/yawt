@@ -10,7 +10,7 @@ from flask.views import View
 
 from yawt.utils import cfg
 from yawt.view import render
-from yawtext import HierarchyCount, Plugin, SummaryProcessor, SummaryVisitor
+from yawtext import HierarchyCount, Plugin, SummaryProcessor, BranchedVisitor
 from yawtext.collections import CollectionView
 from yawtext.indexer import search, search_page
 
@@ -149,7 +149,7 @@ class YawtArchives(Plugin):
         app.register_blueprint(archivesbp)
 
 
-class YawtArchiveCounter(SummaryVisitor):
+class YawtArchiveCounter(BranchedVisitor):
     """The Yawt archive counter plugin"""
     def __init__(self, app=None):
         super(YawtArchiveCounter, self).__init__('YAWT_ARCHIVE_BASE',

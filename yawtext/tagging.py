@@ -30,7 +30,7 @@ from __future__ import absolute_import
 from flask import current_app, Blueprint, g
 
 from yawt.utils import cfg
-from yawtext import Plugin, SummaryProcessor, SummaryVisitor
+from yawtext import Plugin, SummaryProcessor, BranchedVisitor
 from yawtext.collections import CollectionView
 from yawtext.indexer import search
 
@@ -128,7 +128,7 @@ class YawtTagging(Plugin):
         app.register_blueprint(taggingbp)
 
 
-class YawtTagCounter(SummaryVisitor):
+class YawtTagCounter(BranchedVisitor):
     """The Yawt tag counter plugin"""
     def __init__(self, app=None):
         super(YawtTagCounter, self).__init__('YAWT_TAGGING_BASE',

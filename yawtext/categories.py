@@ -11,7 +11,7 @@ import re
 from flask import current_app, Blueprint
 
 from yawt.utils import cfg
-from yawtext import HierarchyCount, Plugin, SummaryProcessor, SummaryVisitor
+from yawtext import HierarchyCount, Plugin, SummaryProcessor, BranchedVisitor
 from yawtext.collections import CollectionView
 
 
@@ -112,7 +112,7 @@ class YawtCategories(Plugin):
         return view_func(category, flavour)
 
 
-class YawtCategoryCounter(SummaryVisitor):
+class YawtCategoryCounter(BranchedVisitor):
     """The Yawt category counter plugin"""
     def __init__(self, app=None):
         super(YawtCategoryCounter, self).__init__('YAWT_CATEGORY_BASE',
