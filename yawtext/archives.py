@@ -14,7 +14,7 @@ from yawt.utils import save_file, load_file, fullname, cfg, abs_state_folder
 from yawt.view import render
 from yawtext import StateFiles, state_context_processor, HierarchyCount, Plugin
 from yawtext.collections import CollectionView
-from yawtext.indexer import schema, search
+from yawtext.indexer import search, search_page
 
 
 archivesbp = Blueprint('archives', __name__)
@@ -91,10 +91,10 @@ class PermalinkView(View):
     def dispatch_request(self, category=None, year=None, month=None, day=None,
                          slug=None, flav=None):
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
-        ainfos, _ = search(_query(category, year, month, day),
-                           datefield,
-                           g.page, g.pagelen,
-                           True)
+        ainfos, _ = search_page(_query(category, year, month, day),
+                                datefield,
+                                g.page, g.pagelen,
+                                True)
         article = None
         for info in ainfos:
             if info.slug == slug:
