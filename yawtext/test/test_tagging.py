@@ -1,6 +1,6 @@
 #pylint: skip-file
 import os
-
+import shutil
 import jsonpickle
 from flask.ext.testing import TestCase
 from whoosh.fields import DATETIME, KEYWORD
@@ -81,7 +81,7 @@ class TestTaggingCounts(TestCase):
                        'flask_whoosh.Whoosh',
                        'yawtext.indexer.YawtIndexer',
                        'yawtext.collections.YawtCollections']
-    WHOOSH_INDEX_ROOT = '/home/dcr/blogging/website/_state/index'
+    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
     YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'create_time': DATETIME(sortable=True),
                                        'tags': KEYWORD()}
     YAWT_COLLECTIONS_SORT_FIELD = 'create_time'
@@ -151,6 +151,8 @@ class TestTaggingCounts(TestCase):
         self.assertEquals(1, len(cookingcountobj.keys()))
 
     def tearDown(self):
+        if os.path.exists('/tmp/whoosh/index'):
+            shutil.rmtree('/tmp/whoosh/index')
         self.site.remove()
 
 
@@ -161,7 +163,7 @@ class TestTaggingPages(TestCase):
                        'flask_whoosh.Whoosh',
                        'yawtext.indexer.YawtIndexer',
                        'yawtext.collections.YawtCollections']
-    WHOOSH_INDEX_ROOT = '/home/dcr/blogging/website/_state/index'
+    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
     YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'create_time': DATETIME(sortable=True),
                                        'tags': KEYWORD()}
     YAWT_COLLECTIONS_SORT_FIELD = 'create_time'
@@ -211,4 +213,6 @@ class TestTaggingPages(TestCase):
         self.assertEquals(2, len(articles))
 
     def tearDown(self):
+        if os.path.exists('/tmp/whoosh/index'):
+            shutil.rmtree('/tmp/whoosh/index')
         self.site.remove()
