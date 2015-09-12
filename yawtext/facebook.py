@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 
 import os
-from facepy import GraphAPI
+import facepy
 from yawt.utils import cfg, load_file
 
 
@@ -10,7 +10,7 @@ def post_fb(post):
     """Post message to facebook"""
     token_file = os.path.expanduser(cfg('YAWT_MICROPOST_FB_ACCESS_TOKEN_FILE'))
     access_tok = load_file(token_file)
-    graph = GraphAPI(access_tok)
+    graph = facepy.GraphAPI(access_tok)
 
     print "trying to post to facebook..."
     response = graph.post('me/feed', message=post)

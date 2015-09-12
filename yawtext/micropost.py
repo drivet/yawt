@@ -91,11 +91,11 @@ class YawtMicropost(Plugin):
         app.config.setdefault('YAWT_MICROPOST_FB_ACCESS_TOKEN_FILE',
                               '~/.fbaccesstoken')
         app.config.setdefault('YAWT_MICROPOST_FB_POST_URL',
-                              'http://www.facebook.com/desmond.rivet/posts/%s')
+                              'http://www.facebook.com/desmond.rivet/posts/{0}')
         app.config.setdefault('YAWT_MICROPOST_TWITTER_CREDENTIALS_FILE',
                               '~/.twittercfg')
         app.config.setdefault('YAWT_MICROPOST_TWITTER_POST_URL',
-                              'http://www.twitter.com/desmondrivet/status/%d')
+                              'http://www.twitter.com/desmondrivet/status/{0}')
 
     def on_cli_init(self, manager):
         """add the micropost command to the CLI manager"""

@@ -26,17 +26,18 @@ class TestTwitter(TestCase):
         save_file('/tmp/twittercred.yml', twittercred)
 
     def test_post_interacts_with_twitter_api(self):
-        post_twitter('this is a test message')
+        fake_tweepy.returnid = 12345
+        metadata = post_twitter('this is a test message')
         self.assertEquals(1, len(fake_tweepy.oauths))
         self.assertEquals('CONSUMER_KEY', fake_tweepy.oauths[0].consumer_key)
         self.assertEquals('CONSUMER_SECRET', fake_tweepy.oauths[0].consumer_secret)
         self.assertEquals('ACCESS_TOKEN', fake_tweepy.oauths[0].access_token)
         self.assertEquals('ACCESS_TOKEN_SECRET', fake_tweepy.oauths[0].access_token_secret)
-        
         self.assertEquals(1, len(fake_tweepy.apis))
         self.assertEquals('this is a test message', fake_tweepy.apis[0].status)
+        self.assertEquals('http://www.twitter.com/desmondrivet/status/12345',
+                          metadata['twitterpost'])
 
     def tearDown(self):
         remove_file('/tmp/twittercred.yml')
         yawtext.twitter.tweepy = self.old_tweepy
-        

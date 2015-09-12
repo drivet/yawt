@@ -1,9 +1,11 @@
 oauths = []
 apis = []
+returnid = None
 
 def clear():
     oauths = []
     apis = []
+    returnid = None
 
 
 class Status(object):
@@ -34,5 +36,5 @@ class API(object):
         
     def update_status(self, status):
         self.status = status
-        return Status(12345)
-        
+        return Status(returnid)
+
