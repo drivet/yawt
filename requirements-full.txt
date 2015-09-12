@@ -23,3 +23,4 @@ BeautifulSoup==3.2.1
 PyYAML==3.11
 python-frontmatter==0.2.1
 pytz==2015.4
+blinker==1.4
