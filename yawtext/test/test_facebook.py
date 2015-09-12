@@ -12,7 +12,7 @@ access_token = """ACCESS_TOKEN
 
 class TestFacebook(TestCase):
     YAWT_EXTENSIONS = ['yawtext.micropost.YawtMicropost']
-    YAWT_MICROPOST_TWITTER_CREDENTIALS_FILE = '/tmp/fbtoken'
+    YAWT_MICROPOST_FB_ACCESS_TOKEN_FILE = '/tmp/fbtoken'
 
     def create_app(self):
         return create_app('/tmp/blah', config=self)
