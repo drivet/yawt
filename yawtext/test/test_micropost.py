@@ -1,17 +1,12 @@
 #pylint: skip-file
-import shutil
-import tempfile
-import unittest
-
+import frontmatter
+from flask.ext.testing import TestCase
 from mock import Mock
 
 import yawtext.micropost
 from yawt import create_app
-from flask.ext.testing import TestCase
-from yawt import create_app
-from yawt.test import TempFolder
 from yawt.cli import create_manager
-import frontmatter
+from yawt.test import TempFolder
 
 
 class TestMicropostInitialization(TestCase):
