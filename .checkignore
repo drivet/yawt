@@ -1,2 +1,3 @@
-**/test
-**/systemtest
+yawt/test/**
+yawt/systemtest/**
+yawtext/test/**
