@@ -7,71 +7,84 @@ from mock import Mock
 
 import yawtext.micropost
 from yawt import create_app
+from flask.ext.testing import TestCase
+from yawt import create_app
+from yawt.test import TempFolder
+from yawt.cli import create_manager
+import frontmatter
 
 
-class Config(object):
-    YAWT_MICROPOST_NETWORKS = ['facebook']
+class TestMicropostInitialization(TestCase):
+    YAWT_EXTENSIONS = ['yawtext.micropost.YawtMicropost']
+
+    def create_app(self):
+        return create_app('/tmp/blah', config=self)
+
+    def test_micropost_has_default_config(self):
+        self.assertEquals('microposts',
+                          self.app.config['YAWT_MICROPOST_CATEGORY'])
+        self.assertEquals('txt',
+                          self.app.config['YAWT_MICROPOST_EXTENSION'])
+        self.assertEquals(['twitter'],
+                          self.app.config['YAWT_MICROPOST_NETWORKS'])
+
+    def test_sync_is_added_to_commands(self):
+        self.app.preprocess_request()
+        manager = create_manager(self.app)
+        self.assertTrue('micropost' in manager._commands)
+
+
+class TestFolder(TempFolder):
+    def __init__(self):
+        super(TestFolder, self).__init__()
+        self.folders = ['content']
+
+
+class TestMicropost(TestCase):
+    YAWT_EXTENSIONS = ['yawtext.micropost.YawtMicropost']
+    YAWT_MICROPOST_NETWORKS = ['facebook', 'twitter']
     YAWT_MICROPOST_CATEGORY = 'microposts'
     YAWT_MICROPOST_EXTENSION = 'txt'
 
+    def create_app(self):
+        self.site = TestFolder()
+        self.site.initialize()
+        return create_app(self.site.site_root, config=self)
 
-class TestMicropost(unittest.TestCase):
     def setUp(self):
-        self.old_post_fb = yawtext.micropost._post_fb
-        yawtext.micropost._post_fb = Mock(return_value={'fbpost': 'fb_url'})
+        self.old_post_fb = yawtext.micropost.post_fb
+        yawtext.micropost.post_fb = Mock(return_value={'fbpost': 'fb_url'})
 
-        self.old_write_post = yawtext.micropost.write_post
-        yawtext.micropost.write_post = Mock()
+        self.old_post_twitter = yawtext.micropost.post_twitter
+        yawtext.micropost.post_twitter = Mock(return_value={'twitterpost': 'tp'})
 
-        self.old_call_plugins = yawtext.micropost.call_plugins
-        yawtext.micropost.call_plugins = Mock()
-
-        self.tempdir = tempfile.mkdtemp()
-        self.app = create_app(self.tempdir, config=Config())
         self.micropostCmd = yawtext.micropost.Micropost()
 
     def test_micropost_calls_fb_with_post(self):
-        with self.app.test_request_context():
-            self.micropostCmd.run(post='this is a post', network=None)
-        yawtext.micropost._post_fb.assert_called_with("this is a post")
+        self.micropostCmd.run(post='this is a post', network=None)
+        yawtext.micropost.post_fb.assert_called_with("this is a post")
+
+    def test_micropost_calls_twitter_with_post(self):
+        self.micropostCmd.run(post='this is a post', network=None)
+        yawtext.micropost.post_twitter.assert_called_with("this is a post")
 
     def test_micropost_writes_post_with_timestamps(self):
-        with self.app.test_request_context():
-            self.micropostCmd.run(post='this is a post', network=None)
-        args = yawtext.micropost.write_post.call_args
-        metadata = args[0][0]
-        self.assertTrue('create_time' in metadata)
-        self.assertTrue('modified_time'in metadata)
+        filename = self.micropostCmd.run(post='this is a post', network=None)
+        post = frontmatter.loads(self.site.load_file(filename))
+        self.assertTrue('create_time' in post.metadata)
+        self.assertTrue('modified_time'in post.metadata)
 
     def test_micropost_writes_post_with_post_text(self):
-        with self.app.test_request_context():
-            self.micropostCmd.run(post='this is a post', network=None)
-        args = yawtext.micropost.write_post.call_args
-        post = args[0][1]
-        self.assertEquals('this is a post', post)
+        filename = self.micropostCmd.run(post='this is a post', network=None)
+        post = frontmatter.loads(self.site.load_file(filename))
+        self.assertEquals('this is a post', post.content)
 
     def test_micropost_extracts_tags(self):
-        with self.app.test_request_context():
-            self.micropostCmd.run(post='this is a post #giggles #stuff', network=None)
-        args = yawtext.micropost.write_post.call_args
-        metadata = args[0][0]
-        self.assertEquals(metadata['tags'], 'giggles,stuff')
-
-    def test_micropost_extracts_tags(self):
-        with self.app.test_request_context():
-            self.micropostCmd.run(post='this is a post #giggles #stuff', network=None)
-        args = yawtext.micropost.write_post.call_args
-        metadata = args[0][0]
-        self.assertEquals(metadata['tags'], 'giggles,stuff')
-
-    def test_micropost_calls_plugins(self):
-        with self.app.test_request_context():
-            self.micropostCmd.run(post='this is a post', network=None)
-        yawtext.micropost.call_plugins.assert_called_with('on_micropost')
+        filename = self.micropostCmd.run(post='this is a post #giggles #stuff', network=None)
+        post = frontmatter.loads(self.site.load_file(filename))
+        self.assertEquals('giggles,stuff', post.metadata['tags'])
 
     def tearDown(self):
-        yawtext.micropost._post_fb = self.old_post_fb
-        yawtext.micropost.write_post = self.old_write_post
-        yawtext.micropost.call_plugins = self.old_call_plugins
-        assert self.tempdir.startswith('/tmp/')
-        shutil.rmtree(self.tempdir)
+        yawtext.micropost.post_fb = self.old_post_fb
+        yawtext.micropost.post_twitter = self.old_post_twitter
+        self.site.remove()

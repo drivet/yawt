@@ -3,13 +3,14 @@ from __future__ import absolute_import
 import os
 
 import datetime
-import yaml
+
 from flask import g, current_app
 from flask_script import Command, Option
 
-from yawt.utils import call_plugins, ensure_path, load_file,\
-    cfg, content_folder
+from yawt.utils import ensure_path, cfg, content_folder
 from yawtext import Plugin
+from yawtext.facebook import post_fb
+from yawtext.twitter import post_twitter
 
 
 def write_post(metadata, content, filename):
@@ -20,52 +21,6 @@ def write_post(metadata, content, filename):
             f.write(u'{0}: {1}\n'.format(key, metadata[key]))
         f.write(u'---\n')
         f.write(unicode(content))
-
-
-def _get_twitter_api():
-    credfile = cfg('YAWT_MICROPOST_TWITTER_CREDENTIALS_FILE')
-    cfgfile = os.path.expanduser(credfile)
-    cfgobj = yaml.load(load_file(cfgfile))
-    consumer_key = cfgobj['consumer_key']
-    consumer_secret = cfgobj['consumer_secret']
-    access_token = cfgobj['access_token']
-    access_token_secret = cfgobj['access_token_secret']
-    import tweepy
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
-    return tweepy.API(auth)
-
-
-def _post_twitter(post):
-    api = _get_twitter_api()
-    status = api.update_status(status=post)
-    posturl = cfg('YAWT_MICROPOST_TWITTER_POST_URL')
-    metadata = {}
-    metadata['twitterpost'] = posturl % (status.id)
-    return metadata
-
-
-def _post_fb(post):
-    from facepy import GraphAPI
-    token_file = os.path.expanduser(cfg('YAWT_MICROPOST_FB_ACCESS_TOKEN_FILE'))
-    access_tok = load_file(token_file)
-    graph = GraphAPI(access_tok)
-
-    print "trying to post to facebook..."
-    response = graph.post('me/feed', message=post)
-    print "response: "+str(response)
-    fid = None
-    retid = response['id']
-    if retid:
-        pids = retid.split('_')
-        if len(pids) < 2:
-            print "unexpected id format"
-        fid = pids[1]
-    posturl = cfg('YAWT_MICROPOST_FB_POST_URL')
-    metadata = {}
-    if fid:
-        metadata['fbpost'] = posturl % (fid)
-    return metadata
 
 
 def _extract_tags(post):
@@ -81,13 +36,13 @@ def post_social(post, networks=None):
     metadata = {}
     for network in networks:
         if network == 'facebook':
-            metadata.update(_post_fb(post))
+            metadata.update(post_fb(post))
         elif network == 'twitter':
-            metadata.update(_post_twitter(post))
+            metadata.update(post_twitter(post))
     return metadata
 
 
-def _post(post, networks):
+def _post_and_save(post, networks):
     metadata = post_social(post, networks)
     now = datetime.datetime.utcnow()
     metadata.update({'create_time': now.isoformat(),
@@ -107,6 +62,7 @@ def _post(post, networks):
     repo_file = os.path.join(repo_category, slug)
     repo_file += "." + cfg('YAWT_MICROPOST_EXTENSION')
     write_post(metadata, post, os.path.join(root_dir, repo_file))
+    return repo_file
 
 
 class Micropost(Command):
@@ -120,8 +76,7 @@ class Micropost(Command):
 
     def run(self, post, network):
         current_app.preprocess_request()
-        _post(post, network)
-        call_plugins('on_micropost')
+        return _post_and_save(post, network)
 
 
 class YawtMicropost(Plugin):
@@ -132,7 +87,7 @@ class YawtMicropost(Plugin):
     def init_app(self, app):
         app.config.setdefault('YAWT_MICROPOST_CATEGORY', 'microposts')
         app.config.setdefault('YAWT_MICROPOST_EXTENSION', 'txt')
-        app.config.setdefault('YAWT_MICROPOST_NETWORKS', ['facebook'])
+        app.config.setdefault('YAWT_MICROPOST_NETWORKS', ['twitter'])
         app.config.setdefault('YAWT_MICROPOST_FB_ACCESS_TOKEN_FILE',
                               '~/.fbaccesstoken')
         app.config.setdefault('YAWT_MICROPOST_FB_POST_URL',
