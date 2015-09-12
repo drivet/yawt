@@ -24,3 +24,5 @@ PyYAML==3.11
 python-frontmatter==0.2.1
 pytz==2015.4
 blinker==1.4
+tweepy==3.4.0
+facepy==1.0.6
