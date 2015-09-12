@@ -210,7 +210,7 @@ class HierarchyCount(ReprMixin, EqMixin):
 
     def sort(self, reverse=False):
         """Recursively sort the children of this tree"""
-        if len(self.children) > 0:
+        if self.children:
             for child in self.children:
                 child.sort(reverse)
             self.children.sort(key=lambda c: c.category, reverse=reverse)

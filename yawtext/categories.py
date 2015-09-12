@@ -19,7 +19,7 @@ categoriesbp = Blueprint('categories', __name__)
 
 
 def _slice_base(category, countbase):
-    category = re.sub('^%s' % (countbase), '', category)
+    category = re.sub('^'+countbase, '', category)
     if category.startswith('/'):
         category = category[1:]
     return category

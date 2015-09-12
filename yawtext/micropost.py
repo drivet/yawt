@@ -17,7 +17,7 @@ def write_post(metadata, content, filename):
     with open(filename, 'w') as f:
         f.write(u'---\n')
         for key in metadata:
-            f.write(u'%s: %s\n' % (key, metadata[key]))
+            f.write(u'{0}: {1}\n'.format(key, metadata[key]))
         f.write(u'---\n')
         f.write(unicode(content))
 
@@ -94,7 +94,7 @@ def _post(post, networks):
                      'modified_time': now.isoformat()})
 
     tags = _extract_tags(post)
-    if len(tags) > 0:
+    if tags:
         metadata['tags'] = ','.join(tags)
 
     root_dir = g.site.root_dir
@@ -102,7 +102,8 @@ def _post(post, networks):
                                  cfg('YAWT_MICROPOST_CATEGORY'))
     ensure_path(os.path.join(root_dir, repo_category))
 
-    slug = "%d%d%d%d%d%d" % (now.year, now.month, now.day, now.hour, now.minute, now.second)
+    slug = "{0:02d}{1:02d}{2:02d}{3:02d}{4:02d}{5:02d}"
+    slug = slug.format(now.year, now.month, now.day, now.hour, now.minute, now.second)
     repo_file = os.path.join(repo_category, slug)
     repo_file += "." + cfg('YAWT_MICROPOST_EXTENSION')
     write_post(metadata, post, os.path.join(root_dir, repo_file))

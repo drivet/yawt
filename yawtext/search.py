@@ -46,7 +46,9 @@ class YawtSearch(Plugin):
 @searchbp.context_processor
 def _collection_title():
     searchtext = unicode(request.args.get('searchtext', ''))
-    return {'collection_title': 'Found %s search results for "%s"' % (g.total_results, searchtext)}
+    title = 'Found {0} search results for "{1}"'
+    title = title.format(g.total_results, searchtext)
+    return {'collection_title': title}
 
 
 searchbp.add_url_rule('/search/',

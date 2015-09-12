@@ -101,12 +101,12 @@ def _value(field_value, field_type):
     fvt = type(field_value)
     ftt = type(field_type)
     if fvt is list:
-        if field_type == KEYWORD or ftt is KEYWORD or \
-           field_type == IDLIST or ftt is IDLIST:
+        if field_type in [KEYWORD, IDLIST] or \
+           ftt in [KEYWORD, IDLIST]:
             return ' '.join(field_value)
         else:
             raise BadFieldType(field_type)
-    elif (fvt is long or fvt is int or fvt is float) and ftt is DATETIME:
+    elif fvt in [long, int, float] and ftt is DATETIME:
         return datetime.fromtimestamp(field_value)
     elif fvt is unicode and ftt is DATETIME:
         return datetime.fromtimestamp(long(field_value))

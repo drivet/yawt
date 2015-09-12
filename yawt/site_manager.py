@@ -51,8 +51,8 @@ class YawtSiteManager(object):
     def fetch_articles_by_repofiles(self, repofiles):
         """Fetches list of articles, calling plugins"""
         return [article for article in
-                [self.fetch_article_by_repofile(rfile)
-                 for rfile in repofiles] if article]
+                (self.fetch_article_by_repofile(rfile) for rfile in repofiles)
+                if article]
 
     def fetch_article_by_info(self, article_info):
         """Fetches an article, calling all the plugins"""
@@ -133,7 +133,8 @@ class YawtSiteManager(object):
         """Take a full absolute filename (including repository root folder) and
         extract the fullname of the article
         """
-        rel_filename = re.sub('^%s/' % (self._content_root()), '', filename)
+        rel_filename = re.sub('^{0}/'.format(self._content_root()),
+                              '', filename)
         fullname = os.path.splitext(rel_filename)[0]
         return fullname
 

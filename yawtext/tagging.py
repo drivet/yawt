@@ -47,8 +47,9 @@ def _tagcounts_cp():
 
 @taggingbp.context_processor
 def _collection_title():
-    return {'collection_title':
-            'Found %s tag results for "%s"' % (g.total_results, g.tag)}
+    title = 'Found %s tag results for "%s"'
+    title = title.format(g.total_results, g.tag)
+    return {'collection_title': title}
 
 
 class TaggingView(CollectionView):
@@ -99,9 +100,8 @@ class TagProcessor(SummaryProcessor):
     def _tags_for_name(self, name):
         infos = search(unicode('fullname:'+name))
         tags = []
-        if len(infos) > 0:
-            if hasattr(infos[0], 'tags') and infos[0].tags:
-                tags = infos[0].tags
+        if infos and hasattr(infos[0], 'tags') and infos[0].tags:
+            tags = infos[0].tags
         return tags
 
     def _delete_unused_tags(self):
