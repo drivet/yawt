@@ -119,7 +119,6 @@ class YawtTagging(Plugin):
     """The YAWT tagging plugin class itself"""
     def __init__(self, app=None):
         super(YawtTagging, self).__init__(app)
-        self.visitor = None
 
     def init_app(self, app):
         """Set up some default config and register the blueprint"""

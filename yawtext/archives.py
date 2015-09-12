@@ -139,7 +139,6 @@ class YawtArchives(Plugin):
     """The YAWT archive plugin class itself"""
     def __init__(self, app=None):
         super(YawtArchives, self).__init__(app)
-        self.visitor = None
 
     def init_app(self, app):
         """Set up some default config and register the blueprint"""

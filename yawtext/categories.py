@@ -75,7 +75,6 @@ class YawtCategories(Plugin):
     """YAWT category extension class"""
     def __init__(self, app=None):
         super(YawtCategories, self).__init__(app)
-        self.visitor = None
 
     def init_app(self, app):
         """Register the bluepriont and set some default config"""
