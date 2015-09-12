@@ -54,7 +54,7 @@ def fullname(sitefile):
     content_root = current_app.config['YAWT_CONTENT_FOLDER']
     if not sitefile.startswith(content_root):
         return None
-    rel_filename = re.sub('^%s/' % (content_root), '', sitefile)
+    rel_filename = re.sub('^{0}/'.format(content_root), '', sitefile)
     name, ext = os.path.splitext(rel_filename)
     ext = ext[1:]
     if ext not in current_app.config['YAWT_ARTICLE_EXTENSIONS']:
@@ -156,7 +156,7 @@ def get_attributes(obj):
 def format_value(val):
     """format a value, using its __repr__"""
     if isinstance(val, (basestring, date, time, datetime)):
-        val = "'%s'" % val
+        val = "'{0}'".format(val)
         return val.encode("utf-8", errors="ignore")
     else:
         return val
@@ -166,8 +166,8 @@ class ReprMixin(object):
     """Provide a standard __repr__ implementation that formats __dict__
     based classes."""
     def __repr__(self):
-        attrstr =", ".join("%s=%s" % (k[0], format_value(k[1])) for k in get_attributes(self).items())
-        return "%s(%s)" % (type(self).__name__, attrstr)
+        attrstr =", ".join("{0}={1}".format(k[0], format_value(k[1])) for k in get_attributes(self).items())
+        return "{0}({1})".format(type(self).__name__, attrstr)
 
 
 class EqMixin(object):
