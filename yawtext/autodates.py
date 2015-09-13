@@ -19,28 +19,26 @@ class ExplicitDumper(yaml.SafeDumper):
         return True
 
 
-def _cfg(key):
-    return current_app.config[key]
+# small comprimise for unit testing, this will be monkeypatched
+def _now():
+    return datetime.datetime.utcnow()
 
 
-def _content_folder():
-    return _cfg('YAWT_CONTENT_FOLDER')
-
-
-def _fix_dates_for_article(abs_article_file):
+def _fix_dates_for_article(repofile):
+    abs_article_file = os.path.join(current_app.yawt_root_dir, repofile)
     post = frontmatter.load(abs_article_file)
-    now = datetime.datetime.utcnow()
+    now = _now()
     if 'create_time' not in post.metadata:
         post['create_time'] = now
     post['modified_time'] = now
     save_file(abs_article_file, frontmatter.dumps(post, Dumper=ExplicitDumper))
 
 
-def _fix_dates(root_dir, changed):
+def _fix_dates(changed):
     """Add timestamps to files mentioned in the index"""
     changed = changed.content_changes()
     for changed_file in changed.added + changed.modified:
-        _fix_dates_for_article(os.path.join(root_dir, changed_file))
+        _fix_dates_for_article(changed_file)
 
 
 class YawtAutodates(Plugin):
@@ -51,6 +49,6 @@ class YawtAutodates(Plugin):
     def init_app(self, app):
         pass
 
-    def on_pre_sync(self, root_dir, changed):
+    def on_pre_sync(self, changed):
         """add create amd modifed dates to new files about to be synced"""
-        _fix_dates(root_dir, changed)
+        _fix_dates(changed)

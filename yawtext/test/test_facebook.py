@@ -23,7 +23,7 @@ class TestFacebook(TestCase):
         fake_facebook.clear()
         save_file('/tmp/fbtoken', access_token)
 
-    def test_post_interacts_with_twitter_api(self):
+    def test_post_interacts_with_facebook_api(self):
         fake_facebook.returnval = {'id': '1234_5678'}
         metadata = post_fb('this is a test message')
         self.assertEquals(1, len(fake_facebook.graphapis))

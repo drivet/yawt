@@ -120,7 +120,6 @@ class TestSync(TestCase):
                     push=False,
                     message='commit message')
         yawtext.sync.call_plugins.assert_called_with('on_pre_sync',
-                                                     self.site.site_root,
                                                      changed)
 
     def tearDown(self):

@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import os
 
 import frontmatter
-from flask import current_app, g
+from flask import current_app
 from flask_script import Command, Option
 
 from yawt.utils import save_file, content_folder, fullname
@@ -14,7 +14,8 @@ def _whoosh():
     return current_app.extension_info[0]['flask_whoosh.Whoosh']
 
 
-def _add_tags_for_article(abs_article_file, searcher):
+def _add_tags_for_article(repofile, searcher):
+    abs_article_file = os.path.join(current_app.yawt_root_dir, repofile)
     post = frontmatter.load(abs_article_file)
     if 'tags' not in post.metadata:
         keywords = [keyword for keyword, _
@@ -27,13 +28,15 @@ def _add_tags_for_article(abs_article_file, searcher):
         save_file(abs_article_file, frontmatter.dumps(post))
 
 
-def _add_tags(root_dir, changed):
+def _add_tags(changed):
     searcher = _whoosh().searcher
     for new_file in changed.content_changes().added:
-        _add_tags_for_article(os.path.join(root_dir, new_file), searcher)
+        _add_tags_for_article(new_file, searcher)
 
 
-def _add_tags_for_indexed_article(root_dir, indexed_file, edit):
+# called from the Command
+def _add_tags_for_indexed_article(indexed_file, edit):
+    root_dir = current_app.yawt_root_dir
     if not indexed_file.startswith(content_folder()):
         print "file must be in content folder"
         return
@@ -62,7 +65,7 @@ class Autotag(Command):
 
     def run(self, edit, article):
         current_app.preprocess_request()
-        _add_tags_for_indexed_article(g.site.root_dir, article, edit)
+        _add_tags_for_indexed_article(article, edit)
 
 
 class YawtAutotags(Plugin):
@@ -73,9 +76,9 @@ class YawtAutotags(Plugin):
     def init_app(self, app):
         pass
 
-    def on_pre_sync(self, root_dir, changed):
+    def on_pre_sync(self, changed):
         """add tags to new files about to be synced"""
-        _add_tags(root_dir, changed)
+        _add_tags(changed)
 
     def on_cli_init(self, manager):
         """add the command to the CLI manager"""

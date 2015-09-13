@@ -10,7 +10,6 @@ from yawtext.vc import vc_push, vc_commit, vc_add_tracked,\
 
 
 def _sync(strict, addnew, push, message):
-    root_dir = g.site.root_dir
     if not strict:
         # if addnew is True, this means we need to add all untracked files
         # to the index.  The -A will do that.  Otheriwse we just do a -u,
@@ -23,7 +22,7 @@ def _sync(strict, addnew, push, message):
         # at this point we should have an almost snapshot of what we want
         # to commit in the index.  It's "almost" because we now may want
         # to fix up or add the timestamps.
-        call_plugins('on_pre_sync', root_dir, vc_status())
+        call_plugins('on_pre_sync', vc_status())
 
         # readjust the index with whatever changes were made by
         # the pre_sync plugins
