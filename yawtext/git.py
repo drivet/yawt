@@ -2,9 +2,10 @@
 from __future__ import absolute_import
 
 import subprocess
+
 from flask import current_app
-from yawt.utils import run_in_context, call_plugins
-from yawtext.vc import ChangedFiles
+
+from yawt.utils import run_in_context, call_plugins, ChangedFiles
 
 
 def _git_cmd(args):

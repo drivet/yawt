@@ -7,72 +7,8 @@ import os
 
 from flask import current_app
 
-from yawt.utils import is_content_file, save_file, cfg, EqMixin, ReprMixin
+from yawt.utils import save_file, cfg
 from yawtext import Plugin
-
-
-class ChangedFiles(ReprMixin, EqMixin):
-    """Structure to represent a summary of changed files in a git changeset"""
-    def __init__(self, **kwargs):
-        self.added = kwargs.get('added', [])
-        self.modified = kwargs.get('modified', [])
-        self.deleted = kwargs.get('deleted', [])
-        self.renamed = kwargs.get('renamed', {})
-        self._content_folder = kwargs.get('content_folder', None)
-
-    def normalize(self):
-        """Return a new ChangedFiles instance with the rename attribute merged
-        into the added and deleted attributes"""
-        added = list(self.added)
-        modified = list(self.modified)
-        deleted = list(self.deleted)
-        for old, new in self.renamed.items():
-            deleted.append(old)
-            added.append(new)
-        return ChangedFiles(added=added,
-                            modified=modified,
-                            deleted=deleted)
-
-    def content_changes(self, content_folder=None):
-        """Return a new ChangedFiles instance such that the non-content files
-        are removed from the added, modified and deleted attributes.  For the
-        renamed attribute, we do the following:
-        - remove all renames that are entirely non-content related
-        - remove all renames with a non-content source and a content
-          destination, and add the destinatuon to the added attribute.
-        - keep the renames that are entire within the content folder.
-        """
-        added = [a for a in self.added if is_content_file(a, content_folder)]
-        modified = [m for m in self.modified
-                    if is_content_file(m, content_folder)]
-        deleted = [d for d in self.deleted
-                   if is_content_file(d, content_folder)]
-        renamed = {}
-
-        for old, new in self.renamed.items():
-            old_is_content = is_content_file(old, content_folder)
-            new_is_content = is_content_file(new, content_folder)
-            if old_is_content and new_is_content:
-                renamed[old] = new
-            elif not old_is_content and new_is_content:
-                added.append(new)
-        return ChangedFiles(added=added,
-                            modified=modified,
-                            deleted=deleted,
-                            renamed=renamed)
-
-    def filter(self, root):
-        """Return a new ChangedFiles instance, consisting of those files
-        that are under root"""
-        added = [a for a in self.added if a.startswith(root)]
-        modified = [m for m in self.modified if m.startswith(root)]
-        deleted = [d for d in self.deleted if d.startswith(root)]
-        renamed = {r: self.renamed[r] for r in self.renamed.keys()
-                   if r.startswith(root) or self.renamed[r].startswith(root)}
-        return ChangedFiles(added=added,
-                            modified=modified,
-                            deleted=deleted,
-                            renamed=renamed)
 
 
 class YawtVersionControl(Plugin):

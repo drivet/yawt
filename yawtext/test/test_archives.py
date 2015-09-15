@@ -1,15 +1,12 @@
 #pylint: skip-file
 import os
-import shutil
+
 import jsonpickle
 from flask.ext.testing import TestCase
-from whoosh.fields import DATETIME
 
 from yawt import create_app
-from yawt.cli import Walk
-from yawt.test import TempFolder
-from yawt.utils import abs_state_folder, call_plugins, load_file
-from yawtext.vc import ChangedFiles
+from yawt.utils import abs_state_folder, load_file
+from yawtext.test import TestCaseWithIndex, TestCaseWithSite
 
 
 class TestYawtArchivesInitialize(TestCase):
@@ -61,45 +58,21 @@ not good
 """
 
 
-class TestFolder(TempFolder):
-    def __init__(self):
-        super(TestFolder, self).__init__()
-        self.files = {
-            'templates/article_list.html': 'does not really matter',
-
-            'content/reading/hamlet.txt': HAMLET,
-            'content/cooking/indian/madras.txt': MADRAS,
-            'content/cooking/soup.txt': SOUP,
-        }
-
-
-class TestArchiveCounts(TestCase):
-    YAWT_META_TYPES = {'create_time': 'iso8601',
-                       'modified_time': 'iso8601'}
+class TestArchiveCounts(TestCaseWithIndex):
     # Archive plugin MUST come before indexing plugin
-    YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives',
-                       'yawtext.archives.YawtArchiveCounter',
-                       'flask_whoosh.Whoosh',
-                       'yawtext.indexer.YawtIndexer',
-                       'yawtext.collections.YawtCollections']
-    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
-    YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'create_time': DATETIME(sortable=True)}
-    YAWT_COLLECTIONS_SORT_FIELD = 'create_time'
-
-    def create_app(self):
-        self.site = TestFolder()
-        self.site.initialize()
-        return create_app(self.site.site_root, config=self)
-
-    def setUp(self):
-        self.app.preprocess_request()
+    YAWT_EXTENSIONS = ['yawtext.archives.YawtArchiveCounter'] + \
+                      TestCaseWithIndex.YAWT_EXTENSIONS
+    walkOnSetup = False
+    files = {
+        'templates/article.html': 'does not really matter',
+        'content/reading/hamlet.txt': HAMLET,
+        'content/cooking/indian/madras.txt': MADRAS,
+        'content/cooking/soup.txt': SOUP,
+    }
 
     def test_counts_archives_with_count_file_on_walk(self):
         self.app.config['YAWT_ARCHIVE_COUNT_FILE'] = '_anothercountfile'
-
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
+        self._walk()
 
         counts_path = os.path.join(abs_state_folder(), '_anothercountfile')
         countobj = jsonpickle.decode(load_file(counts_path))
@@ -115,10 +88,7 @@ class TestArchiveCounts(TestCase):
 
     def test_counts_archives_with_bases_on_walk(self):
         self.app.config['YAWT_ARCHIVE_BASE'] = ['reading', 'cooking']
-
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
+        self._walk()
 
         readingcounts_path = os.path.join(abs_state_folder(),
                                           'reading/archivecounts')
@@ -133,19 +103,12 @@ class TestArchiveCounts(TestCase):
 
     def test_adjusts_archives_with_bases_on_update(self):
         self.app.config['YAWT_ARCHIVE_BASE'] = ['reading', 'cooking']
-
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
-
-        self.site.save_file('content/reading/emma.txt', EMMA)
-        self.site.save_file('content/cooking/indian/madras.txt', NEW_MADRAS)
-        self.site.delete_file('content/cooking/soup.txt')
-
-        changed = ChangedFiles(added=['content/reading/emma.txt'],
-                               modified=['content/cooking/indian/madras.txt'],
-                               deleted=['content/cooking/soup.txt'])
-        call_plugins('on_files_changed', changed)
+        self._walk()
+        self.site.change(added={'content/reading/emma.txt':
+                                EMMA},
+                         modified={'content/cooking/indian/madras.txt':
+                                   NEW_MADRAS},
+                         deleted=['content/cooking/soup.txt'])
 
         readingcounts_path = os.path.join(abs_state_folder(),
                                           'reading/archivecounts')
@@ -158,37 +121,29 @@ class TestArchiveCounts(TestCase):
         self.assertEquals(2, readingcountobj.count)
         self.assertEquals(1, cookingcountobj.count)
 
-    def tearDown(self):
-        if os.path.exists('/tmp/whoosh/index'):
-            shutil.rmtree('/tmp/whoosh/index')
-        self.site.remove()
+    def test_archive_count_variable_supplied(self):
+        self._walk()
+        # really this should work with any URL
+        response = self.client.get('/reading/hamlet')
+
+        countobj = self.get_context_variable('archivecounts')
+        self.assertEquals(3, countobj.count)
 
 
-class TestArchivePages(TestCase):
-    YAWT_META_TYPES = {'create_time': 'iso8601',
-                       'modified_time': 'iso8601'}
+class TestArchivePages(TestCaseWithIndex):
     # Archive plugin MUST come before indexing plugin
-    YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives',
-                       'yawtext.archives.YawtArchiveCounter',
-                       'flask_whoosh.Whoosh',
-                       'yawtext.indexer.YawtIndexer',
-                       'yawtext.collections.YawtCollections']
-    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
-    YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'create_time': DATETIME(sortable=True)}
-    YAWT_COLLECTIONS_SORT_FIELD = 'create_time'
+    YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives'] + \
+                      TestCaseWithIndex.YAWT_EXTENSIONS
 
-    def create_app(self):
-        self.site = TestFolder()
-        self.site.initialize()
-        return create_app(self.site.site_root, config=self)
+    files = {
+        'templates/article.html': 'does not really matter',
+        'templates/article_list.html': 'does not really matter',
+        'content/reading/hamlet.txt': HAMLET,
+        'content/cooking/indian/madras.txt': MADRAS,
+        'content/cooking/soup.txt': SOUP,
+    }
 
-    def setUp(self):
-        self.app.preprocess_request()
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
-
-    def test_archive_template_used_when_using_archive_url(self):
+    def test_archive_template_used_when_using_pure_date_url(self):
         response = self.client.get('/2007/')
         self.assert_template_used('article_list.html')
 
@@ -198,6 +153,7 @@ class TestArchivePages(TestCase):
         response = self.client.get('/2007/06/01/')
         self.assert_template_used('article_list.html')
 
+    def test_archive_template_used_when_using_date_index_url(self):
         response = self.client.get('/2007/index')
         self.assert_template_used('article_list.html')
 
@@ -207,6 +163,7 @@ class TestArchivePages(TestCase):
         response = self.client.get('/2007/06/01/index')
         self.assert_template_used('article_list.html')
 
+    def test_archive_template_used_when_using_date_index_flavour_url(self):
         response = self.client.get('/2007/index.html')
         self.assert_template_used('article_list.html')
 
@@ -216,6 +173,7 @@ class TestArchivePages(TestCase):
         response = self.client.get('/2007/06/01/index.html')
         self.assert_template_used('article_list.html')
 
+    def test_archive_template_used_when_using_category_date_url(self):
         response = self.client.get('/reading/2007/')
         self.assert_template_used('article_list.html')
 
@@ -225,6 +183,7 @@ class TestArchivePages(TestCase):
         response = self.client.get('/reading/2007/06/01/')
         self.assert_template_used('article_list.html')
 
+    def test_archive_template_used_when_using_category_date_index_url(self):
         response = self.client.get('/reading/2007/index')
         self.assert_template_used('article_list.html')
 
@@ -234,6 +193,7 @@ class TestArchivePages(TestCase):
         response = self.client.get('/reading/2007/06/01/index')
         self.assert_template_used('article_list.html')
 
+    def test_archive_template_used_when_using_category_date_index_flavour_url(self):
         response = self.client.get('/reading/2007/index.html')
         self.assert_template_used('article_list.html')
 
@@ -243,25 +203,18 @@ class TestArchivePages(TestCase):
         response = self.client.get('/reading/2007/06/01/index.html')
         self.assert_template_used('article_list.html')
 
-        # permalinks
+    def test_article_template_used_when_using_permalink_url(self):
         response = self.client.get('/reading/2007/06/01/hamlet')
-        self.assert_template_used('article_list.html')
+        self.assert_template_used('article.html')
 
         response = self.client.get('/reading/2007/06/01/hamlet.html')
-        self.assert_template_used('article_list.html')
+        self.assert_template_used('article.html')
 
         response = self.client.get('/2007/06/01/hamlet.html')
-        self.assert_template_used('article_list.html')
+        self.assert_template_used('article.html')
 
         response = self.client.get('/2007/06/01/hamlet')
-        self.assert_template_used('article_list.html')
-
-    def test_archive_count_variable_supplied(self):
-        # really this should work with any URL
-        response = self.client.get('/2007/')
-
-        countobj = self.get_context_variable('archivecounts')
-        self.assertEquals(3, countobj.count)
+        self.assert_template_used('article.html')
 
     def test_articles_variable_supplied(self):
         response = self.client.get('/2007/')
@@ -272,7 +225,39 @@ class TestArchivePages(TestCase):
         articles = self.get_context_variable('articles')
         self.assertEquals(1, len(articles))
 
-    def tearDown(self):
-        if os.path.exists('/tmp/whoosh/index'):
-            shutil.rmtree('/tmp/whoosh/index')
-        self.site.remove()
+
+class TestArchiveFilters(TestCaseWithSite):
+    YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives'] + \
+                      TestCaseWithIndex.YAWT_EXTENSIONS
+    YAWT_META_TYPES = {'create_time': 'iso8601'}
+
+    files = {
+        'templates/article.html': 'permalink: {{article.info|permalink}}',
+        'content/reading/hamlet.txt': HAMLET,
+        'content/cooking/indian/madras.txt': MADRAS,
+        'content/cooking/soup.txt': SOUP,
+    }
+
+    def test_permalink_filter_extracts_date(self):
+        # really this should work with any URL
+        response = self.client.get('/reading/hamlet')
+        assert 'permalink: /2007/06/02/hamlet' in response.data
+
+
+class TestArchiveFiltersWithBase(TestCaseWithSite):
+    YAWT_EXTENSIONS = ['yawtext.archives.YawtArchives'] + \
+                      TestCaseWithIndex.YAWT_EXTENSIONS
+    YAWT_META_TYPES = {'create_time': 'iso8601'}
+    YAWT_ARCHIVE_BASE = ['reading']
+
+    files = {
+        'templates/article.html': 'permalink: {{article.info|permalink}}',
+        'content/reading/hamlet.txt': HAMLET,
+        'content/cooking/indian/madras.txt': MADRAS,
+        'content/cooking/soup.txt': SOUP,
+    }
+
+    def test_permalink_filter_extracts_date(self):
+        # really this should work with any URL
+        response = self.client.get('/reading/hamlet')
+        assert 'permalink: /reading/2007/06/02/hamlet' in response.data

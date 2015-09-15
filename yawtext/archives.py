@@ -13,6 +13,7 @@ from yawt.view import render
 from yawtext import HierarchyCount, Plugin, SummaryProcessor, BranchedVisitor
 from yawtext.collections import CollectionView
 from yawtext.indexer import search, search_page
+from werkzeug.routing import BaseConverter, ValidationError
 
 
 archivesbp = Blueprint('archives', __name__)
@@ -25,6 +26,8 @@ def _permalink(info):
     base = _find_base(info.fullname)
     if base:
         base = "/" + base + "/"
+    else:
+        base = '/'
     return base + _date_hierarchy(date) + '/' + info.slug
 
 
@@ -35,13 +38,6 @@ def _find_base(name):
             if not longest_base or len(base) > len(longest_base):
                 longest_base = base
     return longest_base
-
-
-@archivesbp.app_context_processor
-def _archive_counts_cp():
-    return SummaryProcessor.context_processor('YAWT_ARCHIVE_COUNT_FILE',
-                                              'YAWT_ARCHIVE_BASE',
-                                              'archivecounts')
 
 
 def _datestr(year, month=None, day=None):
@@ -77,6 +73,16 @@ def _fetch_date_for_name(name):
     return create_time
 
 
+class SlugConverter(BaseConverter):
+    """Custom convertor to match slugs, i.e. base filenames that are
+    not 'index'"""
+    def to_python(self, value):
+        if value != 'index':
+            return value
+        else:
+            raise ValidationError()
+
+
 class ArchiveView(CollectionView):
     def dispatch_request(self, *args, **kwargs):
         return super(ArchiveView, self).dispatch_request(*args, **kwargs)
@@ -109,6 +115,139 @@ class PermalinkView(View):
         return current_app.config['YAWT_PERMALINK_TEMPLATE']
 
 
+# /reading/2015/
+archivesbp.add_url_rule('/<path:category>/<int:year>/',
+                        view_func=ArchiveView.as_view('archive_category_y'))
+
+# /reading/2015/11/
+archivesbp.add_url_rule('/<path:category>/<int:year>/' +
+                        '<int(fixed_digits=2):month>/',
+                        view_func=ArchiveView.as_view('archive_category_ym'))
+
+# /reading/2015/11/18
+archivesbp.add_url_rule('/<path:category>/<int:year>/' +
+                        '<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/',
+                        view_func=ArchiveView.as_view('archive_category_ymd'))
+
+# /2015/
+archivesbp.add_url_rule('/<int:year>/',
+                        view_func=ArchiveView.as_view('archive_y'))
+
+# /2015/11/
+archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/',
+                        view_func=ArchiveView.as_view('archive_ym'))
+
+# /2015/11/18/
+archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/',
+                        view_func=ArchiveView.as_view('archive_ymd'))
+
+# /reading/2015/index
+archivesbp.add_url_rule('/<path:category>/<int:year>/index',
+                        view_func=ArchiveView.as_view('archive_category_index_y'))
+
+# /reading/2015/11/index
+archivesbp.add_url_rule('/<path:category>/<int:year>/' +
+                        '<int(fixed_digits=2):month>/index',
+                        view_func=ArchiveView.as_view('archive_category_index_ym'))
+
+# /reading/2015/11/18/index
+archivesbp.add_url_rule('/<path:category>/<int:year>/' +
+                        '<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/index',
+                        view_func=ArchiveView.as_view('archive_category_index_ymd'))
+
+# /2015/index
+archivesbp.add_url_rule('/<int:year>/index',
+                        view_func=ArchiveView.as_view('archive_index_y'))
+
+# /2015/11/index
+archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/index',
+                        view_func=ArchiveView.as_view('archive_index_ym'))
+
+# /2015/11/18/index
+archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/index',
+                        view_func=ArchiveView.as_view('archive_index_ymd'))
+
+# /reading/2015/index.html
+archivesbp.add_url_rule('/<path:category>/<int:year>/index.<flav>',
+                        view_func=ArchiveView.as_view('archive_category_index_flav_y'))
+
+# /reading/2015/11/index.html
+archivesbp.add_url_rule('/<path:category>/<int:year>/' +
+                        '<int(fixed_digits=2):month>/index.<flav>',
+                        view_func=ArchiveView.as_view('archive_category_index_flav_ym'))
+
+# /reading/2015/11/18/index.html
+archivesbp.add_url_rule('/<path:category>/<int:year>/' +
+                        '<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/index.<flav>',
+                        view_func=ArchiveView.as_view('archive_category_index_flav_ymd'))
+
+# /2015/index.html
+archivesbp.add_url_rule('/<int:year>/index.<flav>',
+                        view_func=ArchiveView.as_view('archive_index_flav_y'))
+
+# /2015/11/index.html
+archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/index.<flav>',
+                        view_func=ArchiveView.as_view('archive_index_flav_ym'))
+
+# /2015/11/18/index.html
+archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/index.<flav>',
+                        view_func=ArchiveView.as_view('archive_index_flav_ymd'))
+
+
+# Permalinks
+
+# /reading/2015/11/18/entry
+archivesbp.add_url_rule('/<path:category>/<int:year>/' +
+                        '<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/<slug:slug>',
+                        view_func=PermalinkView.as_view('permalink_category'))
+
+# /2015/11/18/entry
+archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/<slug:slug>',
+                        view_func=PermalinkView.as_view('_permalink'))
+
+# /reading/2015/11/18/entry.html
+archivesbp.add_url_rule('/<path:category>/<int:year>/' +
+                        '<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/<slug:slug>.<flav>',
+                        view_func=PermalinkView.as_view('permalink_category_flav'))
+
+# /2015/11/18/entry.html
+archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
+                        '<int(fixed_digits=2):day>/<slug:slug>.<flav>',
+                        view_func=PermalinkView.as_view('permalink_flav'))
+
+
+class YawtArchives(Plugin):
+    """The YAWT archive plugin class itself"""
+    def __init__(self, app=None):
+        super(YawtArchives, self).__init__(app)
+
+    def init_app(self, app):
+        """Set up some default config and register the blueprint"""
+        app.config.setdefault('YAWT_ARCHIVE_TEMPLATE', 'article_list')
+        app.config.setdefault('YAWT_PERMALINK_TEMPLATE', 'article')
+        app.config.setdefault('YAWT_ARCHIVE_DATEFIELD', 'create_time')
+        app.config.setdefault('YAWT_ARCHIVE_BASE', [''])
+        app.url_map.converters['slug'] = SlugConverter
+        app.register_blueprint(archivesbp)
+
+
+archivecountsbp = Blueprint('archivecounts', __name__)
+
+@archivecountsbp.app_context_processor
+def _archive_counts_cp():
+    return SummaryProcessor.context_processor('YAWT_ARCHIVE_COUNT_FILE',
+                                              'YAWT_ARCHIVE_BASE',
+                                              'archivecounts')
+
 class ArchiveProcessor(SummaryProcessor):
     """Subclass of SummaryProcessor which counts archives under a root"""
     def __init__(self, root=''):
@@ -135,19 +274,6 @@ class ArchiveProcessor(SummaryProcessor):
         super(ArchiveProcessor, self).on_post_walk()
 
 
-class YawtArchives(Plugin):
-    """The YAWT archive plugin class itself"""
-    def __init__(self, app=None):
-        super(YawtArchives, self).__init__(app)
-
-    def init_app(self, app):
-        """Set up some default config and register the blueprint"""
-        app.config.setdefault('YAWT_ARCHIVE_TEMPLATE', 'article_list')
-        app.config.setdefault('YAWT_PERMALINK_TEMPLATE', 'article')
-        app.config.setdefault('YAWT_ARCHIVE_DATEFIELD', 'create_time')
-        app.register_blueprint(archivesbp)
-
-
 class YawtArchiveCounter(BranchedVisitor):
     """The Yawt archive counter plugin"""
     def __init__(self, app=None):
@@ -159,90 +285,5 @@ class YawtArchiveCounter(BranchedVisitor):
         """set some default config"""
         app.config.setdefault('YAWT_ARCHIVE_BASE', [''])
         app.config.setdefault('YAWT_ARCHIVE_COUNT_FILE', 'archivecounts')
-
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/',
-                        view_func=ArchiveView.as_view('archive_category_y'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/' +
-                        '<int(fixed_digits=2):month>/',
-                        view_func=ArchiveView.as_view('archive_category_ym'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/' +
-                        '<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>',
-                        view_func=ArchiveView.as_view('archive_category_ymd'))
-
-archivesbp.add_url_rule('/<int:year>/',
-                        view_func=ArchiveView.as_view('archive_y'))
-
-archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/',
-                        view_func=ArchiveView.as_view('archive_ym'))
-
-archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/',
-                        view_func=ArchiveView.as_view('archive_ymd'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/index',
-                        view_func=ArchiveView.as_view('archive_category_index_y'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/' +
-                        '<int(fixed_digits=2):month>/index',
-                        view_func=ArchiveView.as_view('archive_category_index_ym'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/' +
-                        '<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/index',
-                        view_func=ArchiveView.as_view('archive_category_index_ymd'))
-
-archivesbp.add_url_rule('/<int:year>/index',
-                        view_func=ArchiveView.as_view('archive_index_y'))
-
-archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/index',
-                        view_func=ArchiveView.as_view('archive_index_ym'))
-
-archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/index',
-                        view_func=ArchiveView.as_view('archive_index_ymd'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/index.<flav>',
-                        view_func=ArchiveView.as_view('archive_category_index_flav_y'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/' +
-                        '<int(fixed_digits=2):month>/index.<flav>',
-                        view_func=ArchiveView.as_view('archive_category_index_flav_ym'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/' +
-                        '<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/index.<flav>',
-                        view_func=ArchiveView.as_view('archive_category_index_flav_ymd'))
-
-archivesbp.add_url_rule('/<int:year>/index.<flav>',
-                        view_func=ArchiveView.as_view('archive_index_flav_y'))
-
-archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/index.<flav>',
-                        view_func=ArchiveView.as_view('archive_index_flav_ym'))
-
-archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/index.<flav>',
-                        view_func=ArchiveView.as_view('archive_index_flav_ymd'))
-
-
-# Permalinks
-archivesbp.add_url_rule('/<path:category>/<int:year>/' +
-                        '<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/<slug>',
-                        view_func=PermalinkView.as_view('permalink_category'))
-
-archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/<slug>',
-                        view_func=PermalinkView.as_view('_permalink'))
-
-archivesbp.add_url_rule('/<path:category>/<int:year>/' +
-                        '<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/<slug>.<flav>',
-                        view_func=PermalinkView.as_view('permalink_category_flav'))
-
-archivesbp.add_url_rule('/<int:year>/<int(fixed_digits=2):month>/' +
-                        '<int(fixed_digits=2):day>/<slug>.<flav>',
-                        view_func=PermalinkView.as_view('permalink_flav'))
+        app.config.setdefault('YAWT_ARCHIVE_DATEFIELD', 'create_time')
+        app.register_blueprint(archivecountsbp)

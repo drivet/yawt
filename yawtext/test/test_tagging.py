@@ -1,15 +1,12 @@
 #pylint: skip-file
 import os
-import shutil
+
 import jsonpickle
 from flask.ext.testing import TestCase
-from whoosh.fields import DATETIME, KEYWORD
 
 from yawt import create_app
-from yawt.cli import Walk
-from yawt.test import TempFolder
-from yawt.utils import abs_state_folder, call_plugins, load_file
-from yawtext.vc import ChangedFiles
+from yawt.utils import abs_state_folder, load_file
+from yawtext.test import TestCaseWithIndex
 
 
 class TestYawtTaggingInitialize(TestCase):
@@ -60,46 +57,25 @@ tags: tumeric
 not good
 """
 
-
-class TestFolder(TempFolder):
-    def __init__(self):
-        super(TestFolder, self).__init__()
-        self.files = {
-            'templates/article_list.html': 'does not really matter',
-
-            'content/reading/hamlet.txt': HAMLET,
-            'content/cooking/indian/madras.txt': MADRAS,
-            'content/cooking/soup.txt': SOUP,
-        }
+FILES = {
+    'templates/article.html': 'does not really matter',
+    'templates/article_list.html': 'does not really matter',
+    'content/reading/hamlet.txt': HAMLET,
+    'content/cooking/indian/madras.txt': MADRAS,
+    'content/cooking/soup.txt': SOUP,
+}
 
 
-class TestTaggingCounts(TestCase):
-    YAWT_META_TYPES = {'tags': 'list'}
+class TestTaggingCounts(TestCaseWithIndex):
     # Tagging plugin MUST comes before indexing plugin
-    YAWT_EXTENSIONS = ['yawtext.tagging.YawtTagging',
-                       'yawtext.tagging.YawtTagCounter',
-                       'flask_whoosh.Whoosh',
-                       'yawtext.indexer.YawtIndexer',
-                       'yawtext.collections.YawtCollections']
-    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
-    YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'create_time': DATETIME(sortable=True),
-                                       'tags': KEYWORD()}
-    YAWT_COLLECTIONS_SORT_FIELD = 'create_time'
-
-    def create_app(self):
-        self.site = TestFolder()
-        self.site.initialize()
-        return create_app(self.site.site_root, config=self)
-
-    def setUp(self):
-        self.app.preprocess_request()
+    YAWT_EXTENSIONS = ['yawtext.tagging.YawtTagCounter']+ \
+                      TestCaseWithIndex.YAWT_EXTENSIONS
+    files = FILES
+    walkOnSetup = False
 
     def test_counts_tagging_with_count_file_on_walk(self):
         self.app.config['YAWT_TAGGING_COUNT_FILE'] = '_anothercountfile'
-
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
+        self._walk()
 
         counts_path = os.path.join(abs_state_folder(), '_anothercountfile')
         countobj = jsonpickle.decode(load_file(counts_path))
@@ -107,10 +83,7 @@ class TestTaggingCounts(TestCase):
 
     def test_counts_tagging_with_bases_on_walk(self):
         self.app.config['YAWT_TAGGING_BASE'] = ['reading', 'cooking']
-
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
+        self._walk()
 
         readingcounts_path = os.path.join(abs_state_folder(),
                                           'reading/tagcounts')
@@ -125,19 +98,13 @@ class TestTaggingCounts(TestCase):
 
     def test_adjusts_tagging_with_bases_on_update(self):
         self.app.config['YAWT_TAGGING_BASE'] = ['reading', 'cooking']
+        self._walk()
 
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
-
-        self.site.save_file('content/reading/emma.txt', EMMA)
-        self.site.save_file('content/cooking/indian/madras.txt', NEW_MADRAS)
-        self.site.delete_file('content/cooking/soup.txt')
-
-        changed = ChangedFiles(added=['content/reading/emma.txt'],
-                               modified=['content/cooking/indian/madras.txt'],
-                               deleted=['content/cooking/soup.txt'])
-        call_plugins('on_files_changed', changed)
+        self.site.change(added={'content/reading/emma.txt':
+                                EMMA},
+                         modified={'content/cooking/indian/madras.txt':
+                                   NEW_MADRAS},
+                         deleted=['content/cooking/soup.txt'])
 
         readingcounts_path = os.path.join(abs_state_folder(),
                                           'reading/tagcounts')
@@ -150,34 +117,17 @@ class TestTaggingCounts(TestCase):
         self.assertEquals(3, len(readingcountobj.keys()))
         self.assertEquals(1, len(cookingcountobj.keys()))
 
-    def tearDown(self):
-        if os.path.exists('/tmp/whoosh/index'):
-            shutil.rmtree('/tmp/whoosh/index')
-        self.site.remove()
+    def test_tagging_count_variable_supplied(self):
+        self._walk()
+        response = self.client.get('/reading/hamlet')
+        countobj = self.get_context_variable('tagcounts')
+        self.assertEquals(5, len(countobj.keys()))
 
 
-class TestTaggingPages(TestCase):
-    YAWT_META_TYPES = {'tags': 'list'}
-    YAWT_EXTENSIONS = ['yawtext.tagging.YawtTagging',
-                       'yawtext.tagging.YawtTagCounter',
-                       'flask_whoosh.Whoosh',
-                       'yawtext.indexer.YawtIndexer',
-                       'yawtext.collections.YawtCollections']
-    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
-    YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'create_time': DATETIME(sortable=True),
-                                       'tags': KEYWORD()}
-    YAWT_COLLECTIONS_SORT_FIELD = 'create_time'
-
-    def create_app(self):
-        self.site = TestFolder()
-        self.site.initialize()
-        return create_app(self.site.site_root, config=self)
-
-    def setUp(self):
-        self.app.preprocess_request()
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
+class TestTaggingPages(TestCaseWithIndex):
+    YAWT_EXTENSIONS = ['yawtext.tagging.YawtTagging']+ \
+                      TestCaseWithIndex.YAWT_EXTENSIONS
+    files = FILES
 
     def test_template_template_used_when_using_tag_url(self):
         response = self.client.get('/tags/shakespeare/')
@@ -198,11 +148,6 @@ class TestTaggingPages(TestCase):
         response = self.client.get('reading/tags/shakespeare/index.html')
         self.assert_template_used('article_list.html')
 
-    def test_tagging_count_variable_supplied(self):
-        response = self.client.get('/tags/shakespeare/')
-        countobj = self.get_context_variable('tagcounts')
-        self.assertEquals(5, len(countobj.keys()))
-
     def test_articles_variable_supplied(self):
         response = self.client.get('/tags/shakespeare/')
         articles = self.get_context_variable('articles')
@@ -212,7 +157,3 @@ class TestTaggingPages(TestCase):
         articles = self.get_context_variable('articles')
         self.assertEquals(2, len(articles))
 
-    def tearDown(self):
-        if os.path.exists('/tmp/whoosh/index'):
-            shutil.rmtree('/tmp/whoosh/index')
-        self.site.remove()

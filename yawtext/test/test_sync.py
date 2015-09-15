@@ -2,12 +2,11 @@
 from flask.ext.testing import TestCase
 from mock import Mock
 
-import yawt
+import yawt.utils
 import yawtext
 from yawt.cli import create_manager
 from yawtext.sync import Sync
 from yawtext.test import TempGitFolder
-from yawtext.vc import ChangedFiles
 
 
 class TestFolder(TempGitFolder):
@@ -112,7 +111,7 @@ class TestSync(TestCase):
         yawtext.sync.vc_add_tracked.assert_called_with()
 
     def test_call_plugins_called_with_status_results(self):
-        changed = ChangedFiles(modified=['content/index.txt'])
+        changed = yawt.utils.ChangedFiles(modified=['content/index.txt'])
         yawtext.sync.vc_status.return_value = changed
         syncCmd = Sync()
         syncCmd.run(strict=False,

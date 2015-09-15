@@ -1,10 +1,6 @@
 #pylint: skip-file
-import unittest
-
-from flask.ext.testing import TestCase
-
 import yawt
-from yawt.test import TempFolder, template
+from yawt.test import template, TestCaseWithSite
 
 
 config = """
@@ -12,33 +8,27 @@ YAWT_BASE_URL = 'http://www.hereitis.com'
 YAWT_DRAFT_FOLDER = 'other_drafts'
 """
 
-
-class TestSite(TempFolder):
-    def __init__(self):
-        super(TestSite, self).__init__()
-        self.files = {
-            # config
-            'config.py': config,
-
-            # templates
-            'templates/article.html': template('ROOT'),
-            'templates/article.flav': template('FLAV'),
-            'templates/cooking/article.html': template('COOKING'),
-            'templates/cooking/article.flav': template('FLAV COOKING'),
-            'templates/specific.html': template('SPECIFIC'),
-            'templates/404.html': template('MISSING'),
-
-            # entries
-            'content/index.txt': 'index text',
-            'content/entry.txt': 'entry text',
-            'content/cooking/index.txt': 'cooking index text',
-            'content/cooking/madras.txt': 'madras text',
-            'content/specific.txt': 'specific text',
-            'content/reading/hyperion.txt': 'hyperion text'
-        }
+FILES = {
+    # config
+    'config.py': config,
+    # templates
+    'templates/article.html': template('ROOT'),
+    'templates/article.flav': template('FLAV'),
+    'templates/cooking/article.html': template('COOKING'),
+    'templates/cooking/article.flav': template('FLAV COOKING'),
+    'templates/specific.html': template('SPECIFIC'),
+    'templates/404.html': template('MISSING'),
+    # entries
+    'content/index.txt': 'index text',
+    'content/entry.txt': 'entry text',
+    'content/cooking/index.txt': 'cooking index text',
+    'content/cooking/madras.txt': 'madras text',
+    'content/specific.txt': 'specific text',
+    'content/reading/hyperion.txt': 'hyperion text'
+}
 
 
-class YawtConfigurationTests(unittest.TestCase):
+class YawtConfigurationTests(TestCaseWithSite):
     """
     YAWT configuration tests
     """
@@ -49,9 +39,7 @@ class YawtConfigurationTests(unittest.TestCase):
     DEBUG = True
     TESTING = True
 
-    def setUp(self):
-        self.site = TestSite()
-        self.site.initialize()
+    files = FILES
 
     def test_configuration_is_read_from_site_file(self):
         app = yawt.create_app(self.site.site_root)
@@ -65,11 +53,8 @@ class YawtConfigurationTests(unittest.TestCase):
         self.assertEquals('http://www.foobar.com',
                           app.config['YAWT_BASE_URL'])
 
-    def tearDown(self):
-        self.site.remove()
 
-
-class YawtSystemLevelTests(TestCase):
+class YawtSystemLevelTests(TestCaseWithSite):
     """
     YAWT system level tests
     """
@@ -78,13 +63,7 @@ class YawtSystemLevelTests(TestCase):
     DEBUG = True
     TESTING = True
 
-    def create_app(self):
-        self.site = TestSite()
-        self.site.initialize()
-        return yawt.create_app(self.site.site_root, config=self)
-
-    def tearDown(self):
-        self.site.remove()
+    files = FILES
 
     def test_missing_pages_result_in_404(self):
         rv = self.client.get("/random/blah")

@@ -6,7 +6,7 @@ from mock import Mock
 import yawtext.micropost
 from yawt import create_app
 from yawt.cli import create_manager
-from yawt.test import TempFolder
+from yawt.test import BaseTestSite, TestCaseWithSite
 
 
 class TestMicropostInitialization(TestCase):
@@ -29,22 +29,13 @@ class TestMicropostInitialization(TestCase):
         self.assertTrue('micropost' in manager._commands)
 
 
-class TestFolder(TempFolder):
-    def __init__(self):
-        super(TestFolder, self).__init__()
-        self.folders = ['content']
-
-
-class TestMicropost(TestCase):
+class TestMicropost(TestCaseWithSite):
     YAWT_EXTENSIONS = ['yawtext.micropost.YawtMicropost']
     YAWT_MICROPOST_NETWORKS = ['facebook', 'twitter']
     YAWT_MICROPOST_CATEGORY = 'microposts'
     YAWT_MICROPOST_EXTENSION = 'txt'
 
-    def create_app(self):
-        self.site = TestFolder()
-        self.site.initialize()
-        return create_app(self.site.site_root, config=self)
+    folders = ['content']
 
     def setUp(self):
         self.old_post_fb = yawtext.micropost.post_fb
@@ -80,6 +71,6 @@ class TestMicropost(TestCase):
         self.assertEquals('giggles,stuff', post.metadata['tags'])
 
     def tearDown(self):
+        super(TestMicropost, self).tearDown()
         yawtext.micropost.post_fb = self.old_post_fb
         yawtext.micropost.post_twitter = self.old_post_twitter
-        self.site.remove()

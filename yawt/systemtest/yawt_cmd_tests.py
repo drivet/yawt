@@ -9,7 +9,7 @@ from mock import Mock
 import yawt.site_manager
 from yawt import create_app
 from yawt.cli import NewSite, Walk, create_manager
-from yawt.test import TempFolder
+from yawt.test import TestCaseWithSite
 
 
 # for mocking purposes
@@ -88,28 +88,19 @@ class TestNewSiteCommand(TestCase):
         shutil.rmtree(path_to_site, ignore_errors=True)
 
 
-class TestSite(TempFolder):
-    def __init__(self):
-        super(TestSite, self).__init__()
-        self.files = {
-            'content/entry1.txt': 'entry text',
-            'content/entry2.txt': 'entry text',
-        }
-
-
-class YawtWalkCommand(TestCase):
+class YawtWalkCommand(TestCaseWithSite):
     """
-    YAWT system level tests
+    YAWT Walk command tests
     """
 
     # config
     DEBUG = True
     TESTING = True
 
-    def create_app(self):
-        self.site = TestSite()
-        self.site.initialize()
-        return yawt.create_app(self.site.site_root, config=self)
+    files = {
+        'content/entry1.txt': 'entry text',
+        'content/entry2.txt': 'entry text',
+    }
 
     def setUp(self):
         self.old_call_plugins = yawt.site_manager.call_plugins
@@ -140,5 +131,5 @@ class YawtWalkCommand(TestCase):
         self.assertEquals(ext, article.info.extension)
 
     def tearDown(self):
-        self.site.remove()
+        super(YawtWalkCommand, self).tearDown()
         yawt.site_manager.call_plugins = self.old_call_plugins

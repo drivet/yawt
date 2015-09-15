@@ -38,16 +38,9 @@ from yawtext.indexer import search
 taggingbp = Blueprint('tagging', __name__)
 
 
-@taggingbp.app_context_processor
-def _tagcounts_cp():
-    return SummaryProcessor.context_processor('YAWT_TAGGING_COUNT_FILE',
-                                              'YAWT_TAGGING_BASE',
-                                              'tagcounts')
-
-
 @taggingbp.context_processor
 def _collection_title():
-    title = 'Found %s tag results for "%s"'
+    title = 'Found {0} tag results for "{1}"'
     title = title.format(g.total_results, g.tag)
     return {'collection_title': title}
 
@@ -71,6 +64,42 @@ class TaggingView(CollectionView):
 
     def is_load_articles(self, flav):
         return flav in current_app.config['YAWT_TAGGING_FULL_ARTICLE_FLAVOURS']
+
+
+taggingbp.add_url_rule('/tags/<tag>/',
+                       view_func=TaggingView.as_view('tag_canonical'))
+taggingbp.add_url_rule('/tags/<tag>/index',
+                       view_func=TaggingView.as_view('tag_index'))
+taggingbp.add_url_rule('/tags/<tag>/index.<flav>',
+                       view_func=TaggingView.as_view('tag_index_flav'))
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/',
+                       view_func=TaggingView.as_view('tag_category_canonical'))
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/index',
+                       view_func=TaggingView.as_view('tag_category_index'))
+taggingbp.add_url_rule('/<path:category>/tags/<tag>/index.<flav>',
+                       view_func=TaggingView.as_view('tag_category_index_flav'))
+
+
+class YawtTagging(Plugin):
+    """The YAWT tagging plugin class itself"""
+    def __init__(self, app=None):
+        super(YawtTagging, self).__init__(app)
+
+    def init_app(self, app):
+        """Set up some default config and register the blueprint"""
+        app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
+        app.config.setdefault('YAWT_TAGGING_FULL_ARTICLE_FLAVOURS', [])
+        app.register_blueprint(taggingbp)
+
+
+taggingcountsbp = Blueprint('taggingcounts', __name__)
+
+
+@taggingcountsbp.app_context_processor
+def _tagcounts_cp():
+    return SummaryProcessor.context_processor('YAWT_TAGGING_COUNT_FILE',
+                                              'YAWT_TAGGING_BASE',
+                                              'tagcounts')
 
 
 class TagProcessor(SummaryProcessor):
@@ -115,18 +144,6 @@ class TagProcessor(SummaryProcessor):
                 del self.summary[tag]
 
 
-class YawtTagging(Plugin):
-    """The YAWT tagging plugin class itself"""
-    def __init__(self, app=None):
-        super(YawtTagging, self).__init__(app)
-
-    def init_app(self, app):
-        """Set up some default config and register the blueprint"""
-        app.config.setdefault('YAWT_TAGGING_TEMPLATE', 'article_list')
-        app.config.setdefault('YAWT_TAGGING_FULL_ARTICLE_FLAVOURS', [])
-        app.register_blueprint(taggingbp)
-
-
 class YawtTagCounter(BranchedVisitor):
     """The Yawt tag counter plugin"""
     def __init__(self, app=None):
@@ -138,17 +155,5 @@ class YawtTagCounter(BranchedVisitor):
         """set some default config"""
         app.config.setdefault('YAWT_TAGGING_BASE', [])
         app.config.setdefault('YAWT_TAGGING_COUNT_FILE', 'tagcounts')
+        app.register_blueprint(taggingcountsbp)
 
-
-taggingbp.add_url_rule('/tags/<tag>/',
-                       view_func=TaggingView.as_view('tag_canonical'))
-taggingbp.add_url_rule('/tags/<tag>/index',
-                       view_func=TaggingView.as_view('tag_index'))
-taggingbp.add_url_rule('/tags/<tag>/index.<flav>',
-                       view_func=TaggingView.as_view('tag_index_flav'))
-taggingbp.add_url_rule('/<path:category>/tags/<tag>/',
-                       view_func=TaggingView.as_view('tag_category_canonical'))
-taggingbp.add_url_rule('/<path:category>/tags/<tag>/index',
-                       view_func=TaggingView.as_view('tag_category_index'))
-taggingbp.add_url_rule('/<path:category>/tags/<tag>/index.<flav>',
-                       view_func=TaggingView.as_view('tag_category_index_flav'))

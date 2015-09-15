@@ -1,14 +1,9 @@
 from __future__ import absolute_import
 
-import os
-import shutil
-
 from flask.ext.testing import TestCase
-from whoosh.fields import DATETIME
 
 from yawt import create_app
-from yawt.cli import Walk
-from yawt.test import TempFolder
+from yawtext.test import TestCaseWithIndex
 
 
 class TestYawtSearchInitialize(TestCase):
@@ -22,37 +17,15 @@ class TestYawtSearchInitialize(TestCase):
                          self.app.config['YAWT_SEARCH_TEMPLATE'])
 
 
-class TestFolder(TempFolder):
-    def __init__(self):
-        super(TestFolder, self).__init__()
-        self.files = {
-            'templates/article_list.html': 'does not really matter',
-
-            'content/reading/hamlet.txt': 'hamlet',
-            'content/cooking/indian/madras.txt': 'madras',
-            'content/cooking/soup.txt': 'soup',
-        }
-
-
-class TestSearchPages(TestCase):
-    YAWT_EXTENSIONS = ['yawtext.search.YawtSearch',
-                       'flask_whoosh.Whoosh',
-                       'yawtext.indexer.YawtIndexer',
-                       'yawtext.collections.YawtCollections']
-    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
-    YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'create_time': DATETIME(sortable=True)}
-    YAWT_COLLECTIONS_SORT_FIELD = 'create_time'
-
-    def create_app(self):
-        self.site = TestFolder()
-        self.site.initialize()
-        return create_app(self.site.site_root, config=self)
-
-    def setUp(self):
-        self.app.preprocess_request()
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
+class TestSearchPages(TestCaseWithIndex):
+    YAWT_EXTENSIONS = ['yawtext.search.YawtSearch'] + \
+                      TestCaseWithIndex.YAWT_EXTENSIONS
+    files = {
+        'templates/article_list.html': 'does not really matter',
+        'content/reading/hamlet.txt': 'hamlet',
+        'content/cooking/indian/madras.txt': 'madras',
+        'content/cooking/soup.txt': 'soup',
+    }
 
     def test_search_template_used_when_using_search_url(self):
         response = self.client.get('/search/')
@@ -81,8 +54,3 @@ class TestSearchPages(TestCase):
         response = self.client.get('/search/?searchtext=stuff')
         articles = self.get_context_variable('articles')
         self.assertEquals(0, len(articles))
-
-    def tearDown(self):
-        if os.path.exists('/tmp/whoosh/index'):
-            shutil.rmtree('/tmp/whoosh/index')
-        self.site.remove()

@@ -10,9 +10,10 @@ import shutil
 from mock import Mock
 from flask.ext.testing import TestCase
 from yawt.test.siteutils import TempSite
-from yawt.test import TempFolder
+from yawt.test import BaseTestSite
 from yawt import create_app
 from yawtext import Plugin
+from yawt.test import TestCaseWithSite
 
 
 class TestYawtSiteManagerInitialization(TestCase):
@@ -82,24 +83,6 @@ class TestYawtSiteManagerInitialization(TestCase):
         yawt.site_manager.call_plugins = self.old_call_plugins
 
 
-class TestSite(TempFolder):
-    def __init__(self):
-        super(TestSite, self).__init__()
-        self.files = {
-            # entries
-            'content/index.txt': 'index text',
-            'content/entry.txt': 'entry text',
-            'content/cooking/index.txt': 'cooking index text',
-            'content/cooking/madras.txt': 'madras text',
-            'content/specific.txt': 'specific text',
-            'content/reading/hyperion.txt': 'hyperion text',
-            'content/reading/dummy.blah': 'funny guy',
-
-            # drafts
-            'drafts/weird.txt': 'kubla khan'
-        }
-
-
 class TestPlugin(Plugin):
     def __init__(self):
         self.pre_walk = False
@@ -121,17 +104,24 @@ class TestPlugin(Plugin):
         self.visited.append(article)
 
 
-class TestYawtSiteManager(TestCase):
-
+class TestYawtSiteManager(TestCaseWithSite):
     # config
     DEBUG = True
     TESTING = True
     YAWT_EXTENSIONS = ['yawt.test.test_site_manager.TestPlugin']
 
-    def create_app(self):
-        self.site = TestSite()
-        self.site.initialize()
-        return yawt.create_app(self.site.site_root, config=self)
+    files = {
+        # entries
+        'content/index.txt': 'index text',
+        'content/entry.txt': 'entry text',
+        'content/cooking/index.txt': 'cooking index text',
+        'content/cooking/madras.txt': 'madras text',
+        'content/specific.txt': 'specific text',
+        'content/reading/hyperion.txt': 'hyperion text',
+        'content/reading/dummy.blah': 'funny guy',
+        # drafts
+        'drafts/weird.txt': 'kubla khan'
+    }
 
     def setUp(self):
         self.store = YawtSiteManager(root_dir=self.site.site_root,
@@ -199,6 +189,3 @@ class TestYawtSiteManager(TestCase):
         self.assertTrue('cooking/madras' in visited_fullnames)
         self.assertTrue('specific' in visited_fullnames)
         self.assertTrue('reading/hyperion' in visited_fullnames)
-
-    def tearDown(self):
-        self.site.remove()

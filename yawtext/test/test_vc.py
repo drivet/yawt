@@ -1,7 +1,8 @@
 #pylint: skip-file
-
 import unittest
-from yawtext.vc import ChangedFiles
+import yawtext
+from yawt.utils import ChangedFiles
+
 
 class TestChangedFiles(unittest.TestCase):
     def test_normalize_copies_added_modified_and_deleted(self):

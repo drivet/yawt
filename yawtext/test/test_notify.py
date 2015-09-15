@@ -1,14 +1,14 @@
 #pylint: skip-file
-
-import unittest
+import shutil
 import tempfile
+import unittest
+
 from mock import Mock
 
 import yawtext.notify
 from yawt import create_app
-from flask import g
-import shutil
-from yawtext.vc import ChangedFiles
+from yawt.utils import ChangedFiles
+
 
 class Config(object):
     YAWT_NOTIFY_CATEGORIES = ['cat1']

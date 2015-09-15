@@ -6,13 +6,13 @@ import subprocess
 from flask import g
 from flask.ext.testing import TestCase
 
-import yawt
 from yawt import create_app
+from yawt.utils import ChangedFiles
 from yawtext import Plugin
 from yawtext.git import _git_cmd
 from yawtext.test import TempGitFolder
 from yawtext.vc import vc_status, vc_add_tracked, vc_add_tracked_and_new,\
-    vc_commit, post_commit, ChangedFiles
+    vc_commit, post_commit
 
 
 class TestYawtGitNewSite(TestCase):
@@ -55,7 +55,7 @@ class TestGitPlugin(TestCase):
     def create_app(self):
         self.site = TestFolder()
         self.site.initialize()
-        return yawt.create_app(self.site.site_root, config=self)
+        return create_app(self.site.site_root, config=self)
 
     def setUp(self):
         self.app.preprocess_request()
@@ -144,7 +144,7 @@ class TestGitHooks(TestCase):
     def create_app(self):
         self.site = TestFolder()
         self.site.initialize()
-        return yawt.create_app(self.site.site_root, config=self)
+        return create_app(self.site.site_root, config=self)
 
     def setUp(self):
         self.app.preprocess_request()

@@ -1,4 +1,3 @@
-
 graphapis = []
 returnval = None
 

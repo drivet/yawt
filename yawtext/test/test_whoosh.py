@@ -2,35 +2,29 @@ from __future__ import absolute_import
 
 import glob
 import os
-import shutil
 
-from flask.ext.testing import TestCase
-from whoosh.fields import KEYWORD, TEXT, Schema
+from whoosh.fields import Schema, TEXT
 from whoosh.index import create_in, open_dir
 from whoosh.qparser import QueryParser
 from whoosh.query.qcore import Every
 
-import yawt
 from yawt.article import Article, ArticleInfo
-from yawt.test import TempFolder
 from yawt.utils import cfg
 from yawtext.indexer import init_index, add_article, commit,\
     remove_article, search, search_page
+from yawtext.test import TestCaseWithIndex
 from yawtext.whoosh import _schema, _field_values, BadFieldType
 
 
-class TestSite(TempFolder):
-    def __init__(self):
-        super(TestSite, self).__init__()
-        self.files = {
-            # entries
-            'content/index.txt': 'index text',
-            'content/entry.txt': 'entry text',
-            'content/cooking/index.txt': 'cooking index text',
-            'content/cooking/madras.txt': 'madras text',
-            'content/specific.txt': 'specific text',
-            'content/reading/hyperion.txt': 'hyperion text'
-        }
+FILES = {
+    # entries
+    'content/index.txt': 'index text',
+    'content/entry.txt': 'entry text',
+    'content/cooking/index.txt': 'cooking index text',
+    'content/cooking/madras.txt': 'madras text',
+    'content/specific.txt': 'specific text',
+    'content/reading/hyperion.txt': 'hyperion text'
+}
 
 
 def _idx_root():
@@ -73,20 +67,9 @@ def _count_total():
         return len(results)
 
 
-class TestWhooshIndexing(TestCase):
-    # no real reason why the index has to be colocated with the site
-    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
-    YAWT_EXTENSIONS = ['flask_whoosh.Whoosh', 'yawtext.indexer.YawtIndexer']
-    YAWT_INDEXER_IFC = 'yawtext.whoosh'
-    YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'tags': KEYWORD()}
-
-    def create_app(self):
-        self.site = TestSite()
-        self.site.initialize()
-        return yawt.create_app(self.site.site_root, config=self)
-
-    def setUp(self):
-        self.app.preprocess_request()
+class TestWhooshIndexing(TestCaseWithIndex):
+    walkOnSetup = False
+    files = FILES
 
     def test_init_index_creates_index(self):
         self.assertFalse(os.path.exists(_idx_root()))
@@ -193,23 +176,10 @@ class TestWhooshIndexing(TestCase):
         self.assertEquals(2, total)
 
 
-    def tearDown(self):
-        if os.path.exists(_idx_root()):
-            shutil.rmtree(_idx_root())
-        self.site.remove()
-
-
-class TestWhooshIndexingBadConfig(TestCase):
-    # no real reason why the index has to be colocated with the site
-    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
-    YAWT_EXTENSIONS = ['flask_whoosh.Whoosh', 'yawtext.indexer.YawtIndexer']
-    YAWT_INDEXER_IFC = 'yawtext.whoosh'
+class TestWhooshIndexingBadConfig(TestCaseWithIndex):
+    walkOnSetup = False
+    files = FILES
     YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'tags': TEXT()}
-
-    def create_app(self):
-        self.site = TestSite()
-        self.site.initialize()
-        return yawt.create_app(self.site.site_root, config=self)
 
     def test_add_article_raises_exception(self):
         _create_index()
@@ -218,8 +188,3 @@ class TestWhooshIndexingBadConfig(TestCase):
                            [u'spicy', u'curry'],
                            'this is an awesome article')
         self.assertRaises(BadFieldType, add_article, article)
-
-    def tearDown(self):
-        if os.path.exists(_idx_root()):
-            shutil.rmtree(_idx_root())
-        self.site.remove()

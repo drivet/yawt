@@ -22,7 +22,8 @@ class YawtIndexer(Plugin, ArticleProcessor):
         """Set up default config values.  By default we index content"""
         app.config.setdefault('YAWT_INDEXER_IFC', 'yawtext.whoosh')
         app.config.setdefault('YAWT_INDEXER_WHOOSH_INFO_FIELDS', {})
-        app.config.setdefault('YAWT_INDEXER_WHOOSH_FIELDS', {'content': TEXT()})
+        app.config.setdefault('YAWT_INDEXER_WHOOSH_FIELDS',
+                              {'content': TEXT()})
 
     def on_new_site(self, files):
         """Set up the index when we crate a new site"""

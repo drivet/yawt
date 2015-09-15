@@ -5,12 +5,12 @@ from flask.ext.testing import TestCase
 from mock import Mock, patch
 from whoosh.fields import KEYWORD, TEXT
 
-from yawt import create_app
+from yawt import create_app, utils
 from yawt.cli import create_manager, Walk
-from yawt.test import TempFolder
+from yawt.test import BaseTestSite
 from yawt.utils import call_plugins
 from yawtext.autotags import Autotag
-from yawtext.vc import ChangedFiles
+from yawtext.test import TestCaseWithIndex
 
 
 HAMLET = """---
@@ -89,16 +89,6 @@ I'm obviously aware of the value of doctors. But factor in the sheer
 imagine enjoying myself.
 """
 
-class TestFolder(TempFolder):
-    def __init__(self):
-        super(TestFolder, self).__init__()
-        self.files = {
-            'content/reading/hamlet.txt': HAMLET,
-            'content/cooking/indian/madras.txt': MADRAS,
-            'content/cooking/soup.txt': SOUP,
-        }
-
-
 class TestAutotagInitialization(TestCase):
     YAWT_EXTENSIONS = ['yawtext.autotags.YawtAutotags']
 
@@ -111,26 +101,19 @@ class TestAutotagInitialization(TestCase):
         self.assertTrue('autotag' in manager._commands)
 
 
-class TestAutotags(TestCase):
-    YAWT_META_TYPES = {'tags': 'list'}
-    YAWT_EXTENSIONS = ['flask_whoosh.Whoosh',
-                       'yawtext.indexer.YawtIndexer',
-                       'yawtext.autotags.YawtAutotags']
-    WHOOSH_INDEX_ROOT = '/tmp/whoosh/index'
-    YAWT_INDEXER_WHOOSH_INFO_FIELDS = {'tags': KEYWORD()}
+class TestAutotags(TestCaseWithIndex):
+    YAWT_EXTENSIONS = ['yawtext.autotags.YawtAutotags'] + \
+                      TestCaseWithIndex.YAWT_EXTENSIONS
     YAWT_INDEXER_WHOOSH_FIELDS = {'content': TEXT(vector=True)}
-
-    def create_app(self):
-        self.site = TestFolder()
-        self.site.initialize()
-        return create_app(self.site.site_root, config=self)
+    files = {
+        'content/reading/hamlet.txt': HAMLET,
+        'content/cooking/indian/madras.txt': MADRAS,
+        'content/cooking/soup.txt': SOUP,
+    }
 
     def test_autotags_adjusts_tags(self):
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
         self.site.save_file('content/cooking/italian/spaghetti.txt', SPAGHETTI)
-        changed = ChangedFiles(added=['content/cooking/italian/spaghetti.txt'])
+        changed = utils.ChangedFiles(added=['content/cooking/italian/spaghetti.txt'])
 
         mock = Mock(return_value='')
         with patch('__builtin__.raw_input', mock):
@@ -140,11 +123,8 @@ class TestAutotags(TestCase):
                        self.site.load_file('content/cooking/italian/spaghetti.txt'))
 
     def test_autotags_leaves_existing_tags_alone(self):
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
         self.site.save_file('content/cooking/italian/linguine.txt', LINGUINE)
-        changed = ChangedFiles(added=['content/cooking/italian/linguine.txt'])
+        changed = utils.ChangedFiles(added=['content/cooking/italian/linguine.txt'])
 
         mock = Mock(return_value='')
         with patch('__builtin__.raw_input', mock):
@@ -154,11 +134,8 @@ class TestAutotags(TestCase):
                        self.site.load_file('content/cooking/italian/linguine.txt'))
 
     def test_autotags_honours_tag_override(self):
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
         self.site.save_file('content/cooking/italian/spaghetti.txt', SPAGHETTI)
-        changed = ChangedFiles(added=['content/cooking/italian/spaghetti.txt'])
+        changed = utils.ChangedFiles(added=['content/cooking/italian/spaghetti.txt'])
 
         mock = Mock(return_value='orange,apple')
         with patch('__builtin__.raw_input', mock):
@@ -168,10 +145,6 @@ class TestAutotags(TestCase):
                        self.site.load_file('content/cooking/italian/spaghetti.txt'))
 
     def test_autotags_command_adds_tags_to_existing_file(self):
-        with self.app.app_context():
-            walk = Walk()
-            walk.run()
-
         self.assertNotIn('tags:',
                          self.site.load_file('content/reading/hamlet.txt'))
         autotag = Autotag()
@@ -179,8 +152,3 @@ class TestAutotags(TestCase):
 
         self.assertIn('tags:',
                        self.site.load_file('content/reading/hamlet.txt'))
-
-    def tearDown(self):
-        if os.path.exists('/tmp/whoosh/index'):
-            shutil.rmtree('/tmp/whoosh/index')
-        self.site.remove()
