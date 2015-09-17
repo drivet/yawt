@@ -1,3 +1,4 @@
+#pylint: skip-file
 from __future__ import absolute_import
 
 from flask.ext.testing import TestCase

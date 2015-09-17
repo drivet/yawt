@@ -1,3 +1,4 @@
+#pylint: skip-file
 from yawtext.test import fake_tweepy
 from yawtext.twitter import post_twitter
 from flask.ext.testing import TestCase

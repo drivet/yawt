@@ -1,3 +1,4 @@
+#pylint: skip-file
 from flask.ext.testing import TestCase
 
 import yawtext

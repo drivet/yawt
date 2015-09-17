@@ -1,3 +1,4 @@
+#pylint: skip-file
 oauths = []
 apis = []
 returnid = None
