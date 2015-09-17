@@ -186,7 +186,7 @@ class ChangedFiles(ReprMixin, EqMixin):
         self.modified = kwargs.get('modified', [])
         self.deleted = kwargs.get('deleted', [])
         self.renamed = kwargs.get('renamed', {})
-        self._content_folder = kwargs.get('content_folder', None)
+        self._content_folder = kwargs.get('content_folder')
 
     def normalize(self):
         """Return a new ChangedFiles instance with the rename attribute merged

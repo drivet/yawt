@@ -34,20 +34,20 @@ def _permalink(info):
 def _find_base(name):
     longest_base = None
     for base in current_app.config['YAWT_ARCHIVE_BASE']:
-        if not base or name.startswith(base + "/"):
-            if not longest_base or len(base) > len(longest_base):
-                longest_base = base
+        if (not base or name.startswith(base + "/")) and \
+           (not longest_base or len(base) > len(longest_base)):
+            longest_base = base
     return longest_base
 
 
 def _datestr(year, month=None, day=None):
     datestr = ''
     if year:
-        datestr += '%04d' % year
+        datestr += '{0:04d}'.format(year)
     if month:
-        datestr += '%02d' % month
+        datestr += '{0:02d}'.format(month)
     if day:
-        datestr += '%02d' % day
+        datestr += '{0:02d}'.format(day)
     return datestr
 
 
@@ -67,7 +67,7 @@ def _query(category='', year=None, month=None, day=None):
 def _fetch_date_for_name(name):
     infos = search(unicode('fullname:'+name))
     create_time = None
-    if len(infos) > 0:
+    if infos:
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']
         create_time = getattr(infos[0], datefield)
     return create_time
