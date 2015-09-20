@@ -7,8 +7,12 @@ python:
 install:
   - "pip install -r requirements-test.txt" 
   - "pip install coveralls"
+  = "pip install pylint"
 
 # command to run tests
 script:  nosetests --with-coverage --cover-package=yawt --cover-package=yawtext --cover-inclusive
 
-after_success: coveralls
+after_success:
+  - coveralls
+  - pylint --output-format=html yawt yawtext > /tmp/pylint-report.html
+  - curl -v -m 120 -X POST -F travis-job-id=$TRAVIS_JOB_ID -F pylint-report=@/tmp/pylint-report.html https://pylint.desmondrivet.com/reports
