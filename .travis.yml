@@ -7,7 +7,7 @@ python:
 install:
   - "pip install -r requirements-test.txt" 
   - "pip install coveralls"
-  = "pip install pylint"
+  - "pip install pylint"
 
 # command to run tests
 script:  nosetests --with-coverage --cover-package=yawt --cover-package=yawtext --cover-inclusive
