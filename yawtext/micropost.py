@@ -28,7 +28,7 @@ def _extract_tags(post):
                 if tag.startswith('#') and len(tag) > 1])
 
 
-def post_social(post, networks=None):
+def post_social(post, networks=None, link=None):
     """Post the supplied post to the supplied social networks.  If none are
     supplied, use the YAWT_MICROPOST_NETWORKS configuration
     """
@@ -36,14 +36,14 @@ def post_social(post, networks=None):
     metadata = {}
     for network in networks:
         if network == 'facebook':
-            metadata.update(post_fb(post))
+            metadata.update(post_fb(post, link))
         elif network == 'twitter':
             metadata.update(post_twitter(post))
     return metadata
 
 
-def _post_and_save(post, networks):
-    metadata = post_social(post, networks)
+def _post_and_save(post, networks, link):
+    metadata = post_social(post, networks, link)
     now = datetime.datetime.utcnow()
     metadata.update({'create_time': now.isoformat(),
                      'modified_time': now.isoformat()})
@@ -72,11 +72,12 @@ class Micropost(Command):
 
     def get_options(self):
         return [Option('post'),
-                Option('--network', '-n', action='append', default=[])]
+                Option('--network', '-n', action='append', default=[]),
+                Option('--link', '-l', default='')]
 
-    def run(self, post, network):
+    def run(self, post, network, link=None):
         current_app.preprocess_request()
-        return _post_and_save(post, network)
+        return _post_and_save(post, network, link)
 
 
 class YawtMicropost(Plugin):

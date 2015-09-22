@@ -12,12 +12,12 @@ def _notify_message(file_added):
     base_url = cfg('YAWT_NOTIFY_BASE_URL')
     name = fullname(file_added)
     link = os.path.join(base_url, name)
-    return link
+    return (link, link)
 
 
 def _post_notification(added):
-    msg = _notify_message(added)
-    post_social(msg, cfg('YAWT_NOTIFY_NETWORKS'))
+    (msg, link) = _notify_message(added)
+    post_social(msg, cfg('YAWT_NOTIFY_NETWORKS'), link)
 #    print "notify with msg = '"+msg + "' and file = "+added
 
 

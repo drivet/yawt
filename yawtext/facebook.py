@@ -6,14 +6,17 @@ import facepy
 from yawt.utils import cfg, load_file
 
 
-def post_fb(post):
+def post_fb(post, link=None):
     """Post message to facebook"""
     token_file = os.path.expanduser(cfg('YAWT_MICROPOST_FB_ACCESS_TOKEN_FILE'))
     access_tok = load_file(token_file)
     graph = facepy.GraphAPI(access_tok)
 
     print "trying to post to facebook..."
-    response = graph.post('me/feed', message=post)
+    if link:
+        response = graph.post('me/feed', message=post, link=link)
+    else:
+        response = graph.post('me/feed', message=post)
     print "response: "+str(response)
     fid = None
     retid = response['id']

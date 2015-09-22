@@ -48,7 +48,7 @@ class TestMicropost(TestCaseWithSite):
 
     def test_micropost_calls_fb_with_post(self):
         self.micropostCmd.run(post='this is a post', network=None)
-        yawtext.micropost.post_fb.assert_called_with("this is a post")
+        yawtext.micropost.post_fb.assert_called_with("this is a post", None)
 
     def test_micropost_calls_twitter_with_post(self):
         self.micropostCmd.run(post='this is a post', network=None)
