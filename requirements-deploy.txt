@@ -1,0 +1,37 @@
+# last known working full requirements file for yawt and all included
+# extensions assuming that yawt and its coupled flask extension are
+# installed via github.  Ideally we'd have these on PyPI but we're not there
+# yet.
+#
+# Use this if you want to deploy a working yawt website
+
+BeautifulSoup==3.2.1
+Flask==0.10.1
+Flask-Script==2.0.5
+Jinja2==2.7.3
+Markdown==2.5.2
+MarkupSafe==0.23
+PyYAML==3.11
+Pygments==2.0.2
+Werkzeug==0.9.6
+Whoosh==2.6.0
+argparse==1.2.1
+blinker==1.4
+facepy==1.0.6
+itsdangerous==0.24
+jsonpickle==0.8.0
+linecache2==1.0.0
+oauthlib==1.0.3
+py-gfm==0.1.1
+python-dateutil==2.4.1
+python-frontmatter==0.2.1
+pytz==2015.4
+six==1.9.0
+traceback2==1.4.0
+tweepy==3.4.0
+wsgiref==0.1.2
+
+# I should probably specify specific releases here, or commit ids
+-e git+https://github.com/drivet/flask-whoosh.git#egg=flask-whoosh
+-e git+https://github.com/drivet/yawt.git#egg=yawt
+-e git+https://github.com/drivet/update-github-clone.git#egg=update-github-clone

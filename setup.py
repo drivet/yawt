@@ -25,15 +25,21 @@ setup(
     install_requires=[
         'Flask',
         'Flask-Script',
+        'blinker',
         'Markdown',
         'jsonpickle',
         'python-dateutil',
         'Pygments',
+        # Whoosh 2.7.0 breaks my tests for some reason.
+        'Whoosh<=2.6.0'
         'Flask-Whoosh',
         'BeautifulSoup',
         'PyYAML',
         'python-frontmatter',
-        'pytz'
+        'pytz',
+        'tweepy',
+        'facepy',
+        'py-gfm'
     ],
     classifiers=[
         'Environment :: Web Environment',
