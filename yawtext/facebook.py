@@ -12,8 +12,10 @@ def post_fb(post, link=None):
     access_tok = load_file(token_file)
     graph = facepy.GraphAPI(access_tok)
 
-    print "trying to post to facebook..."
     if link:
+        print "trying force facebook to scrape URL..."
+        graph.post('/', id=link, scrape=True)
+        print "trying to post to facebook..."
         response = graph.post('me/feed', message=post, link=link)
     else:
         response = graph.post('me/feed', message=post)

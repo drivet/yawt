@@ -82,7 +82,7 @@ class ArticleInfo(ReprMixin, EqMixin):
 
 
 class Article(ReprMixin, EqMixin):
-    """The main article class, basically just conbining an info instance and
+    """The main article class, basically just combining an info instance and
     content
     """
     def __init__(self):
