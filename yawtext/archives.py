@@ -4,6 +4,8 @@ Provides archive and permalink views and categorized archive routes.
 """
 from __future__ import absolute_import
 
+import os
+
 from datetime import datetime
 from flask import current_app, g, Blueprint
 from flask.views import View
@@ -29,6 +31,11 @@ def _permalink(info):
     else:
         base = '/'
     return base + _date_hierarchy(date) + '/' + info.slug
+
+
+@archivesbp.app_template_filter('canonical')
+def _canonical(info):
+    return os.path.join(cfg('YAWT_BASE_URL'), info.fullname)
 
 
 def _find_base(name):
@@ -109,7 +116,7 @@ class PermalinkView(View):
                 article = g.site.fetch_article(info.fullname)
 
         return render(self.get_template_name(), category, slug,
-                      flav, {'article': article})
+                      flav, {'article': article, 'is_permalink': True})
 
     def get_template_name(self):
         return current_app.config['YAWT_PERMALINK_TEMPLATE']
