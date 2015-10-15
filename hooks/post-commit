@@ -3,15 +3,5 @@
 activate_this_file = "/path/to/virtualenv/bin/activate_this.py"
 execfile(activate_this_file, dict(__file__=activate_this_file))
 
-from yawt.utils import run_in_context, call_plugins
-from yawtext.git import git_diff_tree, extract_diff_tree_files
-
-repo_path = '/path/to/website'
-git = '/usr/bin/git'
-
-def main():
-    diff_tree_out = git_diff_tree(git, repo_path, 'HEAD')
-    changed = extract_diff_tree_files(diff_tree_out)
-    run_in_context(repo_path, call_plugins, 'on_files_changed', changed)
-
-main()
+from yawtext.git import post_commit
+post_commit('/path/to/website')
