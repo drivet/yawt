@@ -30,11 +30,11 @@ class YawtExcerpt(Plugin):
                 break
 
         if summary:
-            article.info.summary = Markup(summary)
+            article.info.summary = Markup(unicode(summary, 'utf-8'))
         else:
             words = article.content.split()[0:max_word_count]
             words.append("[...]")
-            article.info.summary = " ".join(words)
+            article.info.summary = unicode(" ".join(words), 'utf-8')
 
         return article
 
