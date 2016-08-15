@@ -2,7 +2,7 @@
 import os
 import shutil
 
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 from mock import Mock, patch
 from whoosh.fields import KEYWORD, TEXT
 
@@ -117,7 +117,7 @@ class TestAutotags(TestCaseWithIndex):
         changed = utils.ChangedFiles(added=['content/cooking/italian/spaghetti.txt'])
 
         mock = Mock(return_value='')
-        with patch('__builtin__.raw_input', mock):
+        with patch('builtins.input', mock):
             call_plugins('on_pre_sync', changed)
 
         self.assertIn('tags:',
@@ -128,7 +128,7 @@ class TestAutotags(TestCaseWithIndex):
         changed = utils.ChangedFiles(added=['content/cooking/italian/linguine.txt'])
 
         mock = Mock(return_value='')
-        with patch('__builtin__.raw_input', mock):
+        with patch('builtins.input', mock):
             call_plugins('on_pre_sync', changed)
 
         self.assertIn('tags: italian,pasta',
@@ -139,7 +139,7 @@ class TestAutotags(TestCaseWithIndex):
         changed = utils.ChangedFiles(added=['content/cooking/italian/spaghetti.txt'])
 
         mock = Mock(return_value='orange,apple')
-        with patch('__builtin__.raw_input', mock):
+        with patch('builtins.input', mock):
             call_plugins('on_pre_sync', changed)
 
         self.assertIn('tags: orange,apple',

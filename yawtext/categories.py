@@ -3,8 +3,6 @@
 This extension registers a Blueprint and provides - a template varable with the
 article counts for all the categories (folders), on the system.
 """
-from __future__ import absolute_import
-
 import os
 import re
 
@@ -63,7 +61,7 @@ class CategoryView(CollectionView):
         """Return the Whoosh query to be used for fetching articles in a
         certain category.
         """
-        return unicode(category)
+        return category
 
     def get_template_name(self):
         """Return the template to be used for category collections"""
@@ -117,7 +115,7 @@ class CategoryProcessor(SummaryProcessor):
             self.summary.add(category)
 
     def unvisit(self, name):
-        category = unicode(os.path.dirname(name))
+        category = os.path.dirname(name)
         if category.startswith(self.root):
             category = self._slice_base(category, self.root)
             self.summary.remove(category)

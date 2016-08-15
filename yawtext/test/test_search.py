@@ -1,8 +1,7 @@
 #pylint: skip-file
 from __future__ import absolute_import
 
-from flask.ext.testing import TestCase
-
+from flask_testing import TestCase
 from yawt import create_app
 from yawtext.test import TestCaseWithIndex
 

@@ -3,8 +3,6 @@
 The goal here is to index each article using Whoosh and the configured fields.
 The indexing itself is done via the walk phase and the on_files_changed phase.
 """
-from __future__ import absolute_import
-
 from whoosh.fields import TEXT
 
 from yawt.utils import cfg

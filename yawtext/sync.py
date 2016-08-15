@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-
-from flask import g, current_app
+from flask import current_app
 from flask_script import Command, Option
 
 from yawt.utils import call_plugins

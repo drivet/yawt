@@ -1,6 +1,4 @@
 """Initialization code for YAWT"""
-from __future__ import absolute_import
-
 import importlib
 import logging
 import os

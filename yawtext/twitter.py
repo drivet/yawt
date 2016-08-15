@@ -1,6 +1,4 @@
 """Module for posting to twitter"""
-from __future__ import absolute_import
-
 import os
 
 import tweepy

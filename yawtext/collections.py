@@ -3,8 +3,6 @@
 Provides some base functionality for all modules wishing to implement a
 collection View
 """
-from __future__ import absolute_import
-
 from math import ceil
 
 from flask import current_app, g, request, Blueprint, abort

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import jsonpickle
 from datetime import datetime
 from flask import current_app
@@ -60,7 +58,7 @@ def commit():
 def _query(query_str):
     if query_str:
         qparser = QueryParser('categories', schema=_schema())
-        return qparser.parse(unicode(query_str))
+        return qparser.parse(query_str)
     else:
         return Every()
 
@@ -106,10 +104,10 @@ def _value(field_value, field_type):
             return ' '.join(field_value)
         else:
             raise BadFieldType(field_type)
-    elif fvt in [long, int, float] and ftt is DATETIME:
+    elif fvt in [int, float] and ftt is DATETIME:
         return datetime.fromtimestamp(field_value)
-    elif fvt is unicode and ftt is DATETIME:
-        return datetime.fromtimestamp(long(field_value))
+    elif fvt is str and ftt is DATETIME:
+        return datetime.fromtimestamp(int(field_value))
     else:
         return field_value
 

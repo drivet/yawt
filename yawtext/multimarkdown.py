@@ -3,8 +3,6 @@
 This plugin will read a markdown file and a) convert the content to HTML
 and b) convert the metadata to article attributes.
 """
-from __future__ import absolute_import
-
 import markdown
 from flask import Markup, current_app
 

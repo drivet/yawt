@@ -2,8 +2,6 @@
 
 Provides archive and permalink views and categorized archive routes.
 """
-from __future__ import absolute_import
-
 import os
 
 from datetime import datetime
@@ -68,11 +66,11 @@ def _query(category='', year=None, month=None, day=None):
     query_str = datefield+':' + _datestr(year, month, day)
     if category:
         query_str += ' AND ' + category
-    return unicode(query_str)
+    return query_str
 
 
 def _fetch_date_for_name(name):
-    infos = search(unicode('fullname:'+name))
+    infos = search('fullname:'+name)
     create_time = None
     if infos:
         datefield = current_app.config['YAWT_ARCHIVE_DATEFIELD']

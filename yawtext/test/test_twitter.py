@@ -1,7 +1,7 @@
 #pylint: skip-file
 from yawtext.test import fake_tweepy
 from yawtext.twitter import post_twitter
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 from yawt.utils import save_file, remove_file
 from yawt import create_app
 import yawtext

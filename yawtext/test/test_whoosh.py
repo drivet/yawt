@@ -34,11 +34,11 @@ def _idx_root():
 
 def _article(fullname, tags, content):
     info = ArticleInfo()
-    info.fullname = unicode(fullname)
+    info.fullname = fullname
     info.tags = tags
     article = Article()
     article.info = info
-    article.content = unicode(content)
+    article.content = content
     return article
 
 

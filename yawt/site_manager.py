@@ -1,6 +1,4 @@
 """Most things relating to article definitions reside here"""
-from __future__ import absolute_import
-
 import os
 import re
 

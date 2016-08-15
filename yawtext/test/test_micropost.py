@@ -1,6 +1,6 @@
 #pylint: skip-file
 import frontmatter
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 from mock import Mock
 
 import yawtext.micropost

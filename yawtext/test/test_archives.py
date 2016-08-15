@@ -2,7 +2,7 @@
 import os
 
 import jsonpickle
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 
 from yawt import create_app
 from yawt.utils import abs_state_folder, load_file
@@ -241,7 +241,7 @@ class TestArchiveFilters(TestCaseWithSite):
     def test_permalink_filter_extracts_date(self):
         # really this should work with any URL
         response = self.client.get('/reading/hamlet')
-        assert 'permalink: /2007/06/02/hamlet' in response.data
+        assert 'permalink: /2007/06/02/hamlet' in str(response.data)
 
 
 class TestArchiveFiltersWithBase(TestCaseWithSite):
@@ -260,4 +260,4 @@ class TestArchiveFiltersWithBase(TestCaseWithSite):
     def test_permalink_filter_extracts_date(self):
         # really this should work with any URL
         response = self.client.get('/reading/hamlet')
-        assert 'permalink: /reading/2007/06/02/hamlet' in response.data
+        assert 'permalink: /reading/2007/06/02/hamlet' in str(response.data)

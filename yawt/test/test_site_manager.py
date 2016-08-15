@@ -1,6 +1,5 @@
 #pylint: skip-file
 
-import unittest
 import yawt
 from yawt.site_manager import YawtSiteManager,\
     SiteExistsError, ArticleNotFoundError
@@ -8,9 +7,7 @@ from yawt.article import ArticleInfo
 import os.path
 import shutil
 from mock import Mock
-from flask.ext.testing import TestCase
-from yawt.test.siteutils import TempSite
-from yawt.test import BaseTestSite
+from flask_testing import TestCase
 from yawt import create_app
 from yawtext import Plugin
 from yawt.test import TestCaseWithSite

@@ -33,7 +33,7 @@ setup(
         # Whoosh 2.7.0 breaks my tests for some reason.
         'Whoosh<=2.6.0'
         'Flask-Whoosh',
-        'BeautifulSoup',
+        'BeautifulSoup4',
         'PyYAML',
         'python-frontmatter',
         'pytz',

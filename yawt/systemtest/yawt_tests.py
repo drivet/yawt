@@ -68,58 +68,58 @@ class YawtSystemLevelTests(TestCaseWithSite):
     def test_missing_pages_result_in_404(self):
         rv = self.client.get("/random/blah")
         self.assert404(rv)
-        assert 'MISSING' in rv.data
+        assert 'MISSING' in str(rv.data)
 
         rv = self.client.get("/reading/")
         self.assert404(rv)
-        assert 'MISSING' in rv.data
+        assert 'MISSING' in str(rv.data)
 
     def test_root_url_loads_index_page(self):
         rv = self.client.get("/")
         self.assert200(rv)
-        assert 'ROOT' in rv.data
-        assert 'index text' in rv.data
+        assert 'ROOT' in str(rv.data)
+        assert 'index text' in str(rv.data)
 
     def test_uncategorized_page_rendered_with_root_template(self):
         rv = self.client.get("/entry")
         self.assert200(rv)
-        assert 'ROOT' in rv.data
-        assert 'entry text' in rv.data
+        assert 'ROOT' in str(rv.data)
+        assert 'entry text' in str(rv.data)
 
     def test_root_template_used_as_fallback_for_categorized_page(self):
         rv = self.client.get("/reading/hyperion")
         self.assert200(rv)
-        assert 'ROOT' in rv.data
-        assert 'hyperion text' in rv.data
+        assert 'ROOT' in str(rv.data)
+        assert 'hyperion text' in str(rv.data)
 
     def test_more_specific_template_wins(self):
         rv = self.client.get("/cooking/madras")
         self.assert200(rv)
-        assert 'COOKING' in rv.data
-        assert 'madras text' in rv.data
+        assert 'COOKING' in str(rv.data)
+        assert 'madras text' in str(rv.data)
 
     def test_template_with_name_of_page_wins(self):
         rv = self.client.get("/specific")
         self.assert200(rv)
-        assert 'SPECIFIC' in rv.data
-        assert 'specific text' in rv.data
+        assert 'SPECIFIC' in str(rv.data)
+        assert 'specific text' in str(rv.data)
 
     def test_flavoured_root_template_chosen(self):
         rv = self.client.get('/entry.flav')
         self.assert200(rv)
-        assert 'FLAV' in rv.data
-        assert 'entry text' in rv.data
+        assert 'FLAV' in str(rv.data)
+        assert 'entry text' in str(rv.data)
 
     def test_flavoured_categorized_template_chosen(self):
         rv = self.client.get('/cooking/madras.flav')
         self.assert200(rv)
-        assert 'FLAV COOKING' in rv.data
-        assert 'madras text' in rv.data
+        assert 'FLAV COOKING' in str(rv.data)
+        assert 'madras text' in str(rv.data)
 
     def test_missing_flavour_results_in_404(self):
         rv = self.client.get('/cooking/madras.vanilla')
         self.assert404(rv)
-        assert 'MISSING' in rv.data
+        assert 'MISSING' in str(rv.data)
 
     def test_category_url_with_no_slash_redirects_to_slash(self):
         rv = self.client.get('/cooking')
@@ -128,5 +128,5 @@ class YawtSystemLevelTests(TestCaseWithSite):
     def test_category_url_loads_index_article(self):
         rv = self.client.get('/cooking/')
         self.assert200(rv)
-        assert 'COOKING' in rv.data
-        assert 'cooking index text' in rv.data
+        assert 'COOKING' in str(rv.data)
+        assert 'cooking index text' in str(rv.data)

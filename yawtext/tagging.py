@@ -25,8 +25,6 @@ In addition, the tag count files are made available to templates via the
 tagcounts template variable, which is a map of bases mapped to tag counts maps.
 
 """
-from __future__ import absolute_import
-
 from flask import current_app, Blueprint, g
 
 from yawt.utils import cfg
@@ -57,7 +55,7 @@ class TaggingView(CollectionView):
         query_str = 'tags:' + tag
         if category:
             query_str += ' AND ' + category
-        return unicode(query_str)
+        return query_str
 
     def get_template_name(self):
         return current_app.config['YAWT_TAGGING_TEMPLATE']
@@ -127,7 +125,7 @@ class TagProcessor(SummaryProcessor):
         self._delete_unused_tags()
 
     def _tags_for_name(self, name):
-        infos = search(unicode('fullname:'+name))
+        infos = search('fullname:'+name)
         tags = []
         if infos and hasattr(infos[0], 'tags') and infos[0].tags:
             tags = infos[0].tags

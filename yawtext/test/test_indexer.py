@@ -4,7 +4,7 @@ import os
 import shutil
 
 from flask import g
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 from whoosh.fields import TEXT
 
 from yawt import create_app

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import os
 
 import frontmatter
@@ -22,7 +20,7 @@ def _add_tags_for_article(repofile, searcher):
                     in searcher.key_terms_from_text("content", post.content,
                                                     numterms=3)]
         keyword_str = ",".join(keywords)
-        usertags = raw_input('Enter tags (default '+keyword_str+'): ')
+        usertags = input('Enter tags (default '+keyword_str+'): ')
         tags = usertags or keyword_str
         post['tags'] = tags
         save_file(abs_article_file, frontmatter.dumps(post))
@@ -38,7 +36,7 @@ def _add_tags(changed):
 def _add_tags_for_indexed_article(indexed_file, edit):
     root_dir = current_app.yawt_root_dir
     if not indexed_file.startswith(content_folder()):
-        print "file must be in content folder"
+        print("file must be in content folder")
         return
 
     searcher = _whoosh().searcher
@@ -46,7 +44,7 @@ def _add_tags_for_indexed_article(indexed_file, edit):
     keywords = [keyword for keyword, _
                 in searcher.key_terms(docnums, "content", numterms=3)]
     keyword_str = ",".join(keywords)
-    print "Tags: "+keyword_str
+    print("Tags: "+keyword_str)
     if edit:
         abs_article_file = os.path.join(root_dir, indexed_file)
         post = frontmatter.load(abs_article_file)

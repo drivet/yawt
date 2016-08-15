@@ -1,5 +1,5 @@
 #pylint: skip-file
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 
 import yawtext
 from yawt import create_app

@@ -4,7 +4,7 @@ import shutil
 import subprocess
 
 from flask import g
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 
 from yawt import create_app
 from yawt.utils import ChangedFiles

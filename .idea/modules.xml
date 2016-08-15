@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../flask-whoosh/.idea/flask-whoosh.iml" filepath="$PROJECT_DIR$/../flask-whoosh/.idea/flask-whoosh.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/yawt.github.iml" filepath="$PROJECT_DIR$/.idea/yawt.github.iml" />
+    </modules>
+  </component>
+</project>

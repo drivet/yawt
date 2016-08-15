@@ -3,7 +3,7 @@ import os
 import shutil
 import tempfile
 
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 
 import yawt
 from yawt.utils import save_file, remove_file, load_file, ChangedFiles,\

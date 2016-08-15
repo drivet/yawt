@@ -2,8 +2,6 @@
 
 Implements full text search using Whoosh.
 """
-from __future__ import absolute_import
-
 from flask import current_app, request, g, Blueprint
 
 from yawtext import Plugin
@@ -21,11 +19,11 @@ class SearchView(CollectionView):
     methods = ['GET', 'POST']
 
     def query(self, category, *args, **kwargs):
-        searchtext = unicode(request.args.get('searchtext', ''))
+        searchtext = request.args.get('searchtext', '')
         query_str = 'content:' + searchtext
         if category:
             query_str += ' AND ' + category
-        return unicode(query_str)
+        return query_str
 
     def get_template_name(self):
         return current_app.config['YAWT_SEARCH_TEMPLATE']
@@ -45,7 +43,7 @@ class YawtSearch(Plugin):
 
 @searchbp.context_processor
 def _collection_title():
-    searchtext = unicode(request.args.get('searchtext', ''))
+    searchtext = request.args.get('searchtext', '')
     title = 'Found {0} search results for "{1}"'
     title = title.format(g.total_results, searchtext)
     return {'collection_title': title}

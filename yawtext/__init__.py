@@ -1,8 +1,6 @@
 """The YAWT extension package.
 This file contains utility classes in use by various extensions in YAWT
 """
-from __future__ import absolute_import
-
 import os
 
 import jsonpickle
@@ -27,7 +25,7 @@ class Plugin(object):
 class BranchedVisitor(Plugin):
     """Visitor plugin which will divide the article space into groups that
     match the root folders supplied.  It will instantiate a separate visitor
-    for each root folder and make sure that it only gets artidles for the
+    for each root folder and make sure that it only gets articles for the
     that root"""
     def __init__(self, roots_cfg, processor_factory, app=None):
         super(BranchedVisitor, self).__init__(app)
@@ -93,9 +91,9 @@ class ArticleProcessor(object):
             if name:
                 self.unvisit(name)
 
-        map(self.on_visit_article,
-            g.site.fetch_articles_by_repofiles(changed.modified +
-                                               changed.added))
+        for a in g.site.fetch_articles_by_repofiles(changed.modified + changed.added):
+            self.on_visit_article(a)
+
         self.on_post_walk()
 
 

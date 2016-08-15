@@ -1,6 +1,4 @@
 """The main Command Line Interface classes for YAWT"""
-from __future__ import absolute_import
-
 import argparse
 import os
 
@@ -45,18 +43,17 @@ def _root_dir():
     return args_and_rest[0].root_dir
 
 
+def create_app():
+    return yawt.create_app(_root_dir())
+
+
 def create_manager(app=None):
     """Create the command line manager"""
     app_supplied = True
     if not app:
-        app = yawt.create_app(_root_dir())
+        app = create_app()
         app_supplied = False
     manager = Manager(app)
-
-    # specify root_dir which will be consumed but ignored since we have an app
-    # instance not a function
-    manager.add_option('-r', '--root_dir', dest='root_dir',
-                       default=os.getcwd(), required=False)
 
     server = Server(use_debugger=True, use_reloader=True)
     server.description = 'runs the yawt local server.'

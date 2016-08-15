@@ -1,6 +1,4 @@
 """The YAWT Git plugin"""
-from __future__ import absolute_import
-
 import subprocess
 
 from flask import current_app
@@ -47,7 +45,8 @@ def _extract_diff_tree_files(tree1, tree2=None):
     if tree2:
         cmd.append(tree2)
 
-    diff_tree_out = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    diff_tree_out_b = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    diff_tree_out = diff_tree_out_b.decode("utf-8")
 
     added_files = []
     modified_files = []
@@ -84,8 +83,9 @@ def vc_status():
     """
     cmd_args = ['status', '-s']
 #    print _git_cmd(root_dir, args)
-    status_out = subprocess.check_output(_git_cmd(cmd_args),
-                                         stderr=subprocess.STDOUT)
+    git_cmd = _git_cmd(cmd_args)
+    status_out_b = subprocess.check_output(git_cmd, stderr=subprocess.STDOUT)
+    status_out = status_out_b.decode("utf-8")
     added_files = []
     modified_files = []
     deleted_files = []

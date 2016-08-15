@@ -1,6 +1,4 @@
 """Most things relating to article definitions reside here"""
-from __future__ import absolute_import
-
 import os
 
 import frontmatter
@@ -20,12 +18,12 @@ def _set_attributes(article_info, meta, meta_types):
 
 def _convert(mtype, value):
     if mtype == 'list':
-        return [unicode(x.strip()) for x in value.split(',')]
+        return [x.strip() for x in value.split(',')]
     elif mtype == 'iso8601':
         epoch = datetime(1970, 1, 1, tzinfo=pytz.utc)
         return int((value-epoch).total_seconds())
     else:
-        return unicode(value)
+        return value
 
 
 def _load_post(filename, article, meta_types):
@@ -49,10 +47,10 @@ def make_article(fullname, filename, meta_types=None):
     self-evident.  Metatypes directs how to convert certain pieces
     of metadata"""
     info = ArticleInfo()
-    info.fullname = unicode(fullname)
-    info.category = unicode(os.path.dirname(fullname))
-    info.slug = unicode(os.path.basename(fullname))
-    info.extension = unicode(base_and_ext(filename)[1])
+    info.fullname = fullname
+    info.category = os.path.dirname(fullname)
+    info.slug = os.path.basename(fullname)
+    info.extension = base_and_ext(filename)[1]
 
     file_metadata = _fetch_file_metadata(filename)
     info.create_time = file_metadata['create_time']

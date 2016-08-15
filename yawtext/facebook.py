@@ -1,6 +1,4 @@
 """Module for posting to facebook"""
-from __future__ import absolute_import
-
 import os
 import facepy
 from yawt.utils import cfg, load_file
@@ -13,19 +11,19 @@ def post_fb(post, link=None):
     graph = facepy.GraphAPI(access_tok)
 
     if link:
-        print "trying force facebook to scrape URL..."
+        print("trying force facebook to scrape URL...")
         graph.post('/', id=link, scrape=True)
-        print "trying to post to facebook..."
+        print("trying to post to facebook...")
         response = graph.post('me/feed', message=post, link=link)
     else:
         response = graph.post('me/feed', message=post)
-    print "response: "+str(response)
+    print("response: "+str(response))
     fid = None
     retid = response['id']
     if retid:
         pids = retid.split('_')
         if len(pids) < 2:
-            print "unexpected id format"
+            print("unexpected id format")
         fid = pids[1]
     posturl = cfg('YAWT_MICROPOST_FB_POST_URL')
     metadata = {}

@@ -1,7 +1,5 @@
 """ The main YAWT module, mostly implemented as a Blueprint.
 """
-from __future__ import absolute_import
-
 import re
 
 from datetime import datetime

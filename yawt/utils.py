@@ -1,6 +1,5 @@
 """Just a hodge podge of utility methods for use in various places in YAWT
 """
-from __future__ import absolute_import
 
 import os
 import re
@@ -13,14 +12,14 @@ def load_file(filename):
     """Load file filename and return contents"""
     with open(filename, 'r') as f:
         file_contents = f.read()
-    return unicode(file_contents)
+    return file_contents
 
 
 def save_file(filename, contents):
     """Save contents to filename"""
     ensure_path(os.path.dirname(filename))
     with open(filename, 'w') as f:
-        f.write(unicode(contents))
+        f.write(contents)
 
 
 def remove_file(filename):
@@ -155,18 +154,16 @@ def get_attributes(obj):
 
 def format_value(val):
     """format a value, using its __repr__"""
-    if isinstance(val, (basestring, date, time, datetime)):
-        val = "'{0}'".format(val)
-        return val.encode("utf-8", errors="ignore")
+    if isinstance(val, (str, date, time, datetime)):
+        return "'%s'" % val
     else:
         return val
-
 
 class ReprMixin(object):
     """Provide a standard __repr__ implementation that formats __dict__
     based classes."""
     def __repr__(self):
-        attrstr =", ".join("{0}={1}".format(k[0], format_value(k[1])) for k in get_attributes(self).items())
+        attrstr = ", ".join("{0}={1}".format(k[0], format_value(k[1])) for k in get_attributes(self).items())
         return "{0}({1})".format(type(self).__name__, attrstr)
 
 

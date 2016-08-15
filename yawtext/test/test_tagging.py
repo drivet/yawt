@@ -2,7 +2,7 @@
 import os
 
 import jsonpickle
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 
 from yawt import create_app
 from yawt.utils import abs_state_folder, load_file
@@ -100,10 +100,8 @@ class TestTaggingCounts(TestCaseWithIndex):
         self.app.config['YAWT_TAGGING_BASE'] = ['reading', 'cooking']
         self._walk()
 
-        self.site.change(added={'content/reading/emma.txt':
-                                EMMA},
-                         modified={'content/cooking/indian/madras.txt':
-                                   NEW_MADRAS},
+        self.site.change(added={'content/reading/emma.txt': EMMA},
+                         modified={'content/cooking/indian/madras.txt': NEW_MADRAS},
                          deleted=['content/cooking/soup.txt'])
 
         readingcounts_path = os.path.join(abs_state_folder(),

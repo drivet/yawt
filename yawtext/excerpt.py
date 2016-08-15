@@ -1,7 +1,6 @@
 """The basic YAWT excerpt extension"""
-from __future__ import absolute_import
 
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 from flask import current_app, Markup
 
 from yawtext import Plugin
@@ -20,7 +19,7 @@ class YawtExcerpt(Plugin):
     def on_article_fetch(self, article):
         """Set the article summary"""
         max_word_count = current_app.config['YAWT_EXCERPT_WORDCOUNT']
-        soup = BeautifulSoup(article.content)
+        soup = BeautifulSoup(article.content, 'html.parser')
         summary = ''
         word_count = 0
         for child in soup.findAll(recursive=False):
@@ -30,11 +29,11 @@ class YawtExcerpt(Plugin):
                 break
 
         if summary:
-            article.info.summary = Markup(unicode(summary, 'utf-8'))
+            article.info.summary = Markup(summary)
         else:
             words = article.content.split()[0:max_word_count]
             words.append("[...]")
-            article.info.summary = unicode(" ".join(words), 'utf-8')
+            article.info.summary = " ".join(words)
 
         return article
 
@@ -45,4 +44,4 @@ def _count_words(soup):
 
 
 def _striptags(soup):
-    return ''.join([e for e in soup.recursiveChildGenerator() if isinstance(e, unicode)])
+    return ''.join([e for e in soup.recursiveChildGenerator() if isinstance(e, str)])

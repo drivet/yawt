@@ -1,8 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import sys
 from yawt import create_app
-from flask import Flask, g
+from flask import g
 
 master_ref = "refs/heads/master"
 root_dir = '/home/dcr/blogging/git'

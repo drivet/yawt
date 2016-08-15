@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import os
 
 import datetime
@@ -20,12 +18,12 @@ def write_post(metadata, content, filename):
         for key in metadata:
             f.write(u'{0}: {1}\n'.format(key, metadata[key]))
         f.write(u'---\n')
-        f.write(unicode(content))
+        f.write(content)
 
 
 def _extract_tags(post):
-    return set([tag.strip('#') for tag in post.split()
-                if tag.startswith('#') and len(tag) > 1])
+    return sorted(set([tag.strip('#') for tag in post.split()
+                  if tag.startswith('#') and len(tag) > 1]))
 
 
 def post_social(post, networks=None, link=None):

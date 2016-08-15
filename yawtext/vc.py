@@ -1,8 +1,6 @@
 """The YAWT Git plugin which will dig into the repo to provide create_time,
 modified_time and author information
 """
-from __future__ import absolute_import
-
 import os
 
 from flask import current_app

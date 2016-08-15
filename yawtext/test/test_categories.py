@@ -2,7 +2,7 @@
 import os
 
 import jsonpickle
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 
 from yawt import create_app, utils
 from yawt.utils import abs_state_folder, call_plugins, load_file, ChangedFiles
